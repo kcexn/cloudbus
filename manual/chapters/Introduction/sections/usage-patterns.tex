@@ -1,0 +1,41 @@
+\section{Usage Patterns}
+Cloudbus is a large system with many complex and highly detailed components. To make understanding the various features of Cloudbus %
+more accessible, Cloudbus' software components are all designed around one of the following high-level behavioural abstractions:
+\begin{itemize}
+	\item POSIX pipe stream processing.
+	\item POSIX job control patterns.
+\end{itemize}
+\subsection{POSIX pipe stream processing patterns}
+The POSIX pipe stream processing pattern dictates that all data processing that occurs on a system running cloudbus can be understood as one %
+or more stages in a streamed data processing pipeline. Semantically, this expression will be similar to the pipe operation commonly found %
+in many command-line shells --- \texttt{stage\_1 | stage\_2 | stage\_3}. The key difference between cloudbus pipes and typical POSIX pipes %
+is that cloudbus pipes can express the data processing pipelines of arbitrarily complex directed acyclic graphs:
+\begin{center}
+	\begin{tabular}{c|c|c|c}
+		\multirow{4}{*}{\texttt{stage\_1}} & \texttt{stage\_2} & \multirow{2}{*}{\texttt{stage\_4}} & \multirow{4}{*}{\texttt{stage\_6}} \\
+																			 & \texttt{stage\_3} & 																		& \\
+																			 & \texttt{stage\_5} & \multirow{2}{*}{\texttt{stage\_5}}	& \\
+																			 & \texttt{stage\_7} & 																		&
+	\end{tabular}
+\end{center}
+Where inputs are placed on the left, and the execution of stages in each subsequent column depends on at least one of the stages in the %
+previous column. Semantically, this means that the output of stages in each column is connected to the input of every stage in the %
+subsequent column. The precise implementation of the DAG is allowed to relax the one-to-all relationship to a one-to-many relationship %
+whenever it doesn't violate the principle of the abstraction.
+
+\subsection{POSIX job control patterns}
+The POSIX job control pattern dictates that the execution of jobs on a system running cloudbus should behave as if it were being %
+executed by a shell that supports job control. This means that the semantics of \texttt{SIGSTOP} and \texttt{SIGCONT} are supported. These %
+job control signals are implemented by the stage executors, this means that there must be a control proxy between each stage in the %
+data processing pipeline that manages the application state and execution status of subsequent stages.
+\begin{center}
+	\begin{tabular}{c|c|c|c|c|c|c}
+		\multirow{4}{*}{\texttt{stage\_1}} & 
+		\multirow{4}{*}{\texttt{control\_1}} & \texttt{stage\_2}  & 
+		\multirow{4}{*}{\texttt{control\_2}} & \multirow{2}{*}{\texttt{stage\_4}} & 
+		\multirow{4}{*}{\texttt{control\_3}} & \multirow{4}{*}{\texttt{stage\_6}} \\
+		& & \texttt{stage\_3} & &																		& &\\
+		& &\texttt{stage\_5}  & &\multirow{2}{*}{\texttt{stage\_5}}	& &\\
+		& &\texttt{stage\_7}  & &																		& &
+	\end{tabular}
+\end{center}

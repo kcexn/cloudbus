@@ -1,0 +1,55 @@
+\begin{tikzpicture}[
+	rect/.style={
+		rectangle,
+		draw=black
+	},
+	circ/.style={
+		circle,
+		draw=black
+	},
+	every node/.style={
+		font=\footnotesize
+	}
+]{
+	\def\width{12}
+	\def\height{12}
+%	\draw[help lines, opacity=0.5] (0,0) grid (\width,\height);
+	\begin{scope}[local bounding box=v1]
+		\node(d1)[rect] at (4,7){Director 1};
+		\node(d2)[rect] at (8,7){Director 2};
+	\end{scope}
+	\draw ($(v1.south west) - (1,1)$) rectangle ($(v1.north east)+(1,1)$);
+	\node at ($(v1.north) + (0,0.5)$){Virtual IP 1};
+	
+	
+	\node(s1)[rect] at (1.5,4){Server 1};
+	\node(s2)[rect] at (4.5,4){Server 2};
+	\node(s3)[rect] at (7.5,4){Server 3};
+	\node(s4)[rect] at (10.5,4){Server 4};
+	
+	\path[->] (d1.south) edge (s1.north)
+											 edge (s2.north)
+											 edge (s3.north)
+											 edge (s4.north);
+											 
+	\path[->] (d2.south) 	edge (s1.north)
+												edge (s2.north)
+												edge (s3.north)
+												edge (s4.north);
+	
+%	\node(sp1)[rect] at (4,14){Spout};
+%	\node(sp2)[rect] at (4,8){Spout};
+%	
+%	\node(b1)[circ] at (13,19){Bolt};
+%	\node(b2)[circ] at (13,14){Bolt};
+%	\node(b3)[circ] at (13,8){Bolt};
+%	\node(b4)[circ] at (22,17){Bolt};
+%	
+%	\path[->] (sp2) edge (b3);
+%	\path[->] (sp1) edge (b1)
+%	edge (b2)
+%	edge (b3);
+%	\path[->] (b1) edge (b4);
+%	\path[->] (b2) edge (b4);
+}
+\end{tikzpicture}

@@ -1,0 +1,41 @@
+\begin{frame}
+	\frametitle{Proposal --- CloudBus}
+	\only<1>{
+		\begin{block}{Session-Layer Protocol for Stream Control and Request Routing}
+			Resource management for large-scale \small distributed data processing suffers from a variety of performance problems %
+			associated with \footnotesize heterogeneity and time-variation, \scriptsize chief among them \LARGE.......
+		\end{block}
+	}
+	\only<2>{
+		\begin{figure}
+			\includegraphics[width=0.75\textwidth]{./figures/ow-generatesshkeys}
+			\caption{Clever request routing can dramatically reduce request latency while simultaneously improving application availability %
+				and reliability. (\href{https://arxiv.org/abs/2403.16457}{https://arxiv.org/abs/2403.16457})}
+		\end{figure}
+	}
+	\only<3>{
+		\Large \textbf{What do we need to generalize this?} \normalsize \vspace{1em}
+		\begin{itemize}
+			\item Session-layer control protocol for routing application data streams. \vspace{1em}
+			\item Distributed proxy agents that can act on behalf of users.
+		\end{itemize}
+	}
+	\only<4>{
+		\Large \textbf{Has anyone done this before?} \scriptsize (hint: yes) \normalsize \vspace{1em}
+		\begin{itemize}
+			\item SIP (Session Initiation Protocol)
+			\item SDP (Session Description Protocol)
+		\end{itemize}\vspace{1em}
+		\scriptsize A robust and easily extensible open-source implementation of IMS core would invalidate many of my points...
+	}
+	\only<5>{
+		\Large \textbf{Why don't we use SIP in every IT network?} \normalsize \vspace{1em}
+		\begin{itemize}
+			\item Protocol design suffers from telco corpospeak. \scriptsize (\emph{not cool}, nobody under the age of 50 wants to %
+			read about using a telephone to \emph{talk to people}). \normalsize
+			\item Protocol design also appears to suffer a bit from \emph{Conway's law} \scriptsize (The design of a system mirrors %
+			the communication structure of the organization that made it). \normalsize
+			\item A minimal working example of a SIP core network has too many---pieces.
+		\end{itemize}
+	}
+\end{frame}

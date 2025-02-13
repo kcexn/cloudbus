@@ -1,0 +1,22 @@
+\section{Background}
+Middleware frameworks are often monolithic and have been designed to suit the purposes of a single organization, examples include Kubernetes %
+YARN, and Mesos. In most designs, application scheduling and resource management is done independently of networked communication. This limits %
+the ability for the resource management daemons in these frameworks to use feedback mechanisms to improve application performance via enhanced %
+resource managmement. 
+
+Contemporary research in queuing and information theory indicates that job schedules can be improved by integrating the following %
+ideas into resource management frameworks:
+\begin{itemize}
+	\item Time-sharing application execution over parallel and statistically independent compute resources. This is best achieved by %
+	breaking application execution into many small atomic functions that can be executed idempotently on any node in the network.
+	\item Take full advantage of idle network capacity to spread workloads more evenly across the cluster via distributed state-sharing %
+	--- this improves application performance even when taking the communication latency between nodes into consideration.
+	\item Take full advantage of idle compute resources via opportunistic CPU and memory bursting. This increases the probability of resource %
+	starvation at the per-node level but this risk can be mitigated by replicating workloads across multiple independent nodes.
+	\item Emphasizing the mitigation of long-tail events that degrade the aggregate performance of all applications that are multiplexed %
+	on a given cluster. This means ensuring that the steady-state probability of a long-tail event should converge to 0. Long-tail %
+	events should be considered any event whose performance measurements indicate that the hazard-rate (halting-rate) function will %
+	be decreasing (less likely to stop with more time) rather than non-decreasing.
+\end{itemize}
+
+Cloudbus strives to be compatible with existing resource management frameworks for cloud computing and large-scale distributed data processing.

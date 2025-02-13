@@ -1,0 +1,5 @@
+The architecture of a system running cloudbus is composed from the connection of many independently executing copies of two components: %
+the cloudbus connector, and the cloudbus controller. The cloudbus connector facilitates piped stream processing and the cloudbus %
+controller implements job control. The stages of an application may be simultaneously attached to arbitrarily many different connectors %
+and controllers --- this means that controllers and connectors must never assume that they are the single-source of management for %
+application execution.

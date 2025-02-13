@@ -1,0 +1,12 @@
+Cloudbus is a distributed request router that combines application scheduling and messaging services in one framework. Cloudbus is designed %
+to improve the resource usage efficiency of large-scale distributed applications that are deployed on time-multiplexed general purpose %
+hardware --- a typical configuration for cloud data centers. Cloudbus achieves this by:
+\begin{itemize}
+	\item Dynamically exposing applications as networked services, with semantics similar to that of POSIX pipes.
+	\item Binding application resource scheduling commands to networked control signals with semantics similar to that of POSIX job %
+	control signals.
+	\item Multiplexing application data streams with application resource scheduling controls.
+	\item Exposing common network controls with an API that allows developers to implement queuing, routing, and scheduling %
+	controls.
+	\item Overlaying state-of-the-art queuing, routing, and scheduling algorithms on top of the basic Cloudbus infrastructure.
+\end{itemize}

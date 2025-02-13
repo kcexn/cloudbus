@@ -1,0 +1,19 @@
+\section{\AppName Controller}
+The cloudbus controller facilitates the scheduling, routing, and control operations that must occur between each data processing stage. As %
+request routing and application scheduling algorithms and approaches are iteratively always improving, the cloudbus controller %
+is designed to expose application stream routing and job control signaling to third-party libraries and algorithms via carefully %
+designed public interfaces and internal performance measurement data structures.
+
+The cloudbus controller must expose the following public methods to both linked libraries and RPC mechanisms:
+\begin{itemize}
+	\item Job STOP: taking as an argument a unique stage identifier and a non-empty list of node identifiers.
+	\item Job START: taking as an argument a unique stage identifier and a non-empty list of node identifiers.
+\end{itemize}
+
+The cloudbus controller must expose the following performance measurement data structures to both linked libraries and RPC mechanisms:
+\begin{itemize}
+	\item Job ARRIVAL TIME: taking as an argument a unique stage identifier --- returning the timestamp of the arrival time of the input %
+	data to this stage.
+	\item Job COMPLETION TIME: taking as an argument a unique stage identifer --- returning the timestamp of the arrival time of the %
+	output data of this stage.
+\end{itemize}

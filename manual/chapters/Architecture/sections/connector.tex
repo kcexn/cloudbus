@@ -1,0 +1,12 @@
+\section{\AppName Connector}
+The cloudbus connector facilitates the pipe ``\texttt{|}'' operation in a system running cloudbus. The connector must be transport layer %
+agnostic so as to be as portable as possible across different systems as well as different types of distributed applications. %
+All connectors have two well-defined interfaces:
+\begin{itemize}
+	\item The inbound interface: provides the streaming interface on the left-hand side of the pipe operation.
+	\item The outbound interface: provides the streaming interface on the right-hand side of the pipe operation.
+\end{itemize}
+While connectors facilitate the streaming of data between the outputs of one data processing stage and the inputs of another, %
+modern distributed data processing architectures will typically use many different application layer protocols for application %
+layer routing and session control. As such, connectors \emph{should} be application layer agnostic and facilitate %
+translation between the application layer protocol on its inbound interface with its outbound interface.

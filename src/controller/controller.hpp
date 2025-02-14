@@ -58,7 +58,7 @@ namespace cloudbus{
                 
                 controller();
                 int run();
-                ~controller();
+                virtual ~controller();
 
                 controller(const controller& other) = delete;
                 controller(controller&& other) = delete;

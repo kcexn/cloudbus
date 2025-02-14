@@ -222,8 +222,8 @@ namespace cloudbus {
                     _north_err_handler(interface, stream, revents);
                     return handled;
                 }
-            }         
-            _north_state_handler(interface, stream, revents);           
+                _north_state_handler(interface, stream, revents);  
+            }
             if(revents & (POLLIN | POLLHUP)){
                 ++handled;
                 if(stream == interface->streams().front()){
@@ -254,11 +254,11 @@ namespace cloudbus {
             auto& buf = std::get<marshaller_type::south_format>(*it);
             if(ssp->gcount() == 0)
                 revents &= ~(POLLIN | POLLHUP);
-            if(auto *eid = buf.eid(); !buf.eof() && buf.tellp() >= hdrlen){
+            if(buf.tellp() >= hdrlen){
                 auto seekpos = buf.tellg();
                 if(seekpos < hdrlen) seekpos = hdrlen;
                 for(auto conn = connections().begin(); conn < connections().end();){
-                    if(conn->uuid == *eid){
+                    if(conn->uuid == *buf.eid()){
                         if(auto n = conn->north.lock()){
                             buf.seekg(seekpos);
                             stream_write(*n, buf);
@@ -308,8 +308,8 @@ namespace cloudbus {
                     _south_err_handler(interface, stream, revents);
                     return handled;
                 }
+                _south_state_handler(interface, stream, revents);
             }
-            _south_state_handler(interface, stream, revents);
             if(revents & (POLLIN | POLLHUP)){
                 ++handled;
                 if(_south_pollin_handler(interface, stream, revents)){

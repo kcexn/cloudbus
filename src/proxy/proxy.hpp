@@ -13,14 +13,14 @@
 * You should have received a copy of the GNU General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
-#include "segment_connector.hpp"
+#include "proxy_connector.hpp"
 #pragma once
-#ifndef CLOUDBUS_SEGMENT
-#define CLOUDBUS_SEGMENT
+#ifndef CLOUDBUS_PROXY
+#define CLOUDBUS_PROXY
 namespace cloudbus{
-    namespace segment {
+    namespace proxy {
         template<class ConnectorT>
-        class basic_segment: public handler_type
+        class basic_proxy: public handler_type
         {
             public:
                 using Base = handler_type;
@@ -31,40 +31,40 @@ namespace cloudbus{
 
                 using connector_type = ConnectorT;          
 
-                basic_segment(): _connector{_triggers}{}
+                basic_proxy(): _connector{_triggers}{}
 
                 trigger_type& triggers() { return _triggers; }              
                 connector_type& connector() { return _connector; }
 
-                virtual ~basic_segment() = default;
+                virtual ~basic_proxy() = default;
 
-                basic_segment(basic_segment&& other) = delete;
-                basic_segment(const basic_segment& other) = delete;
-                basic_segment& operator=(basic_segment&& other) = delete;
-                basic_segment& operator=(const basic_segment& other) = delete;
+                basic_proxy(basic_proxy&& other) = delete;
+                basic_proxy(const basic_proxy& other) = delete;
+                basic_proxy& operator=(basic_proxy&& other) = delete;
+                basic_proxy& operator=(const basic_proxy& other) = delete;
 
             private:
                 trigger_type _triggers;
                 connector_type _connector;
         };
         
-        class segment : public basic_segment<segment_connector>
+        class proxy : public basic_proxy<proxy_connector>
         {
             public:
-                using Base = basic_segment<segment_connector>;
+                using Base = basic_proxy<proxy_connector>;
                 using trigger_type = Base::trigger_type;
                 using events_type = Base::events_type;
                 using event_mask = Base::event_mask;
                 using connector_type = Base::connector_type;
                 
-                segment();
+                proxy();
                 int run();
-                virtual ~segment();
+                virtual ~proxy();
 
-                segment(const segment& other) = delete;
-                segment(segment&& other) = delete;
-                segment& operator=(segment&& other) = delete;
-                segment& operator=(const segment& other) = delete;
+                proxy(const proxy& other) = delete;
+                proxy(proxy&& other) = delete;
+                proxy& operator=(proxy&& other) = delete;
+                proxy& operator=(const proxy& other) = delete;
                 
             protected:
                 virtual int _handle(events_type& events) override;

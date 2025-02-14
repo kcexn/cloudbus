@@ -19,6 +19,9 @@
 #ifdef COMPILE_SEGMENT
     #include "segment/segment.hpp"
 #endif
+#ifdef COMPILE_PROXY
+    #include "proxy/proxy.hpp"
+#endif
 
 int main(int argc, char* argv[]) {
     #ifdef COMPILE_CONTROLLER
@@ -26,6 +29,9 @@ int main(int argc, char* argv[]) {
     #endif
     #ifdef COMPILE_SEGMENT
         return cloudbus::segment::segment().run();
+    #endif
+    #ifdef COMPILE_PROXY
+        return cloudbus::proxy::proxy().run();
     #endif
     return 0;
 }

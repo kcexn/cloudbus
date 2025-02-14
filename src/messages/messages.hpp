@@ -53,8 +53,8 @@ namespace cloudbus{
         } msgversion;
         enum types : std::uint8_t {
             DATA,
-            REGISTER,
-            STOP
+            STOP,
+            CONTROL
         };
         typedef struct {
             std::uint8_t op; // 8 bit msg op code.

@@ -10,7 +10,8 @@ COMPONENTS= io \
 	messages \
 	interfaces \
 	segment \
-	registry
+	registry \
+	proxy
 VPATH=$(addprefix $(SRC)/,$(COMPONENTS))
 CPPFLAGS = -Wall \
 	-Wpedantic \
@@ -40,8 +41,14 @@ SEGMENT := $(COMMON) \
 	segment_interfaces \
 	segment_marshallers \
 	segment
+PROXY := $(COMMON) \
+	proxy_connector \
+	proxy_interfaces \
+	proxy_marshallers \
+	proxy
 EXECUTABLES := controller \
-	segment
+	segment \
+	proxy
 
 export TEXINPUTS=$(MANUAL_PATH):
 
@@ -53,6 +60,9 @@ $(BIN_DIR)/controller: $(addsuffix .o,$(addprefix $(OBJECT_DIR)/, $(CONTROLLER))
 
 $(BIN_DIR)/segment: $(addsuffix .o,$(addprefix $(OBJECT_DIR)/, $(SEGMENT)))
 	mkdir -p $(BIN_DIR) && $(CXX) $(CPPFLAGS) -D COMPILE_SEGMENT $(SRC)/main.cpp -o $@ $^
+
+$(BIN_DIR)/proxy: $(addsuffix .o,$(addprefix $(OBJECT_DIR)/, $(PROXY)))
+	mkdir -p $(BIN_DIR) && $(CXX) $(CPPFLAGS) -D COMPILE_PROXY $(SRC)/main.cpp -o $@ $^	
 
 $(OBJECT_DIR)/%.o: %.cpp
 	mkdir -p $(OBJECT_DIR) && $(CXX) -c $(CPPFLAGS) $< -o $@

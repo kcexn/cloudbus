@@ -16,12 +16,12 @@
 #include "proxy_interfaces.hpp"
 namespace cloudbus{
     namespace proxy {
-      cbus_interface::cbus_interface(): Base() {}
-      cbus_interface::cbus_interface(const address_type addr, size_type addrlen): Base(addr, addrlen){}
-      cbus_interface::cbus_interface(cbus_interface&& other): Base(std::move(other)){}
-      cbus_interface& cbus_interface::operator=(cbus_interface&& other){
-        Base::operator=(std::move(other));
-        return *this;
-      }
+        cbus_interface::cbus_interface(): Base() {}
+        cbus_interface::cbus_interface(const address_type addr, size_type addrlen): Base(addr, addrlen){}
+        cbus_interface::cbus_interface(cbus_interface&& other): Base(std::move(other)){}
+        cbus_interface& cbus_interface::operator=(cbus_interface&& other){
+            Base::operator=(std::move(other));
+            return *this;
+        }
     }
 }

@@ -82,9 +82,8 @@ namespace io{
                 default:    
                     throw std::runtime_error("Unknown socket domain.");
             }
-            if(bind(socket, addr, size)) {
+            if(bind(socket, addr, size))
                 throw std::runtime_error("unable to bind the socket");
-            }
         }
         
         static void socket_listen(native_handle_type socket, optval& val){

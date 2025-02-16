@@ -32,7 +32,6 @@ namespace cloudbus {
               throw std::runtime_error("Unable to set the socket to nonblocking mode.");
           return fd;
         }
-
         static int _accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen){
             int fd =0;
             if((fd = accept(sockfd, addr, addrlen)) >= 0){
@@ -240,7 +239,6 @@ namespace cloudbus {
             }     
             return handled;
         } 
-        
         void control_connector::_south_err_handler(shared_south& interface, south_type::stream_type& stream, event_mask& revents){
             revents = 0;
             triggers().clear(std::get<south_type::native_handle_type>(stream));

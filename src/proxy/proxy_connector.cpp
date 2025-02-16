@@ -53,51 +53,51 @@ namespace cloudbus{
 
         proxy_connector::proxy_connector(trigger_type& triggers): Base(triggers){}
         proxy_connector::norths_type::iterator proxy_connector::make(norths_type& n, const north_type::address_type addr, north_type::size_type addrlen){
-          constexpr int backlog = 128;
-          n.push_back(make_north(addr, addrlen));
-          auto& interface = n.back();
-          auto& stream = interface->make(interface->address()->sa_family, SOCK_STREAM, 0);
-          auto sockfd = set_flags(std::get<north_type::native_handle_type>(stream));
-          if(bind(sockfd, interface->address(), interface->addrlen())) throw std::runtime_error("bind()");
-          if(listen(sockfd, backlog)) throw std::runtime_error("listen()");
-          triggers().set(sockfd, POLLIN);
-          return --n.end();
+            constexpr int backlog = 128;
+            n.push_back(make_north(addr, addrlen));
+            auto& interface = n.back();
+            auto& stream = interface->make(interface->address()->sa_family, SOCK_STREAM, 0);
+            auto sockfd = set_flags(std::get<north_type::native_handle_type>(stream));
+            if(bind(sockfd, interface->address(), interface->addrlen())) throw std::runtime_error("bind()");
+            if(listen(sockfd, backlog)) throw std::runtime_error("listen()");
+            triggers().set(sockfd, POLLIN);
+            return --n.end();
         }
         proxy_connector::souths_type::iterator proxy_connector::make(souths_type& s, const south_type::address_type addr, south_type::size_type addrlen){
-          s.push_back(make_south(addr, addrlen));
-          return --s.end();
+            s.push_back(make_south(addr, addrlen));
+            return --s.end();
         }
 
         int proxy_connector::_handle(events_type& events){
-          int handled = 0;
-          for(auto& event: events){
-            if(auto& revents = event.revents){
-              auto nit = std::find_if(north().begin(), north().end(), [&](auto& interface){
-                for(auto& stream: interface->streams()){
-                    if(std::get<north_type::native_handle_type>(stream) == event.fd){
-                        handled += _handle(interface, stream, revents);
-                        return true;
+            int handled = 0;
+            for(auto& event: events){
+                if(auto& revents = event.revents){
+                    auto nit = std::find_if(north().begin(), north().end(), [&](auto& interface){
+                        for(auto& stream: interface->streams()){
+                            if(std::get<north_type::native_handle_type>(stream) == event.fd){
+                                handled += _handle(interface, stream, revents);
+                                return true;
+                            }
+                        }
+                        return false;
+                    });
+                    if(nit != north().end()) continue;
+                    auto sit = std::find_if(south().begin(), south().end(), [&](auto& interface){
+                        for(auto& stream: interface->streams()){
+                            if(std::get<south_type::native_handle_type>(stream) == event.fd){
+                                handled += _handle(interface, stream, revents);
+                                return true;
+                            }
+                        }
+                        return false;
+                    });
+                    if(sit == south().end()){
+                        triggers().clear(event.fd);
+                        revents = 0;
                     }
                 }
-                return false;
-              });
-              if(nit != north().end()) continue;
-              auto sit = std::find_if(south().begin(), south().end(), [&](auto& interface){
-                for(auto& stream: interface->streams()){
-                    if(std::get<south_type::native_handle_type>(stream) == event.fd){
-                        handled += _handle(interface, stream, revents);
-                        return true;
-                    }
-                }
-                return false;
-              });
-              if(sit == south().end()){
-                triggers().clear(event.fd);
-                revents = 0;
-              }
             }
-          }
-          return handled;
+            return handled;
         }
 
         void proxy_connector::_north_err_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents){
@@ -212,9 +212,9 @@ namespace cloudbus{
         }
 
         void proxy_connector::_south_err_handler(shared_south& interface, south_type::stream_type& stream, event_mask& revents){
-          revents = 0;
-          triggers().clear(std::get<south_type::native_handle_type>(stream));
-          interface->erase(stream);
+            revents = 0;
+            triggers().clear(std::get<south_type::native_handle_type>(stream));
+            interface->erase(stream);
         }
         int proxy_connector::_south_pollin_handler(shared_south& interface, south_type::stream_type& stream, event_mask& revents){       
             constexpr std::streamsize hdrlen = sizeof(messages::msgheader);

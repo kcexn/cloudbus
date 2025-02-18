@@ -117,29 +117,26 @@ namespace cloudbus {
             triggers().clear(std::get<north_type::native_handle_type>(stream));
             interface->erase(stream);
         }
-        void control_connector::_north_connect_handler(shared_north& interface, north_type::stream_ptr& nsp, marshaller_type::north_format& buf, event_mask& revents){
-            auto posit = std::find(north().begin(), north().end(), interface);
-            auto& sbd = south()[posit - north().begin()];
-            south_type::stream_type s;
-            south_type::stream_ptr ssp;
-            south_type::native_handle_type fd;
-            if(sbd->streams().empty()){
-                s = sbd->make(sbd->address()->sa_family, SOCK_STREAM, 0);
-                fd = set_flags(std::get<south_type::native_handle_type>(s));
-                ssp = std::get<south_type::stream_ptr>(s);
-                ssp->connectto(sbd->address(), sbd->addrlen());
-            } else {
-                s = sbd->streams().back();
-                fd = std::get<south_type::native_handle_type>(s);
-                ssp = std::get<south_type::stream_ptr>(s);
-            }
+        void control_connector::_north_connect_write(south_type::stream_type& s, north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
+            auto& ssp = std::get<south_type::stream_ptr>(s);
+            auto& fd = std::get<south_type::native_handle_type>(s);
             messages::msgheader head = {messages::make_uuid_v4(), {1, static_cast<std::uint16_t>(sizeof(head) + buf.tellp())}, {0,0}, {(nsp->eof()) ? messages::STOP : messages::DATA,0}};
             ssp->write(reinterpret_cast<char*>(&head), sizeof(head));
-            buf.seekg(0);
-            stream_write(*ssp, buf, buf.tellp());
+            stream_write(*ssp, buf.seekg(0), buf.tellp());
             triggers().set(fd, (POLLIN | POLLOUT));
-            connections().push_back(connection_type{head.eid, nsp, ssp, (head.type.op == messages::STOP) ? connection_type::HALF_CLOSED : connection_type::HALF_OPEN});        
-        }     
+            connections().push_back(connection_type{head.eid, nsp, ssp, (head.type.op == messages::STOP) ? connection_type::HALF_CLOSED : connection_type::HALF_OPEN});  
+        }
+        void control_connector::_north_connect_handler(shared_north& interface, north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
+            auto posit = std::find(north().begin(), north().end(), interface);
+            auto& sbd = south()[posit - north().begin()];
+            if(sbd->streams().empty()){
+                auto& s = sbd->make(sbd->address()->sa_family, SOCK_STREAM, 0);
+                set_flags(std::get<south_type::native_handle_type>(s));
+                auto& ssp = std::get<south_type::stream_ptr>(s);
+                ssp->connectto(sbd->address(), sbd->addrlen());
+                return _north_connect_write(s, nsp, buf);
+            } else return _north_connect_write(sbd->streams().back(), nsp, buf);
+        }
         int control_connector::_north_pollin_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents){
             /* forward the data arriving on the northbound connection to the southbound service. */
             auto it = marshaller().unmarshal(stream);
@@ -147,7 +144,7 @@ namespace cloudbus {
             if(nsp->gcount() == 0)
                 revents &= ~(POLLIN | POLLHUP);
             auto& buf = std::get<marshaller_type::north_format>(*it);
-            if(nsp->eof() || buf.tellp() > 0){
+            if(buf.tellp() > 0 || nsp->eof()){
                 for(auto conn = connections().begin(); conn < connections().end();){
                     if(auto n = conn->north.lock()){
                         if(n == nsp){
@@ -166,8 +163,8 @@ namespace cloudbus {
                         } else ++conn;
                     } else conn = connections().erase(conn);
                 }
-                if(!buf.eof() && buf.tellp() > buf.tellg())
-                    _north_connect_handler(interface, nsp, buf, revents);
+                if(!buf.eof() && buf.tellp() != buf.tellg())
+                    _north_connect_handler(interface, nsp, buf);
             }
             if(nsp->eof()) return -1;
             return 0;

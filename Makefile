@@ -15,7 +15,7 @@ COMPONENTS= io \
 VPATH=$(addprefix $(SRC)/,$(COMPONENTS))
 CPPFLAGS = -Wall \
 	-Wpedantic \
-	-g
+    -g
 #	-O3 \
 	-march=x86-64 \
 	-flto \

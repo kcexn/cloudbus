@@ -14,9 +14,10 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "control_connector.hpp"
+#include <tuple>
 #include <sys/un.h>
 #include <fcntl.h>
-#ifdef DEBUG
+#ifdef PROFILE
     #include <chrono>
     #include <iostream>
 #endif
@@ -47,18 +48,15 @@ namespace cloudbus {
                         throw std::runtime_error("Unable to accept connected socket.");
                 }
             }
-        }     
+        }
+        static std::array<char, 256> _buf = {};
         static void stream_write(std::ostream& os, std::istream& is){
-            constexpr std::streamsize buflen = 256;
-            std::array<char, buflen> buf;
-            while(auto gcount = is.readsome(buf.data(), buflen))
-                os.write(buf.data(), gcount);
+            while(auto gcount = is.readsome(_buf.data(), _buf.size()))
+                os.write(_buf.data(), gcount);
         }              
         static void stream_write(std::ostream& os, std::istream& is, std::streamsize maxlen){
-            constexpr std::streamsize buflen = 256;
-            std::array<char, buflen> buf;
-            while(auto gcount = is.readsome(buf.data(), std::min(maxlen, buflen))){
-                os.write(buf.data(), gcount);
+            while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.size())))){
+                os.write(_buf.data(), gcount);
                 maxlen -= gcount;
             }
         }
@@ -95,16 +93,16 @@ namespace cloudbus {
                         }
                         return false;
                     });
-                    if(nit != north().end()) continue;
+                    if(nit != north().end()) continue;                
                     auto sit = std::find_if(south().begin(), south().end(), [&](auto& interface){
                         for(auto& stream: interface->streams()){
                             if(std::get<south_type::native_handle_type>(stream) == event.fd){
-                                handled += _handle(interface, stream, revents);
+                                handled += _handle(interface, stream, revents);                           
                                 return true;
                             }
                         }
                         return false;
-                    });
+                    });               
                     if(sit == south().end()){
                         triggers().clear(event.fd);
                         revents = 0;
@@ -204,7 +202,7 @@ namespace cloudbus {
                 } else conn = connections().erase(conn);
             }
         }
-        int control_connector::_north_pollout_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents){
+        int control_connector::_north_pollout_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents){       
             if(revents & POLLERR) return -1;
             auto& nsp = std::get<north_type::stream_ptr>(stream);
             if(nsp->flush().bad()) return -1;

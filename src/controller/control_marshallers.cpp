@@ -16,35 +16,33 @@
 #include "control_marshallers.hpp"
 namespace cloudbus{
     namespace controller {
+        static std::array<char, 256> _buf = {};
         static bool xmsg_read(messages::xmsgstream& buf, std::istream& is){
-            constexpr std::streamsize hdr_size = sizeof(messages::msgheader), tmpsize = 256;
+            constexpr std::streamsize hdr_size = sizeof(messages::msgheader);
             std::streamsize gcount = 0, p = 0;
-            char tmp[tmpsize] = {};
             if(buf.eof()){
                 buf.seekg(0);
                 buf.seekp(0);
             }
             for(p = buf.tellp(); p < hdr_size; p += gcount){
-                if((gcount = is.readsome(tmp, hdr_size - p))){
-                    if(buf.write(tmp, gcount).bad())
+                if((gcount = is.readsome(_buf.data(), hdr_size - p))){
+                    if(buf.write(_buf.data(), gcount).bad())
                         throw std::runtime_error("Unable to write to xmsg buffer.");
                 } else return is.eof();
             }
-            for(auto rem = buf.len()->length - p; rem > 0; rem -= gcount){
-                if((gcount = is.readsome(tmp, std::min(rem, tmpsize)))){
-                    if(buf.write(tmp, gcount).bad())
+            for(std::uint16_t rem = buf.len()->length - p; rem > 0; rem -= gcount){
+                if((gcount = is.readsome(_buf.data(), std::min(rem, static_cast<std::uint16_t>(_buf.size()))))){
+                    if(buf.write(_buf.data(), gcount).bad())
                         throw std::runtime_error("Unable to write to xmsg buffer.");
                 } else return is.eof();
             }
             return is.eof();
         }
-
         static bool stream_copy(std::ostream& os, std::istream& is){
-            constexpr std::streamsize hdrlen = sizeof(messages::msgheader), buflen = 256;
+            constexpr std::streamsize hdrlen = sizeof(messages::msgheader);
             std::streamsize maxlen = UINT16_MAX - hdrlen;
-            std::array<char, buflen> buf;
-            while(auto gcount = is.readsome(buf.data(), std::min(maxlen, buflen))){
-                os.write(buf.data(), gcount);
+            while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.size())))){
+                os.write(_buf.data(), gcount);
                 maxlen -= gcount;
             }
             return is.eof();

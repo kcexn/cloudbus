@@ -43,13 +43,12 @@ namespace cloudbus{
                         throw std::runtime_error("Unable to accept connected socket.");
                 }
             }
-        }        
+        }    
+        static std::array<char, 256> _buf = {};
         static void stream_write(std::ostream& os, std::istream& is){
-            constexpr std::streamsize buflen = 256;
-            std::array<char, buflen> buf;
-            while(auto gcount = is.readsome(buf.data(), buflen))
-                os.write(buf.data(), gcount);
-        }
+            while(auto gcount = is.readsome(_buf.data(), _buf.size()))
+                os.write(_buf.data(), gcount);
+        }              
 
         proxy_connector::proxy_connector(trigger_type& triggers): Base(triggers){}
         proxy_connector::norths_type::iterator proxy_connector::make(norths_type& n, const north_type::address_type addr, north_type::size_type addrlen){

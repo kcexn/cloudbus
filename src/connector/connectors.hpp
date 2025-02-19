@@ -34,10 +34,9 @@ namespace cloudbus {
         uuid_type uuid;
         north_ptr north;
         south_ptr south;
-        states state;
+        int state;
         times_type timestamps;
     };
-
     template<class MarshallerT, class HandlerT>
     class basic_connector: public HandlerT
     {

@@ -49,6 +49,17 @@ namespace cloudbus {
                 }
             }
         }
+        static void state_update(control_connector::connection_type& conn, const messages::msgtype& type, const control_connector::connection_type::time_point time){
+            switch(conn.state){
+                case control_connector::connection_type::HALF_OPEN:
+                    conn.timestamps[++conn.state] = time;
+                case control_connector::connection_type::OPEN:
+                case control_connector::connection_type::HALF_CLOSED:
+                    if(type.op != messages::STOP) return;
+                    conn.timestamps[++conn.state] = time;
+                default: return;
+            }
+        }
         static std::array<char, 256> _buf = {};
         static void stream_write(std::ostream& os, std::istream& is){
             while(auto gcount = is.readsome(_buf.data(), _buf.max_size()))
@@ -119,16 +130,16 @@ namespace cloudbus {
         }
         void control_connector::_north_connect_write(south_type::stream_type& s, north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
             auto& ssp = std::get<south_type::stream_ptr>(s);
-            auto& fd = std::get<south_type::native_handle_type>(s);
-            messages::msgheader head = {
+            const auto p = buf.tellp();
+            const messages::msgheader head = {
                 messages::make_uuid_v4(), 
-                {1, static_cast<std::uint16_t>(sizeof(head) + buf.tellp())}, 
+                {1, static_cast<std::uint16_t>(sizeof(head) + p)}, 
                 {0,0}, 
                 {(nsp->eof()) ? messages::STOP : messages::DATA,0}
             };
-            ssp->write(reinterpret_cast<char*>(&head), sizeof(head));
-            stream_write(*ssp, buf.seekg(0), buf.tellp());
-            triggers().set(fd, (POLLIN | POLLOUT));
+            ssp->write(reinterpret_cast<const char*>(&head), sizeof(head));
+            stream_write(*ssp, buf.seekg(0), p);
+            triggers().set(std::get<south_type::native_handle_type>(s), (POLLIN | POLLOUT));
             const auto n = connection_type::clock_type::now();
             connections().push_back(
                 (head.type.op == messages::STOP)
@@ -137,8 +148,8 @@ namespace cloudbus {
             );
         }
         void control_connector::_north_connect_handler(shared_north& interface, north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
-            auto posit = std::find(north().begin(), north().end(), interface);
-            auto& sbd = south()[posit - north().begin()];
+            auto posit = std::find(north().cbegin(), north().cend(), interface);
+            auto& sbd = south()[posit - north().cbegin()];  
             if(sbd->streams().empty()){
                 auto& s = sbd->make(sbd->address()->sa_family, SOCK_STREAM, 0);
                 set_flags(std::get<south_type::native_handle_type>(s));
@@ -154,45 +165,36 @@ namespace cloudbus {
             if(nsp->gcount() == 0)
                 revents &= ~(POLLIN | POLLHUP);
             auto& buf = std::get<marshaller_type::north_format>(*it);
-            if(buf.tellp() > 0 || nsp->eof()){
+            const auto eof = nsp->eof();
+            if(const auto p = buf.tellp(); eof || p > 0){
                 for(auto conn = connections().begin(); conn < connections().end();){
                     if(auto n = conn->north.lock()){
                         if(n == nsp){
                             if(auto s = conn->south.lock()){
-                                messages::msgheader head = {conn->uuid, {1, static_cast<std::uint16_t>(sizeof(head) + buf.tellp())}, {0,0}, {(std::get<north_type::stream_ptr>(stream)->eof()) ? messages::STOP : messages::DATA,0}};
-                                s->write(reinterpret_cast<char*>(&head), sizeof(head));
-                                stream_write(*s, buf.seekg(0), buf.tellp());
+                                const messages::msgheader head = {
+                                    conn->uuid, 
+                                    {1, static_cast<std::uint16_t>(sizeof(head) + p)}, 
+                                    {0,0}, 
+                                    {eof ? messages::STOP : messages::DATA,0}
+                                };
+                                s->write(reinterpret_cast<const char*>(&head), sizeof(head));
+                                stream_write(*s, buf.seekg(0), p);
                                 triggers().set(s->native_handle(), POLLOUT);
-                                const auto& op = head.type.op;
-                                switch(const auto n = connection_type::clock_type::now(); conn->state){
-                                    case connection_type::HALF_OPEN:
-                                        conn->timestamps[connection_type::OPEN] = n;
-                                        conn->state = connection_type::OPEN;
-                                    case connection_type::OPEN:
-                                        if(op != messages::STOP) break;
-                                        conn->timestamps[connection_type::HALF_CLOSED] = n;
-                                        conn->state = connection_type::HALF_CLOSED;
-                                        break;
-                                    case connection_type::HALF_CLOSED:
-                                        if(op != messages::STOP) break;
-                                        conn->timestamps[connection_type::CLOSED] = n;
-                                        conn->state = connection_type::CLOSED;
-                                    default: break;
-                                }
+                                state_update(*conn, head.type, connection_type::clock_type::now());
                                 ++conn;
                             } else conn = connections().erase(conn);
                         } else ++conn;
                     } else conn = connections().erase(conn);
                 }
-                if(!buf.eof() && buf.tellp() != buf.tellg())
-                    _north_connect_handler(interface, nsp, buf);
+                if(p != buf.tellg())
+                    _north_connect_handler(interface, nsp, buf);          
             }
-            if(nsp->eof()) return -1;
+            if(eof) return -1;
             return 0;
         }
         int control_connector::_north_accept_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents){
             int sockfd = 0;
-            auto listenfd = std::get<north_type::native_handle_type>(stream);
+            const auto listenfd = std::get<north_type::native_handle_type>(stream);
             while((sockfd = _accept(listenfd, nullptr, nullptr)) >= 0){
                 interface->make(sockfd);
                 triggers().set(sockfd, POLLIN);
@@ -268,35 +270,20 @@ namespace cloudbus {
             auto& buf = std::get<marshaller_type::south_format>(*it);
             if(ssp->gcount() == 0)
                 revents &= ~(POLLIN | POLLHUP);
-            if(buf.tellp() >= hdrlen){
-                auto seekpos = buf.tellg();
-                if(seekpos < hdrlen) seekpos = hdrlen;
+            const auto *eid = buf.eid();
+            if(const auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
+                const auto seekpos = buf.tellg() <= hdrlen ? hdrlen : static_cast<std::streamsize>(buf.tellg());
                 for(auto conn = connections().begin(); conn < connections().end();){
-                    if(conn->uuid == *buf.eid()){
+                    if(conn->uuid == *eid){
                         if(auto n = conn->north.lock()){
                             stream_write(*n, buf.seekg(seekpos));
                             triggers().set(n->native_handle(), POLLOUT);
-                            const auto& op = buf.type()->op;
-                            switch(const auto n = connection_type::clock_type::now(); conn->state){
-                                case connection_type::HALF_OPEN:
-                                    conn->timestamps[connection_type::OPEN] = n;
-                                    conn->state = connection_type::OPEN;
-                                case connection_type::OPEN:
-                                    if(op != messages::STOP) break;
-                                    conn->timestamps[connection_type::HALF_CLOSED] = n;
-                                    conn->state = connection_type::HALF_CLOSED;
-                                    break;
-                                case connection_type::HALF_CLOSED:
-                                    if(op != messages::STOP) break;
-                                    conn->timestamps[connection_type::CLOSED] = n;
-                                    conn->state = connection_type::CLOSED;
-                                default: break;
-                            }
+                            state_update(*conn, *type, connection_type::clock_type::now());
                             ++conn;
                         } else conn = connections().erase(conn);
                     } else ++conn;
                 }
-                if(!buf.eof() && buf.tellp() != buf.tellg())
+                if(!buf.eof() && buf.tellg() <= seekpos)
                     buf.setstate(std::ios_base::eofbit);
             }
             if(ssp->eof()) return -1;

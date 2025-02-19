@@ -16,6 +16,10 @@
 #include "segment_connector.hpp"
 #include <sys/un.h>
 #include <fcntl.h>
+#ifdef PROFILE
+    #include <chrono>
+    #include <iostream>
+#endif
 namespace cloudbus{
     namespace segment {
         static int set_flags(int fd){
@@ -30,9 +34,7 @@ namespace cloudbus{
         }
         static int _accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen){
             int fd =0;
-            if((fd = accept(sockfd, addr, addrlen)) >= 0){
-                return set_flags(fd);
-            } else {
+            if((fd = accept(sockfd, addr, addrlen)) < 0){
                 switch(errno){
                     case EINTR:
                         return _accept(sockfd, addr, addrlen);
@@ -42,7 +44,7 @@ namespace cloudbus{
                     default:
                         throw std::runtime_error("Unable to accept connected socket.");
                 }
-            }
+            } else return set_flags(fd);
         }
         static void state_update(segment_connector::connection_type& conn, const messages::msgtype& type, const segment_connector::connection_type::time_point time){
             switch(conn.state){
@@ -142,7 +144,7 @@ namespace cloudbus{
         int segment_connector::_north_pollin_handler(const shared_north& interface, north_type::stream_type& stream, event_mask& revents){
             constexpr std::streamsize hdrlen = sizeof(messages::msgheader);
             /* forward the data arriving on the northbound connection to the southbound service. */
-            auto it = marshaller().unmarshal(stream);
+            auto it = marshaller().unmarshal(stream);          
             auto& buf = std::get<marshaller_type::north_format>(*it);
             auto& nsp = std::get<north_type::stream_ptr>(stream);
             if(nsp->gcount() == 0)
@@ -161,7 +163,7 @@ namespace cloudbus{
                     } else ++conn;
                 }
                 if(!buf.eof() && buf.tellg() <= seekpos)
-                    _north_connect_handler(interface, nsp, buf);
+                    _north_connect_handler(interface, nsp, buf);                  
             }
             if(nsp->eof()) return -1;
             else return 0;

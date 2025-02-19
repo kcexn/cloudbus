@@ -20,6 +20,10 @@
 #include <csignal>
 #include <sys/socket.h>
 #include <sys/un.h>
+#ifdef PROFILE
+    #include <chrono>
+    #include <iostream>
+#endif
 namespace cloudbus{
     namespace proxy{
         proxy::proxy(): Base(){
@@ -60,7 +64,7 @@ namespace cloudbus{
             std::signal(SIGHUP, sighandler);
             while(triggers().wait(pause) >= 0){
                 auto events = triggers().events();
-                for(int i = 0, handled = handle(events); handled != 0 && i++ < FAIRNESS; handled = handle(events));
+                for(int i = 0, handled = handle(events); handled > 0 && i++ < FAIRNESS; handled = handle(events));
                 if(signal) return signal;
             }
             return 0;

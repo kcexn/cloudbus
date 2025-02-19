@@ -35,9 +35,7 @@ namespace cloudbus {
         }
         static int _accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen){
             int fd =0;
-            if((fd = accept(sockfd, addr, addrlen)) >= 0){
-                return set_flags(fd);
-            } else {
+            if((fd = accept(sockfd, addr, addrlen)) < 0){
                 switch(errno){
                     case EINTR:
                         return _accept(sockfd, addr, addrlen);
@@ -47,7 +45,7 @@ namespace cloudbus {
                     default:
                         throw std::runtime_error("Unable to accept connected socket.");
                 }
-            }
+            } else return set_flags(fd);
         }
         static void state_update(control_connector::connection_type& conn, const messages::msgtype& type, const control_connector::connection_type::time_point time){
             switch(conn.state){

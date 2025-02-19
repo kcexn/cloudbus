@@ -70,7 +70,7 @@ namespace cloudbus{
             return 0;
         }
         int segment::_handle(events_type& events){
-        return connector().handle(events);
+            return connector().handle(events);
         }
     }
 }

@@ -65,15 +65,15 @@ namespace cloudbus {
                 void _north_err_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents);
                 void _north_connect_write(south_type::stream_type& s, north_type::stream_ptr& nsp, marshaller_type::north_format& buf);
                 void _north_connect_handler(const shared_north& interface, north_type::stream_ptr& nsp, marshaller_type::north_format& buf);
-                int _north_pollin_handler(const shared_north& interface, north_type::stream_type& stream, event_mask& revents);
+                int _north_pollin_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents);
                 int _north_accept_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents);
                 void _north_state_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents);
                 int _north_pollout_handler(north_type::stream_type& stream, event_mask& revents);
                 int _handle(shared_north& interface, north_type::stream_type& stream, event_mask& revents);
 
                 void _south_err_handler(shared_south& interface, const south_type::stream_type& stream, event_mask& revents);
-                int _south_pollin_handler(const shared_south& interface, south_type::stream_type& stream, event_mask& revents);
-                void _south_state_handler(shared_south& interface, const south_type::stream_type& stream, event_mask& revents);
+                int _south_pollin_handler(shared_south& interface, south_type::stream_type& stream, event_mask& revents);
+                int _south_state_handler(const south_type::stream_type& stream);
                 int _south_pollout_handler(south_type::stream_type& stream, event_mask& revents);
                 int _handle(shared_south& interface, south_type::stream_type& stream, event_mask& revents);
         };

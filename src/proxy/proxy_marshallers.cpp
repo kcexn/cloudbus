@@ -31,7 +31,7 @@ namespace cloudbus{
                 } else return is.eof();
             }
             for(std::uint16_t rem = buf.len()->length - p; rem > 0; rem -= gcount){
-                if((gcount = is.readsome(_buf.data(), std::min(rem, static_cast<std::uint16_t>(_buf.size()))))){
+                if((gcount = is.readsome(_buf.data(), std::min(rem, static_cast<std::uint16_t>(_buf.max_size()))))){
                     if(buf.write(_buf.data(), gcount).bad())
                         throw std::runtime_error("Unable to write to xmsg buffer.");
                 } else return is.eof();

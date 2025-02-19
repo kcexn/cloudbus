@@ -46,11 +46,11 @@ namespace cloudbus{
         }        
         static std::array<char, 256> _buf = {};
         static void stream_write(std::ostream& os, std::istream& is){
-            while(auto gcount = is.readsome(_buf.data(), _buf.size()))
+            while(auto gcount = is.readsome(_buf.data(), _buf.max_size()))
                 os.write(_buf.data(), gcount);
         }              
         static void stream_write(std::ostream& os, std::istream& is, std::streamsize maxlen){
-            while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.size())))){
+            while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.max_size())))){
                 os.write(_buf.data(), gcount);
                 maxlen -= gcount;
             }
@@ -119,10 +119,14 @@ namespace cloudbus{
             auto& ssp = std::get<south_type::stream_ptr>(s);
             auto fd = set_flags(std::get<south_type::native_handle_type>(s));
             ssp->connectto(sbd->address(), sbd->addrlen());
-            connections().push_back(connection_type{*(buf.eid()), nsp, ssp, (buf.type()->op == messages::STOP) ? connection_type::HALF_CLOSED : connection_type::HALF_OPEN});
-            buf.seekg(hdrlen);
-            stream_write(*ssp, buf);
-            triggers().set(fd, (POLLIN | POLLOUT));  
+            const auto n = connection_type::clock_type::now();
+            connections().push_back(
+                (buf.type()->op == messages::STOP)
+                ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
+                : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
+            );
+            stream_write(*ssp, buf.seekg(hdrlen));
+            triggers().set(fd, (POLLIN | POLLOUT));
         }             
         int segment_connector::_north_pollin_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents){
             constexpr std::streamsize hdrlen = sizeof(messages::msgheader);
@@ -138,13 +142,24 @@ namespace cloudbus{
                 for(auto conn = connections().begin(); conn < connections().end();){
                     if(conn->uuid == *buf.eid()){
                         if(auto s = conn->south.lock()){
-                            buf.seekg(seekpos);
-                            stream_write(*s, buf);
+                            stream_write(*s, buf.seekg(seekpos));
                             triggers().set(s->native_handle(), POLLOUT);
-                            if(buf.type()->op == messages::STOP){
-                                if(conn->state < connection_type::HALF_CLOSED) conn->state = connection_type::HALF_CLOSED;
-                                else conn->state = connection_type::CLOSED;
-                            } else if (conn->state == connection_type::HALF_OPEN) conn->state = connection_type::OPEN;
+                            const auto& op = buf.type()->op;
+                            switch(const auto n = connection_type::clock_type::now(); conn->state){
+                                case connection_type::HALF_OPEN:
+                                    conn->timestamps[connection_type::OPEN] = n;
+                                    conn->state = connection_type::OPEN;
+                                case connection_type::OPEN:
+                                    if(op != messages::STOP) break;
+                                    conn->timestamps[connection_type::HALF_CLOSED] = n;
+                                    conn->state = connection_type::HALF_CLOSED;
+                                    break;
+                                case connection_type::HALF_CLOSED:
+                                    if(op != messages::STOP) break;
+                                    conn->timestamps[connection_type::CLOSED] = n;
+                                    conn->state = connection_type::CLOSED;
+                                default: break;
+                            }
                             ++conn;
                         } else conn = connections().erase(conn);
                     } else ++conn;
@@ -223,7 +238,8 @@ namespace cloudbus{
             if(ssp->gcount() == 0)
             revents &= ~(POLLIN | POLLHUP);
             auto& buf = std::get<marshaller_type::south_format>(*it);
-            if(ssp->eof() || buf.tellp() > 0){
+            const auto eof = ssp->eof();
+            if(eof || buf.tellp() > 0){
                 for(auto conn = connections().begin(); conn < connections().end();){
                     if(auto s = conn->south.lock()){
                         if(s == ssp){
@@ -233,10 +249,21 @@ namespace cloudbus{
                                 buf.seekg(0);             
                                 stream_write(*n, buf, buf.tellp());
                                 triggers().set(n->native_handle(), POLLOUT);
-                                if(head.type.op == messages::STOP){
-                                    if(conn->state < connection_type::HALF_CLOSED) conn->state = connection_type::HALF_CLOSED;
-                                    else conn->state = connection_type::CLOSED;
-                                } else if (conn->state == connection_type::HALF_OPEN) conn->state = connection_type::OPEN;
+                                switch(const auto n = connection_type::clock_type::now(); conn->state){
+                                    case connection_type::HALF_OPEN:
+                                        conn->timestamps[connection_type::OPEN] = n;
+                                        conn->state = connection_type::OPEN;
+                                    case connection_type::OPEN:
+                                        if(!eof) break;
+                                        conn->timestamps[connection_type::HALF_CLOSED] = n;
+                                        conn->state = connection_type::HALF_CLOSED;
+                                        break;
+                                    case connection_type::HALF_CLOSED:
+                                        if(!eof) break;
+                                        conn->timestamps[connection_type::CLOSED] = n;
+                                        conn->state = connection_type::CLOSED;
+                                    default: break;
+                                }
                                 ++conn;
                             } else conn = connections().erase(conn);
                         } else ++conn;
@@ -244,7 +271,7 @@ namespace cloudbus{
                 }
                 if(!buf.eof() && buf.tellp() > buf.tellg()) return -1;
             }
-            if(ssp->eof()) return -1;
+            if(eof) return -1;
             return 0;
         }
         void segment_connector::_south_state_handler(shared_south& interface, south_type::stream_type& stream, event_mask& revents){

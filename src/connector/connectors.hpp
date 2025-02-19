@@ -16,7 +16,8 @@
 #include "../messages.hpp"
 #include <memory>
 #include <tuple>
-
+#include <array>
+#include <chrono>
 #pragma once
 #ifndef CLOUDBUS_CONNECTOR
 #define CLOUDBUS_CONNECTOR
@@ -26,11 +27,15 @@ namespace cloudbus {
         using uuid_type = messages::uuid;
         using north_ptr = NorthWeakPtr;
         using south_ptr = SouthWeakPtr;
+        using clock_type = std::chrono::steady_clock;
+        using time_point = clock_type::time_point;
+        using times_type = std::array<time_point, 4>;
         enum states {HALF_OPEN, OPEN, HALF_CLOSED, CLOSED};
         uuid_type uuid;
         north_ptr north;
         south_ptr south;
         states state;
+        times_type timestamps;
     };
 
     template<class MarshallerT, class HandlerT>

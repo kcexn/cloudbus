@@ -31,7 +31,7 @@ namespace cloudbus{
                 } else return is.eof();
             }
             for(std::uint16_t rem = buf.len()->length - p; rem > 0; rem -= gcount){
-                if((gcount = is.readsome(_buf.data(), std::min(rem, static_cast<std::uint16_t>(_buf.size()))))){
+                if((gcount = is.readsome(_buf.data(), std::min(rem, static_cast<std::uint16_t>(_buf.max_size()))))){
                     if(buf.write(_buf.data(), gcount).bad())
                         throw std::runtime_error("Unable to write to xmsg buffer.");
                 } else return is.eof();
@@ -41,7 +41,7 @@ namespace cloudbus{
         static bool stream_copy(std::ostream& os, std::istream& is){
             constexpr std::streamsize hdrlen = sizeof(messages::msgheader);
             std::streamsize maxlen = UINT16_MAX - hdrlen;
-            while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.size())))){
+            while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.max_size())))){
                 os.write(_buf.data(), gcount);
                 maxlen -= gcount;
             }

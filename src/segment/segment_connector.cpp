@@ -181,12 +181,10 @@ namespace cloudbus{
         void segment_connector::_north_state_handler(const north_type::stream_type& stream){
             for(auto conn = connections().begin(); conn < connections().end();){
                 if(auto n = conn->north.lock()){
-                    if(n == std::get<north_type::stream_ptr>(stream)){
-                        if(conn->state == connection_type::CLOSED){
+                    if(n == std::get<north_type::stream_ptr>(stream))
+                        if(conn->state == connection_type::CLOSED)
                             if(auto s = conn->south.lock())
                                 triggers().set(s->native_handle(), POLLOUT);
-                        }
-                    }
                     ++conn;
                 } else conn = connections().erase(conn);
             }

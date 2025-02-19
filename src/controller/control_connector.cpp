@@ -123,7 +123,7 @@ namespace cloudbus {
             return handled;
         }
 
-        void control_connector::_north_err_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents){
+        void control_connector::_north_err_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             revents = 0;
             triggers().clear(std::get<north_type::native_handle_type>(stream));
             interface->erase(stream);
@@ -147,7 +147,7 @@ namespace cloudbus {
                 : connection_type{head.eid, nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
             );
         }
-        void control_connector::_north_connect_handler(shared_north& interface, north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
+        void control_connector::_north_connect_handler(const shared_north& interface, north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
             auto posit = std::find(north().cbegin(), north().cend(), interface);
             auto& sbd = south()[posit - north().cbegin()];  
             if(sbd->streams().empty()){
@@ -158,7 +158,7 @@ namespace cloudbus {
                 return _north_connect_write(s, nsp, buf);
             } else return _north_connect_write(sbd->streams().back(), nsp, buf);
         }
-        int control_connector::_north_pollin_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents){
+        int control_connector::_north_pollin_handler(const shared_north& interface, north_type::stream_type& stream, event_mask& revents){
             /* forward the data arriving on the northbound connection to the southbound service. */
             auto it = marshaller().unmarshal(stream);
             auto& nsp = std::get<north_type::stream_ptr>(stream);
@@ -192,7 +192,7 @@ namespace cloudbus {
             if(eof) return -1;
             return 0;
         }
-        int control_connector::_north_accept_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents){
+        int control_connector::_north_accept_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             int sockfd = 0;
             const auto listenfd = std::get<north_type::native_handle_type>(stream);
             while((sockfd = _accept(listenfd, nullptr, nullptr)) >= 0){
@@ -202,7 +202,7 @@ namespace cloudbus {
             revents &= ~(POLLIN | POLLHUP);
             return 0;
         }
-        void control_connector::_north_state_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents){
+        void control_connector::_north_state_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             for(auto conn = connections().begin(); conn < connections().end();){
                 if(auto n = conn->north.lock()){
                     if(n == std::get<north_type::stream_ptr>(stream)){
@@ -222,7 +222,7 @@ namespace cloudbus {
                 } else conn = connections().erase(conn);
             }
         }
-        int control_connector::_north_pollout_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents){       
+        int control_connector::_north_pollout_handler(north_type::stream_type& stream, event_mask& revents){       
             if(revents & POLLERR) return -1;
             auto& nsp = std::get<north_type::stream_ptr>(stream);
             if(nsp->flush().bad()) return -1;
@@ -235,7 +235,7 @@ namespace cloudbus {
             int handled = 0;
             if(revents & (POLLOUT | POLLERR)){
                 ++handled;
-                if(_north_pollout_handler(interface, stream, revents)){
+                if(_north_pollout_handler(stream, revents)){
                     _north_err_handler(interface, stream, revents);
                     return handled;
                 }
@@ -257,12 +257,12 @@ namespace cloudbus {
             }     
             return handled;
         } 
-        void control_connector::_south_err_handler(shared_south& interface, south_type::stream_type& stream, event_mask& revents){
+        void control_connector::_south_err_handler(shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
             revents = 0;
             triggers().clear(std::get<south_type::native_handle_type>(stream));
             interface->erase(stream);
         }
-        int control_connector::_south_pollin_handler(shared_south& interface, south_type::stream_type& stream, event_mask& revents){
+        int control_connector::_south_pollin_handler(const shared_south& interface, south_type::stream_type& stream, event_mask& revents){
             constexpr std::streamsize hdrlen = sizeof(messages::msgheader);         
             /* forward the data arriving on the northbound connection to the southbound service. */
             auto it = marshaller().marshal(stream);
@@ -289,7 +289,7 @@ namespace cloudbus {
             if(ssp->eof()) return -1;
             return 0;
         }
-        void control_connector::_south_state_handler(shared_south& interface, south_type::stream_type& stream, event_mask& revents){
+        void control_connector::_south_state_handler(shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
             std::size_t count = 0;
             for(auto conn = connections().begin(); conn < connections().end();){
                 if(auto s = conn->south.lock()){
@@ -303,7 +303,7 @@ namespace cloudbus {
             }
             if(count == 0) _south_err_handler(interface, stream, revents);
         }
-        int control_connector::_south_pollout_handler(shared_south& interface, south_type::stream_type& stream, event_mask& revents){
+        int control_connector::_south_pollout_handler(south_type::stream_type& stream, event_mask& revents){
             if(revents & POLLERR) return -1;
             auto& ssp = std::get<south_type::stream_ptr>(stream);
             if(ssp->flush().bad()) return -1;
@@ -316,7 +316,7 @@ namespace cloudbus {
             int handled = 0;          
             if(revents & (POLLOUT | POLLERR)){
                 ++handled;
-                if(_south_pollout_handler(interface, stream, revents)){
+                if(_south_pollout_handler(stream, revents)){
                     _south_err_handler(interface, stream, revents);
                     return handled;
                 }

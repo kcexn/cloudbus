@@ -179,7 +179,12 @@ namespace cloudbus {
                                 stream_write(*s, buf.seekg(0), p);
                                 triggers().set(s->native_handle(), POLLOUT);
                                 state_update(*conn, head.type, connection_type::clock_type::now());
-                                ++conn;
+                                switch(conn->state){
+                                    case connection_type::CLOSED: return -1;
+                                    case connection_type::HALF_CLOSED:
+                                        triggers().clear(std::get<north_type::native_handle_type>(stream), POLLIN);
+                                    default: return 0;
+                                }
                             } else conn = connections().erase(conn);
                         } else ++conn;
                     } else conn = connections().erase(conn);

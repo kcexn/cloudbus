@@ -6,6 +6,13 @@
 		\end{figure}
 	}
 	\only<2>{
+		\begin{figure}
+			\input{./figures/distributed-processing.tex}
+			\caption{Simple Example: Inbound requests are divided into heterogeneous data-parallel operations (with dependencies) that are %
+				routed across a collection of backends.}
+		\end{figure}
+	}
+	\only<3>{
 		\Large \textbf{What have we tried?} \normalsize\vspace{1em}
 		\begin{columns}
 			\begin{column}{0.45\textwidth}
@@ -34,12 +41,12 @@
 			\end{column}
 		\end{columns}
 	}
-	\only<3>{
+	\only<4>{
 		\begin{center}
 			\LARGE Has any of it actually worked?
 		\end{center}
 	}
-	\only<4>{
+	\only<5>{
 		\begin{figure}
 			\includegraphics[width=0.6\textwidth]{./figures/standards.png}
 			\caption{\scriptsize Courtesy of XKCD. (\href{https://xkcd.com/927/}{https://xkcd.com/927/})}

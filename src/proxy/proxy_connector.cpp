@@ -111,7 +111,30 @@ namespace cloudbus{
         }
 
         void proxy_connector::_north_err_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
-            revents = 0;
+            revents = 0;       
+            for(auto conn = connections().begin(); conn < connections().end();){
+                if(auto n = conn->north.lock()){
+                    if(n == std::get<north_type::stream_ptr>(stream)){
+                        const messages::msgheader head = {
+                            conn->uuid,
+                            {1, sizeof(head)},
+                            {0,0},
+                            {messages::STOP, 0}
+                        };
+                        state_update(*conn, head.type, connection_type::clock_type::now());
+                        switch(conn->state){
+                            case connection_type::HALF_CLOSED:
+                                if(auto s = conn->south.lock()){
+                                    s->write(reinterpret_cast<const char*>(&head), sizeof(head));
+                                    triggers().set(s->native_handle(), POLLOUT);
+                                    ++conn;
+                                    break;
+                                }
+                            default: conn = connections().erase(conn);
+                        }
+                    } else ++conn;
+                } else conn = connections().erase(conn);
+            }
             triggers().clear(std::get<north_type::native_handle_type>(stream));
             interface->erase(stream);
         }
@@ -154,7 +177,10 @@ namespace cloudbus{
                             triggers().set(s->native_handle(), POLLOUT);
                             state_update(*conn, *type, connection_type::clock_type::now());
                             ++conn;
-                        } else conn = connections().erase(conn);
+                        } else {
+                            buf.setstate(std::ios_base::eofbit);
+                            conn = connections().erase(conn);
+                        }
                     } else ++conn;
                 }
                 if(!buf.eof() && buf.tellg() == seekpos)
@@ -197,33 +223,49 @@ namespace cloudbus{
             int handled = 0;
             if(revents & (POLLOUT | POLLERR)){
                 ++handled;
-                if(_north_pollout_handler(stream, revents)){
+                if(_north_pollout_handler(stream, revents))
                     _north_err_handler(interface, stream, revents);
-                    return handled;
-                }
-                _north_state_handler(interface, stream, revents);
+                else _north_state_handler(interface, stream, revents);
             }
             if(revents & (POLLIN | POLLHUP)){
                 ++handled;
                 if(stream == interface->streams().front()){
-                    if(_north_accept_handler(interface, stream, revents)){
+                    if(_north_accept_handler(interface, stream, revents))
                         _north_err_handler(interface, stream, revents);
-                        return handled;
-                    }
-                } else {
-                    if(_north_pollin_handler(interface, stream, revents)){
-                        _north_err_handler(interface, stream, revents);
-                        return handled;
-                    }
-                }
+                } else if(_north_pollin_handler(interface, stream, revents))
+                    _north_err_handler(interface, stream, revents);
             }
             return handled;
         }
 
         void proxy_connector::_south_err_handler(shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
             revents = 0;
+            for(auto conn = connections().begin(); conn < connections().end();){
+                if(auto s = conn->south.lock()){
+                    if(s == std::get<south_type::stream_ptr>(stream)){
+                        const messages::msgheader head = {
+                            conn->uuid,
+                            {1, sizeof(head)},
+                            {0,0},
+                            {messages::STOP, 0}
+                        };
+                        state_update(*conn, head.type, connection_type::clock_type::now());
+                        switch(conn->state){
+                            case connection_type::HALF_CLOSED:
+                                if(auto n = conn->north.lock()){
+                                    n->write(reinterpret_cast<const char*>(&head), sizeof(head));
+                                    triggers().set(n->native_handle(), POLLOUT);
+                                    ++conn;
+                                    break;
+                                }
+                            default: conn = connections().erase(conn);
+                        }
+                    } else ++conn;
+                } else conn = connections().erase(conn);
+            }
             triggers().clear(std::get<south_type::native_handle_type>(stream));
             interface->erase(stream);
+            return;
         }
         int proxy_connector::_south_pollin_handler(const shared_south& interface, south_type::stream_type& stream, event_mask& revents){       
             /* forward the data arriving on the northbound connection to the southbound service. */
@@ -242,7 +284,10 @@ namespace cloudbus{
                             triggers().set(n->native_handle(), POLLOUT);
                             state_update(*conn, *type, connection_type::clock_type::now());
                             ++conn;
-                        } else conn = connections().erase(conn);
+                        } else {
+                            buf.setstate(std::ios_base::eofbit);
+                            conn = connections().erase(conn);
+                        }
                     } else ++conn;
                 }
                 if(!buf.eof() && buf.tellg() == seekpos)
@@ -279,23 +324,17 @@ namespace cloudbus{
           int handled = 0;
           if(revents & (POLLOUT | POLLERR)){
             ++handled;
-            if(_south_pollout_handler(stream, revents)){
+            if(_south_pollout_handler(stream, revents))
                 _south_err_handler(interface, stream, revents);
-                return handled;
-            }
-            if(_south_state_handler(stream)){
+            else if (_south_state_handler(stream))
                 _south_err_handler(interface, stream, revents);
-                return handled;
-            }
           }
           if(revents & (POLLIN | POLLHUP)){
             ++handled;
-            if(_south_pollin_handler(interface, stream, revents)){
+            if(_south_pollin_handler(interface, stream, revents))
                 _south_err_handler(interface, stream, revents);
-                return handled;
-            }
           }
-          return handled;      
+          return handled;
         }
     }
 }

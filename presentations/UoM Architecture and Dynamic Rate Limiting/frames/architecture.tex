@@ -12,14 +12,20 @@
 	}
 	\only<2>{
 		\begin{columns}
-			\begin{column}{0.2\textwidth}
+			\begin{column}{0.6\textwidth}
+				\small
 				\begin{itemize}
 					\item Users of networked services connect to a cloudbus controller.
+					\item Cloudbus controllers open a cloudbus connection for each user data session.
+					\item Controllers service requests by opening 1 or more transport connections towards segments and/or proxies.
+					\item 
+					
 				\end{itemize}
+				\normalsize
 			\end{column}
-			\begin{column}{0.8\textwidth}
+			\begin{column}{0.4\textwidth}
 				\begin{figure}
-					\input{figures/cloud-bus-mwe.tex}\hfill
+					\input{figures/cloud-bus-mwe.tex}\hspace*{5em}
 				\end{figure}
 			\end{column}
 		\end{columns}

@@ -13,13 +13,12 @@
 	}
 	\only<2>{
 		\begin{block}{HTTP Gateway Implementation}
-			Currently, Cloudbus has a working implementation of TCP, and unix domain sockets. To be transport agnostic, Cloudbus needs to support:
+			Currently, Cloudbus has no way for users to authenticate, nor for users to make dynamic resource connection requests. An RFC compliant %
+			implementation of HTTP/1.1 is planned to provide these capabilities:
 			\begin{itemize}
-				\item UDP,
-				\item SCTP,
-				\item and abstract unix domain sockets.
+				\item 
 			\end{itemize}
-			at the very least.
+			
 		\end{block}		
 	}
 	\only<3>{

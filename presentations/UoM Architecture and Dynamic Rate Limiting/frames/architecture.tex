@@ -36,7 +36,7 @@
 				\begin{block}{Cloudbus Transport}
 					\footnotesize
 					\begin{itemize}
-						\item Cloudbus encapsulates uniquely identifiable user data streams in session-layer chunks, so it is transport agnostic.
+						\item Cloudbus is transport agnostic and encapsulates uniquely identifiable user data streams into session-layer chunks.
 						\item Each chunk is stamped with a UUID, and cloudbus internally routes application traffic using UUIDs instead of the network %
 						5-tuple.
 						\item Cloudbus multiplexes user data and reuses internal transport connections to reduce connection related delays.
@@ -51,6 +51,5 @@
 				\end{figure}
 			\end{column}
 		\end{columns}
-
 	}
 \end{frame}

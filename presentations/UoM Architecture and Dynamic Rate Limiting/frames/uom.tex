@@ -26,14 +26,10 @@
 	}
 	\only<3>{
 		\begin{block}{Cloudbus configuration and systemd service units}
-			Cloudbus has no way for users to authenticate, nor for users to make dynamic resource requests. An RFC compliant %
-			implementation of HTTP/1.1 is planned to provide these capabilities:
+			For cloudbus components to be successfully installed onto a live system. The software needs:
 			\small
 			\begin{itemize}
-				\item Deserialize HTTP/1.1 requests from cloudbus data frames.
-				\item Forward the user payload based on the header and payload information in the HTTP request.
-				\item Bind multiple HTTP requests to a single cloudbus session.
-				\item Websocket support.
+				\item 
 			\end{itemize}
 			\normalsize
 		\end{block}	

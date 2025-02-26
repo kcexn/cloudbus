@@ -36,6 +36,9 @@
 				\begin{block}{Cloudbus Transport}
 					\footnotesize
 					\begin{itemize}
+						\item Cloudbus encapsulates uniquely identifiable user data streams in session-layer chunks.
+						\item Each chunk is stamped with a UUID, and cloudbus internally routes application traffic using UUIDS instead of the network 
+						5-tuple.
 						\item 
 					\end{itemize}
 					\normalsize

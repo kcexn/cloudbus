@@ -5,8 +5,7 @@
 			Cloudbus is open-source and Affero GPL licensed. UoM Students:\vspace{1em}
 			\small
 			\begin{itemize}
-				\item Will retain the copyright for any proposed merge requests to the cloudbus project. %
-				\scriptsize (subject to university conditions)\small
+				\item Will retain the copyright for any proposed merge requests to the cloudbus project\footnote{subject to university conditions}.
 				\item Will be listed as a \emph{contributor} for approved merge requests.
 				\item Depending on size and complexity, will also be listed as a \emph{maintainer} for approved merge requests.
 			\end{itemize}
@@ -25,6 +24,19 @@
 			\normalsize
 		\end{block}
 	}
+	\only<4>{
+	\begin{block}{Cloudbus configuration and systemd service units}
+		For cloudbus components to be successfully installed onto a live system. The software needs:
+		\small
+		\begin{itemize}
+			\item Proper configuration files i.e., ini files.
+			\item Installable systemd service units.
+			\item Configurable Makefiles for target specific builds.
+			\item Bundling for package managers (apt, zypper, yum, pacman, etc.)
+		\end{itemize}
+		\normalsize
+	\end{block}	
+}	
 	\only<3>{
 		\begin{block}{HTTP gateway}
 			Cloudbus has no way for users to authenticate, nor for users to make dynamic resource requests. An RFC compliant %
@@ -38,19 +50,6 @@
 			\end{itemize}
 			\normalsize
 		\end{block}
-	}
-	\only<4>{
-		\begin{block}{Cloudbus configuration and systemd service units}
-			For cloudbus components to be successfully installed onto a live system. The software needs:
-			\small
-			\begin{itemize}
-				\item Proper configuration files i.e., ini files.
-				\item Installable systemd service units.
-				\item Configurable Makefiles for target specific builds.
-				\item Bundling for package managers (apt, zypper, yum, pacman, etc.)
-			\end{itemize}
-			\normalsize
-		\end{block}	
 	}
 	\only<5>{
 		\begin{block}{Dynamic DNS design and implementation}

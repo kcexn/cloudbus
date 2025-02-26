@@ -13,6 +13,8 @@
 		\end{block}
 	}
 	\only<2>{
+	}
+	\only<2>{
 		\begin{block}{Transport protocols}
 			Cloudbus has a working implementation of TCP, and unix domain sockets. To be transport agnostic, Cloudbus needs to support:
 			\small
@@ -24,20 +26,20 @@
 			\normalsize
 		\end{block}
 	}
-	\only<4>{
-	\begin{block}{Cloudbus configuration and systemd service units}
-		For cloudbus components to be successfully installed onto a live system. The software needs:
-		\small
-		\begin{itemize}
-			\item Proper configuration files i.e., ini files.
-			\item Installable systemd service units.
-			\item Configurable Makefiles for target specific builds.
-			\item Bundling for package managers (apt, zypper, yum, pacman, etc.)
-		\end{itemize}
-		\normalsize
-	\end{block}	
-}	
 	\only<3>{
+		\begin{block}{Cloudbus configuration and systemd service units}
+			For cloudbus components to be successfully installed onto a live system. The software needs:
+			\small
+			\begin{itemize}
+				\item Proper configuration files i.e., ini files.
+				\item Installable systemd service units.
+				\item Configurable Makefiles for target specific builds.
+				\item Bundling for package managers (apt, zypper, yum, pacman, etc.)
+			\end{itemize}
+			\normalsize
+		\end{block}	
+	}	
+	\only<4>{
 		\begin{block}{HTTP gateway}
 			Cloudbus has no way for users to authenticate, nor for users to make dynamic resource requests. An RFC compliant %
 			implementation of HTTP/1.1 is planned to provide these capabilities:
@@ -54,7 +56,7 @@
 	\only<5>{
 		\begin{block}{Dynamic DNS design and implementation}
 			Dynamic DNS zones can be used to keep a distributed record of services that cloudbus can access. DNS supports several records that %
-			can be used to expose services onto a network using arbitrary names:
+			can be used to expose named services onto a network:
 			\small
 			\begin{itemize}
 				\item SRV records,

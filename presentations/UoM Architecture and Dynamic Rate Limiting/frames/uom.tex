@@ -18,14 +18,16 @@
 			of UUIDs will allow Cloudbus to take full advantage of these features. Cloudbus still needs the following UUID versions: 
 			\small
 			\begin{itemize}
-				\item UUIDv1
-				\item SCTP,
-				\item and abstract unix domain sockets.
+				\item V1
+				\item V2
+				\item V3
+				\item V5
+				\item V6
 			\end{itemize}
 			\normalsize
 		\end{block}		
 	}
-	\only<2>{
+	\only<3>{
 		\begin{block}{Transport protocols}
 			Cloudbus has a working implementation of TCP, and unix domain sockets. To be transport agnostic, Cloudbus needs to support:
 			\small

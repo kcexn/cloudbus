@@ -2,7 +2,7 @@
 	\frametitle{UoM Student Engagement}
 	\only<1>{
 		\begin{block}{Transport Protocol Implementation}
-			Currently, Cloudbus has a working implementation of TCP, and unix domain sockets. To be transport agnostic, Cloudbus needs to support:
+			Cloudbus has a working implementation of TCP, and unix domain sockets. To be transport agnostic, Cloudbus needs to support:
 			\begin{itemize}
 				\item UDP,
 				\item SCTP,
@@ -13,16 +13,17 @@
 	}
 	\only<2>{
 		\begin{block}{HTTP Gateway Implementation}
-			Currently, Cloudbus has no way for users to authenticate, nor for users to make dynamic resource connection requests. An RFC compliant %
+			Cloudbus has no way for users to authenticate, nor for users to make dynamic resource requests. An RFC compliant %
 			implementation of HTTP/1.1 is planned to provide these capabilities:
+			\small
 			\begin{itemize}
 				\item Deserialize HTTP/1.1 requests from cloudbus data frames.
 				\item Forward the user payload based on the header and payload information in the HTTP request.
 				\item Bind multiple HTTP requests to a single cloudbus session.
 				\item Websocket support.
 			\end{itemize}
-			
-		\end{block}		
+			\normalsize
+		\end{block}
 	}
 	\only<3>{
 		\begin{center}

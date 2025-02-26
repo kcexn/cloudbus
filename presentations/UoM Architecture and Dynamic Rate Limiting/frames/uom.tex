@@ -16,8 +16,8 @@
 			implementation of HTTP/1.1 is planned to provide these capabilities:
 			\small
 			\begin{itemize}
-				\item Deserialize/Serialize HTTP/1.1 requests from/to cloudbus data frames.
-				\item Forward the user payload based on the header and payload information in the HTTP request.
+				\item Deserialize/serialize HTTP/1.1 requests from/to cloudbus data frames.
+				\item Forward user payloads based on the header and payload information in the HTTP request.
 				\item Bind multiple HTTP requests to a single cloudbus session.
 				\item Websocket support.
 			\end{itemize}
@@ -38,8 +38,8 @@
 		\end{block}	
 	}
 	\only<4>{
-		\begin{block}{Dynamic DNS Design and Configuration}
-			Dynamic DNS Zones can be used to keep a distributed record of services that cloudbus can access. DNS supports several records that %
+		\begin{block}{Dynamic DNS Design and Implementation}
+			Dynamic DNS zones can be used to keep a distributed record of services that cloudbus can access. DNS supports several records that %
 			can be used to expose services onto a network using arbitrary names:
 			\small
 			\begin{itemize}
@@ -47,6 +47,7 @@
 				\item SVCB records,
 				\item NAPTR records.
 			\end{itemize}
+			\normalsize
 			Cloudbus needs a strategy for resolving DNS queries, it needs a convention for naming distributed services, %
 			and it needs a DNS client that implements these strategies and can autonomously update a dynamic DNS zone.
 		\end{block}

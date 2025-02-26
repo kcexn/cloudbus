@@ -15,11 +15,11 @@
 		\def\width{16}
 		\def\height{9}
 		%\draw[help lines, opacity=0.5] (0,0) grid (\width,\height);
-		\node(p1) at (8,9){Users};
-		\node(c1)[rect] at (8,6.75){Controllers};
-		\node(pr1)[rect, opacity=0.6] at (8,4.5){Proxies};
-		\node(s1)[rect] at (8,2.25){Segments};
-		\node(p2) at (8,0){Services};
+		\node(p1) at (0,9){Users};
+		\node(c1)[rect] at (0,6.75){Controllers};
+		\node(pr1)[rect, opacity=0.6] at (0,4.5){Proxies};
+		\node(s1)[rect] at (0,2.25){Segments};
+		\node(p2) at (0,0){Services};
 		
 		\path[<->, shorten >= 0.25em, shorten <= 0.25em] (p1.south) edge (c1.north);
 		\path[<->, shorten >= 0.25em, shorten <= 0.25em] (c1.south) edge (pr1.north);

@@ -1,0 +1,85 @@
+\begin{frame}
+	\frametitle{UoM Student Opportunities}
+	\only<1>{
+		\begin{block}{Open-source and AGPL licensed.}
+			Cloudbus is developed in modern C++, is open-source, and Affero GPL licensed. UoM Students:
+			\small
+			\begin{itemize}
+				\item Will retain the copyright for any proposed merge requests to the cloudbus project\footnote{subject to university conditions}.
+				\item Will be listed as a \emph{contributor} for approved merge requests.
+				\item Depending on size and complexity, will also be listed as a \emph{maintainer} for approved merge requests.
+			\end{itemize}
+			\normalsize
+		\end{block}
+	}
+	\only<2>{
+		\begin{block}{RFC Compliant UUIDs}
+			Universally unique identifiers have many useful features that can be used for session state-management. An RFC compliant implementation %
+			of UUIDs will allow Cloudbus to take full advantage of these features. Cloudbus still needs the following UUID versions: 
+			\small
+			\begin{itemize}
+				\item V1, V2, V3, V5, V6
+			\end{itemize}
+			\normalsize
+		\end{block}		
+	}
+	\only<3>{
+		\begin{block}{Transport protocols}
+			Cloudbus has a working implementation of TCP, and unix domain sockets. To be transport agnostic, Cloudbus needs to support:
+			\small
+			\begin{itemize}
+				\item UDP,
+				\item SCTP,
+				\item and abstract unix domain sockets.
+			\end{itemize}
+			\normalsize
+		\end{block}
+	}
+	\only<4>{
+		\begin{block}{Cloudbus configuration and systemd service units}
+			For cloudbus components to be successfully installed onto a live system. The software needs:
+			\small
+			\begin{itemize}
+				\item Proper configuration files i.e., ini files.
+				\item Installable systemd service units.
+				\item Configurable Makefiles for target specific builds.
+				\item Bundling for package managers (apt, zypper, yum, pacman, etc.)
+			\end{itemize}
+			\normalsize
+		\end{block}	
+	}	
+	\only<5>{
+		\begin{block}{HTTP gateway}
+			Cloudbus has no way for users to authenticate, nor for users to make dynamic resource requests. An RFC compliant %
+			implementation of HTTP/1.1 is planned to provide these capabilities:
+			\small
+			\begin{itemize}
+				\item Deserialize/serialize HTTP/1.1 requests from/to cloudbus data frames.
+				\item Forward user payloads based on HTTP header and payload information.
+				\item Bind multiple HTTP requests to a single cloudbus session.
+				\item Websocket support.
+			\end{itemize}
+			\normalsize
+		\end{block}
+	}
+	\only<6>{
+		\begin{block}{Dynamic DNS design and implementation}
+			Dynamic DNS zones can be used to keep a distributed record of services that cloudbus can access. DNS supports several records that %
+			can be used to expose named services onto a network:
+			\small
+			\begin{itemize}
+				\item SRV records,
+				\item SVCB records,
+				\item NAPTR records.
+			\end{itemize}
+			\normalsize
+			Cloudbus needs a strategy for resolving DNS queries, it needs a convention for naming distributed services, %
+			and it needs a DNS client that implements these strategies and can autonomously update a dynamic DNS zone.
+		\end{block}
+	}
+	\only<7>{
+		\begin{center}
+			\LARGE \href{https://github.com/kcexn/cloudbus}{https://github.com/kcexn/cloudbus}
+		\end{center}
+	}
+\end{frame}

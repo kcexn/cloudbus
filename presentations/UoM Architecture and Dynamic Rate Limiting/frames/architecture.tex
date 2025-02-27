@@ -1,0 +1,54 @@
+\begin{frame}
+	\frametitle{Cloudbus Architecture}
+	\only<1>{
+		\begin{block}{Benefits}
+			\begin{itemize}
+				\item Cloudbus lets distributed application developers delegate I/O and other networked IPC decisions to a lower layer.
+				\item Cloudbus dynamically controls I/O for application, user ingress, and user egress data.
+				\item Cloudbus implements a flexible session-layer routing scheme to enable dynamic data pathway optimizations.
+				\item Optimizing I/O in distributed and networked applications offers significant benefits to application performance and reliability.
+			\end{itemize}
+		\end{block}
+	}
+	\only<2>{
+		\begin{columns}
+			\begin{column}{0.7\textwidth}
+				\footnotesize
+				\begin{itemize}
+					\item Users of network services connect to a controller.
+					\item Cloudbus controllers open a cloudbus session for each user session.
+					\item Controllers service requests by opening 1 or more transport connections towards segments and/or proxies.
+					\item Proxies anchor cloudbus sessions and provide session state management.
+					\item Segments connect to services and expose them into Cloudbus by configuration (DNS or otherwise).					
+				\end{itemize}
+				\normalsize
+			\end{column}
+			\begin{column}{0.3\textwidth}
+				\begin{figure}
+					\input{figures/cloud-bus-mwe.tex}\hspace*{5em}
+				\end{figure}
+			\end{column}
+		\end{columns}
+	}
+	\only<3>{
+		\begin{columns}
+			\begin{column}{0.5\textwidth}
+				\begin{block}{Cloudbus Transport}
+					\footnotesize
+					\begin{itemize}
+						\item Cloudbus is transport agnostic and encapsulates uniquely identifiable user data streams into session-layer chunks.
+						\item Each chunk is stamped with a UUID, and cloudbus internally routes application traffic using UUIDs instead of source addresses.
+						\item Cloudbus multiplexes user data and reuses internal transport connections to reduce \texttt{connect()} related delays.
+					\end{itemize}
+					\normalsize
+				\end{block}
+			\end{column}
+			\begin{column}{0.5\textwidth}
+				\begin{figure}
+					\input{figures/cloudbus-transport-design.tex}
+					\caption{Cloudbus data encapsulation}
+				\end{figure}
+			\end{column}
+		\end{columns}
+	}
+\end{frame}

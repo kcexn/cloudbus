@@ -93,7 +93,6 @@ namespace io{
                 using storage_array = std::array<address_type, 2>;
                 static constexpr size_type MIN_BUFSIZE = 16384;
                 
-                
                 sockbuf();
                 sockbuf(int domain, int type, int protocol):   
                     sockbuf(domain, type, protocol, std::ios_base::in | std::ios_base::out){}

@@ -75,7 +75,8 @@ namespace io{
                 msgh.msg_control = cbuf.data();
                 msgh.msg_controllen = cbuf.size();
             }
-            if(size == 0 && cbuf.empty()) return 0;
+            if(size == 0 && cbuf.empty())
+                return 0;
             while(auto len = sendmsg(_socket, &msgh, MSG_DONTWAIT | MSG_NOSIGNAL)){
                 if(len < 0){
                     _errno = errno;
@@ -124,10 +125,16 @@ namespace io{
             auto&[addr, addrlen] = _addresses[0];
             struct msghdr msgh = {
                 &addr, addrlen,
-                &iov, 1,
+                nullptr, 0,
                 nullptr, 0
             };
+            if(iov.iov_len > 0){
+                msgh.msg_iov = &iov;
+                msgh.msg_iovlen = 1;
+            }
             auto& cbuf = _cbufs[0];
+            if(iov.iov_len == 0 && cbuf.empty())
+                return 0;
             if(!cbuf.empty()){
                 msgh.msg_control = cbuf.data();
                 msgh.msg_controllen = cbuf.size();
@@ -144,6 +151,8 @@ namespace io{
                 Base::setg(Base::eback(), Base::gptr(), Base::egptr()+len);
                 return 0;
             }
+            if(!cbuf.empty())
+                return 0;
             return -1;
         }
         void sockbuf::_memmoverbuf(){

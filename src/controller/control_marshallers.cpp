@@ -53,9 +53,10 @@ namespace cloudbus{
                 if(auto n = std::get<north_ptr>(*it).lock()){
                     if(n == std::get<north_type::stream_ptr>(stream)){
                         auto& buf = std::get<north_format>(*it);
-                        buf.seekg(0);
-                        buf.seekp(0);
-                        stream_copy(buf, *n);
+                        if(buf.tellg() == buf.tellp()){
+                            buf.seekg(0);
+                            stream_copy(buf.seekp(0), *n);
+                        }
                         return it;
                     }
                     ++it;
@@ -64,8 +65,6 @@ namespace cloudbus{
             std::get<north_ptr>(north().emplace_back()) = std::get<north_type::stream_ptr>(stream);
             auto n = std::get<north_ptr>(north().back()).lock();
             auto& buf = std::get<north_format>(north().back());
-            buf.seekg(0);
-            buf.seekp(0);
             stream_copy(buf, *n);
             return --north().end(); 
         }

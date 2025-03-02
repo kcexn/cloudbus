@@ -80,11 +80,11 @@ namespace cloudbus{
 
         int proxy_connector::_handle(events_type& events){
             int handled = 0;
-            for(auto& event: events){
-                if(auto& revents = event.revents){
+            for(auto ev=events.begin(); ev < events.end(); ++ev){
+                if(auto& revents = ev->revents){
                     auto nit = std::find_if(north().begin(), north().end(), [&](auto& interface){
                         for(auto& stream: interface->streams()){
-                            if(std::get<north_type::native_handle_type>(stream) == event.fd){
+                            if(std::get<north_type::native_handle_type>(stream) == ev->fd){
                                 handled += _handle(interface, stream, revents);
                                 return true;
                             }
@@ -94,7 +94,28 @@ namespace cloudbus{
                     if(nit != north().end()) continue;
                     auto sit = std::find_if(south().begin(), south().end(), [&](auto& interface){
                         for(auto& stream: interface->streams()){
-                            if(std::get<south_type::native_handle_type>(stream) == event.fd){
+                            auto&[sockfd, ssp] = stream;
+                            if(sockfd == ev->fd){
+                                if(revents & POLLOUT && !ssp->tellp()){
+                                    for(auto& c: connections()){
+                                        if(auto s = c.south.lock(); s && s == ssp &&
+                                                c.state == connection_type::HALF_OPEN){
+                                            /* connect() has resolved. */
+                                            if(auto n = c.north.lock()){
+                                                auto nfd = n->native_handle();
+                                                triggers().set(nfd, POLLIN);
+                                                auto it = std::find_if(events.begin(), events.end(), [&](auto& e){ return e.fd == nfd; });
+                                                if(it == events.end()){
+                                                    handled += _handle(interface, stream, revents);
+                                                    auto off = ev - events.begin();
+                                                    events.push_back(event_type{nfd, POLLIN, POLLIN});
+                                                    ev = events.begin() + off;
+                                                    return true;
+                                                } else it->revents |= POLLIN;
+                                            }
+                                        }
+                                    }
+                                }                           
                                 handled += _handle(interface, stream, revents);
                                 return true;
                             }
@@ -102,7 +123,7 @@ namespace cloudbus{
                         return false;
                     });
                     if(sit == south().end()){
-                        triggers().clear(event.fd);
+                        triggers().clear(ev->fd);
                         revents = 0;
                     }
                 }
@@ -111,7 +132,7 @@ namespace cloudbus{
         }
 
         void proxy_connector::_north_err_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
-            revents = 0;       
+            revents = 0;   
             for(auto conn = connections().begin(); conn < connections().end();){
                 if(auto n = conn->north.lock()){
                     if(n == std::get<north_type::stream_ptr>(stream)){
@@ -137,33 +158,36 @@ namespace cloudbus{
             }
             triggers().clear(std::get<north_type::native_handle_type>(stream));
             interface->erase(stream);
-        }
-        void proxy_connector::_north_connect_write(south_type::stream_type& s, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
-            auto& ssp = std::get<south_type::stream_ptr>(s);
-            stream_write(*ssp, buf);
-            triggers().set(std::get<south_type::native_handle_type>(s), (POLLIN | POLLOUT));
-            const auto n = connection_type::clock_type::now();
-            connections().push_back(
-                (buf.type()->op == messages::STOP)
-                ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
-                : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
-            );
-        }
+        }      
         void proxy_connector::_north_connect_handler(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
             auto posit = std::find(north().cbegin(), north().cend(), interface);
             auto& sbd = south()[posit - north().cbegin()];
+            const auto n = connection_type::clock_type::now();
             if(sbd->streams().empty()){
-                auto& s = sbd->make(sbd->address()->sa_family, SOCK_STREAM, 0);
-                set_flags(std::get<south_type::native_handle_type>(s));
-                auto& ssp = std::get<south_type::stream_ptr>(s);
+                auto&[sockfd, ssp] = sbd->make(sbd->address()->sa_family, SOCK_STREAM, 0);
+                set_flags(sockfd);
                 ssp->connectto(sbd->address(), sbd->addrlen());
-                return _north_connect_write(s, nsp, buf);
-            } else return _north_connect_write(sbd->streams().back(), nsp, buf);
+                triggers().set(sockfd, (POLLIN | POLLOUT));
+                connections().push_back(
+                    (buf.type()->op == messages::STOP)
+                    ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
+                    : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
+                );
+            } else {
+                auto&[sockfd, ssp] = sbd->streams().back();
+                connections().push_back(
+                    (buf.type()->op == messages::STOP)
+                    ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
+                    : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
+                );
+                stream_write(*ssp, buf);
+                triggers().set(sockfd, POLLOUT);
+            }
         }
         int proxy_connector::_north_pollin_handler(const shared_north& interface, north_type::stream_type& stream, event_mask& revents){
             /* forward the data arriving on the northbound connection to the southbound service. */
             auto it = marshaller().unmarshal(stream);
-            auto& nsp = std::get<north_type::stream_ptr>(stream);
+            auto&[nfd, nsp] = stream;
             if(nsp->gcount() == 0)
                 revents &= ~(POLLIN | POLLHUP);
             auto& buf = std::get<marshaller_type::north_format>(*it);
@@ -183,8 +207,13 @@ namespace cloudbus{
                         }
                     } else ++conn;
                 }
-                if(!buf.eof() && buf.tellg() == seekpos)
+                if(!buf.eof() && buf.tellg() != buf.tellp()){
                     _north_connect_handler(interface, nsp, buf);
+                    if(!buf.eof() && buf.tellg() != buf.tellp()){
+                        revents &= ~(POLLIN | POLLHUP);
+                        triggers().clear(nfd, POLLIN);
+                    }
+                }
             }
             if(nsp->eof()) return -1;
             return 0;
@@ -290,7 +319,7 @@ namespace cloudbus{
                         }
                     } else ++conn;
                 }
-                if(!buf.eof() && buf.tellg() == seekpos)
+                if(!buf.eof() && buf.tellg() != buf.tellp())
                     buf.setstate(std::ios_base::eofbit);
             }
             if(ssp->eof()) return -1;
@@ -302,8 +331,7 @@ namespace cloudbus{
                 if(auto s = conn->south.lock()){
                     if(s == std::get<south_type::stream_ptr>(stream)){
                         if(conn->state != connection_type::CLOSED){
-                            ++count;
-                            ++conn;
+                            ++count; ++conn;
                         } else conn = connections().erase(conn);
                     } else ++conn;
                 } else conn = connections().erase(conn);

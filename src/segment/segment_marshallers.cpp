@@ -70,9 +70,10 @@ namespace cloudbus{
                 if(auto s = std::get<south_ptr>(*it).lock()){
                         if(s == std::get<south_type::stream_ptr>(stream)){
                             auto& buf = std::get<south_format>(*it);
-                            buf.seekg(0);
-                            buf.seekp(0);
-                            stream_copy(buf, *s);
+                            if(buf.tellg() == buf.tellp()){
+                                buf.seekg(0);
+                                stream_copy(buf.seekp(0), *s);
+                            }
                             return it;
                         }
                         ++it;
@@ -81,8 +82,6 @@ namespace cloudbus{
             std::get<south_ptr>(south().emplace_back()) = std::get<south_type::stream_ptr>(stream);
             auto s = std::get<south_ptr>(south().back()).lock();
             auto& buf = std::get<south_format>(south().back());
-            buf.seekg(0);
-            buf.seekp(0);
             stream_copy(buf, *s);
             return --south().end();
         }

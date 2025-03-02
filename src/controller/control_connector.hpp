@@ -63,7 +63,7 @@ namespace cloudbus {
 
             private:
                 void _north_err_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents);
-                void _north_connect_write(south_type::stream_type& s, north_type::stream_ptr& nsp, marshaller_type::north_format& buf);
+                void _north_write(south_type::stream_ptr& s, const connection_type& conn, marshaller_type::north_format& buf);
                 void _north_connect_handler(const shared_north& interface, north_type::stream_ptr& nsp, marshaller_type::north_format& buf);
                 int _north_pollin_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents);
                 int _north_accept_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents);

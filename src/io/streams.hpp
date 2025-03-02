@@ -71,11 +71,7 @@ namespace io{
                 {}
                 
                 sockstream(int domain, int type, int protocol):
-                    sockstream(domain, type, protocol, {}, std::ios_base::in | std::ios_base::out){}
-                    
-                sockstream(int domain, int type, int protocol, std::initializer_list<sockopt> l):
-                    sockstream(domain, type, protocol, l, std::ios_base::in | std::ios_base::out){}
-                    
+                    sockstream(domain, type, protocol, std::ios_base::in | std::ios_base::out){}
                 sockstream(native_handle_type sockfd):
                     Base(&_buf),
                     _buf(sockfd)
@@ -86,18 +82,14 @@ namespace io{
                     _buf(sockfd, which)
                 {}
             
-                explicit sockstream(int domain, int type, int protocol, std::initializer_list<sockopt> l, std::ios_base::openmode which):
+                explicit sockstream(int domain, int type, int protocol, std::ios_base::openmode which):
                     Base(&_buf),
-                    _buf(domain, type, protocol, l, which)
+                    _buf(domain, type, protocol, which)
                 {}
 
                 sockstream& operator=(sockstream&& other);
                 void swap(sockstream& other);
-
-                void setopt(sockopt opt){ _buf.pubsetopt(opt); }
-                optval getopt(sockopt opt){ return _buf.pubgetopt(opt); }
                 sockbuf::cbuf_array_t& cmsgs() { return _buf.cmsgs(); }
-                sockbuf::msghdr_array_t& msghdrs() { return _buf.msghdrs(); }
                 sockbuf::native_handle_type native_handle() { return _buf.native_handle(); }
                 sockbuf::storage_array& addresses() { return _buf.addresses(); }
                 int err() { return _buf.err(); }

@@ -29,9 +29,7 @@
 namespace io{
     namespace buffers{
         using optname = std::string;
-        using optval = std::vector<char>;
-        using sockopt = std::tuple<std::string, std::vector<char> >;
-            
+        using optval = std::vector<char>;           
         class pipebuf : public std::streambuf {
             public:
                 using Base = std::streambuf;
@@ -81,70 +79,56 @@ namespace io{
         class sockbuf : public std::streambuf {
             public:     
                 using Base = std::streambuf;
+                using pos_type = Base::pos_type;
+                using off_type = Base::off_type;
                 using int_type = Base::int_type;
-                using traits_t = Base::traits_type;
+                using traits_type = Base::traits_type;
                 using char_type = Base::char_type;
-                using buffer = std::vector<char>;
+                using buffer_type = std::vector<char>;
+                using buffers_type = std::array<buffer_type, 2>;
                 using size_type = std::size_t;
                 using native_handle_type = int;
-                using msghdr_t = struct msghdr;
-                using iovec = struct iovec;
-                using msghdr_array_t = std::array<msghdr_t, 2>;
-                using cbuf_array_t = std::array<buffer, 2>;
+                using cbuf_array_t = std::array<buffer_type, 2>;
                 using address_type = std::tuple<struct sockaddr_storage, socklen_t>;
                 using storage_array = std::array<address_type, 2>;
-                static constexpr size_type DEFAULT_BUFSIZE = 16535;
+                static constexpr size_type MIN_BUFSIZE = 16384;
                 
                 
                 sockbuf();
-                sockbuf(int domain, int type, int protocol)
-                    :   sockbuf(domain, type, protocol, {}, std::ios_base::in | std::ios_base::out){}
-                    
-                sockbuf(int domain, int type, int protocol, std::initializer_list<sockopt> l):
-                sockbuf(domain, type, protocol, l, std::ios_base::in | std::ios_base::out){}
-                    
+                sockbuf(int domain, int type, int protocol):   
+                    sockbuf(domain, type, protocol, std::ios_base::in | std::ios_base::out){}
                 sockbuf(native_handle_type sockfd):
-                sockbuf(sockfd, std::ios_base::in | std::ios_base::out){}
+                    sockbuf(sockfd, std::ios_base::in | std::ios_base::out){}
                     
                 sockbuf(sockbuf&& other);
                 explicit sockbuf(native_handle_type sockfd, std::ios_base::openmode which);
-                explicit sockbuf(int domain, int type, int protocol, std::initializer_list<sockopt> l, std::ios_base::openmode which);
+                explicit sockbuf(int domain, int type, int protocol, std::ios_base::openmode which);
 
                 sockbuf& operator=(sockbuf&& other);
                 
-                size_type& bufsize(){ return BUFSIZE; }
                 cbuf_array_t& cmsgs() { return _cbufs; }
-                msghdr_array_t& msghdrs() { return _msghdrs; }
                 storage_array& addresses() { return _addresses; }
 
                 int err(){ return _errno; }
-                
-                void pubsetopt(sockopt opt){ return setopt(opt); }
-                optval pubgetopt(sockopt opt){ return getopt(opt); }
-
                 int connectto(const struct sockaddr* addr, socklen_t addrlen);
                 
                 native_handle_type native_handle() { return _socket; }
                 ~sockbuf();
             protected:
-                Base::pos_type seekoff(Base::off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
-                Base::pos_type seekpos(Base::pos_type pos, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
-                int sync() override;
-                std::streamsize showmanyc() override;
-                int_type overflow(int_type ch = traits_t::eof()) override;
-                int_type underflow() override;
-                
-                virtual void setopt(sockopt opt);
-                virtual optval getopt(sockopt opt);
+                virtual pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
+                virtual pos_type seekpos(pos_type pos, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
+                virtual int sync() override;
+                virtual std::streamsize showmanyc() override;
+
+                virtual std::streamsize xsputn(const char *s, std::streamsize count) override;
+                virtual int_type overflow(int_type ch = traits_type::eof()) override;
+                virtual int_type underflow() override;
             private:
-                size_type BUFSIZE;
-                std::ios_base::openmode _which{};
-                std::vector<buffer> _buffers{};
-                cbuf_array_t _cbufs{};
-                msghdr_array_t _msghdrs{};
-                storage_array _addresses{};
-                native_handle_type _socket{};
-                std::array<iovec, 2> _iov{};
+                std::ios_base::openmode _which;
+                buffers_type _buffers;
+                cbuf_array_t _cbufs;
+                storage_array _addresses;
+                native_handle_type _socket;
                 int _errno;
                 bool _connected;
                 

@@ -21,7 +21,6 @@ namespace io {
             Base::operator=(std::move(other));
             return *this;
         }
-
         void sockstream::swap(sockstream& other){
             auto tmp = std::move(other._buf);
             other._buf = std::move(tmp);

@@ -59,15 +59,18 @@ namespace cloudbus {
             }
         }
         static std::array<char, 256> _buf = {};
-        static void stream_write(std::ostream& os, std::istream& is){
+        static std::ostream& stream_write(std::ostream& os, std::istream& is){
             while(auto gcount = is.readsome(_buf.data(), _buf.max_size()))
-                os.write(_buf.data(), gcount);
+                if(os.write(_buf.data(), gcount).bad()) return os;
+            return os;
         }              
-        static void stream_write(std::ostream& os, std::istream& is, std::streamsize maxlen){
+        static std::ostream& stream_write(std::ostream& os, std::istream& is, std::streamsize maxlen){
             while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.max_size())))){
-                os.write(_buf.data(), gcount);
+                if(os.write(_buf.data(), gcount).bad()) 
+                    return os;
                 maxlen -= gcount;
             }
+            return os;
         }
 
         control_connector::control_connector(trigger_type& triggers): Base(triggers){}
@@ -157,7 +160,7 @@ namespace cloudbus {
                 {(!nsp || nsp->eof()) ? messages::STOP : messages::DATA, 0}
             };
             ssp->write(reinterpret_cast<const char*>(&head), sizeof(head));
-            stream_write(*ssp, buf.seekg(0), p);
+            stream_write(*ssp, buf.seekg(0), p).bad();
             triggers().set(ssp->native_handle(), POLLOUT);
         }
         void control_connector::_north_connect_handler(const shared_north& interface, north_type::stream_ptr& nsp, marshaller_type::north_format& buf){

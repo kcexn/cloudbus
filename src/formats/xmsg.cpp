@@ -147,12 +147,10 @@ namespace cloudbus{
         std::streamsize xmsgbuf::showmanyc(){
             size_type gc = count(_buffers, Base::eback(), Base::gptr());
             size_type pc = count(_buffers, Base::pbase(), Base::pptr());
-            if(auto *_len = len(); _len != nullptr){
-                if(gc == pc && _len->length == gc) return -1;
-            }
+            if(auto *len_ = len(); len_ != nullptr)
+                if(gc == pc && len_->length == gc) return -1;
             return pc - gc;
         }
-        
         xmsgbuf::int_type xmsgbuf::underflow(){
             if(Base::gptr() == Base::pptr()) return traits::eof();
             if(Base::eback() == Base::pbase()) {

@@ -18,6 +18,7 @@
 #include <fcntl.h>
 namespace cloudbus{
     namespace proxy {
+        static constexpr std::streamsize MAX_BUFSIZE = 65536; //64KB
         static int set_flags(int fd){
             int flags = 0;
             if(fcntl(fd, F_SETFD, FD_CLOEXEC))
@@ -55,10 +56,25 @@ namespace cloudbus{
                 default: return;
             }
         }
-        static std::array<char, 256> _buf = {};
-        static void stream_write(std::ostream& os, std::istream& is){
-            while(auto gcount = is.readsome(_buf.data(), _buf.max_size()))
-                os.write(_buf.data(), gcount);
+        static std::array<char, 256> _buf = {};         
+        static std::streamsize stream_write(std::ostream& os, std::istream& is, std::streamsize len){
+            std::streamsize pos=MAX_BUFSIZE-len;
+            if(os.fail()) return 0;
+            if(os.tellp() >= pos)
+                if(os.flush().bad())
+                    return 0;
+            if(os.tellp() < pos){
+                std::streamsize count = 0;
+                std::streamsize size = std::min(len, static_cast<std::streamsize>(_buf.max_size()));
+                while(auto gcount = is.readsome(_buf.data(), size)){
+                    if(os.write(_buf.data(), gcount).bad()) 
+                        return 0;
+                    count += gcount;
+                    size = std::min(len-count, static_cast<std::streamsize>(_buf.max_size()));
+                }
+                return count;
+            }
+            return 0;
         }
 
         proxy_connector::proxy_connector(trigger_type& triggers): Base(triggers){}
@@ -77,7 +93,6 @@ namespace cloudbus{
             s.push_back(make_south(addr, addrlen));
             return --s.end();
         }
-
         int proxy_connector::_handle(events_type& events){
             int handled = 0;
             for(auto ev=events.begin(); ev < events.end(); ++ev){
@@ -158,8 +173,8 @@ namespace cloudbus{
             }
             triggers().clear(std::get<north_type::native_handle_type>(stream));
             interface->erase(stream);
-        }      
-        void proxy_connector::_north_connect_handler(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
+        }
+        std::streamsize proxy_connector::_north_connect_handler(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
             auto posit = std::find(north().cbegin(), north().cend(), interface);
             auto& sbd = south()[posit - north().cbegin()];
             const auto n = connection_type::clock_type::now();
@@ -173,6 +188,7 @@ namespace cloudbus{
                     ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
                     : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
                 );
+                return 0;
             } else {
                 auto&[sockfd, ssp] = sbd->streams().back();
                 connections().push_back(
@@ -180,8 +196,8 @@ namespace cloudbus{
                     ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
                     : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
                 );
-                stream_write(*ssp, buf);
                 triggers().set(sockfd, POLLOUT);
+                return stream_write(*ssp, buf, buf.tellp()-buf.tellg());
             }
         }
         int proxy_connector::_north_pollin_handler(const shared_north& interface, north_type::stream_type& stream, event_mask& revents){
@@ -197,8 +213,17 @@ namespace cloudbus{
                 for(auto conn = connections().begin(); conn < connections().end();){
                     if(conn->uuid == *eid){
                         if(auto s = conn->south.lock()){
-                            stream_write(*s, buf.seekg(seekpos));
-                            triggers().set(s->native_handle(), POLLOUT);
+                            if(auto len = buf.tellp()-seekpos){
+                                while(!stream_write(*s, buf.seekg(seekpos), len)){
+                                    if(s->fail()) break;
+                                    auto trig_ = trigger_type();
+                                    trig_.set(s->native_handle(), POLLOUT);
+                                    trig_.wait(std::chrono::milliseconds(-1));
+                                }
+                                if(!buf.eof() && buf.tellg()==buf.len()->length)
+                                    buf.setstate(std::ios_base::eofbit);
+                                triggers().set(s->native_handle(), POLLOUT);
+                            }
                             state_update(*conn, *type, connection_type::clock_type::now());
                             ++conn;
                         } else {
@@ -207,9 +232,8 @@ namespace cloudbus{
                         }
                     } else ++conn;
                 }
-                if(!buf.eof() && buf.tellg() != buf.tellp()){
-                    _north_connect_handler(interface, nsp, buf);
-                    if(!buf.eof() && buf.tellg() != buf.tellp()){
+                if(!buf.eof() && buf.tellp() != buf.tellg()){
+                    if(!_north_connect_handler(interface, nsp, buf)){
                         revents &= ~(POLLIN | POLLHUP);
                         triggers().clear(nfd, POLLIN);
                     }
@@ -242,6 +266,7 @@ namespace cloudbus{
         int proxy_connector::_north_pollout_handler(north_type::stream_type& stream, event_mask& revents){
             if(revents & POLLERR) return -1;
             auto& nsp = std::get<north_type::stream_ptr>(stream);
+            if(nsp->fail()) return -1;
             if(nsp->flush().bad()) return -1;
             if(nsp->tellp() == 0)
                 triggers().clear(std::get<north_type::native_handle_type>(stream), POLLOUT);
@@ -309,8 +334,17 @@ namespace cloudbus{
                 for(auto conn = connections().begin(); conn < connections().end();){
                     if(conn->uuid == *eid){
                         if(auto n = conn->north.lock()){
-                            stream_write(*n, buf.seekg(seekpos));
-                            triggers().set(n->native_handle(), POLLOUT);
+                            if(auto len = buf.tellp()-seekpos){
+                                while(!stream_write(*n, buf.seekg(seekpos), len)){
+                                    if(n->fail()) break;
+                                    auto trig_ = trigger_type();
+                                    trig_.set(n->native_handle(), POLLOUT);
+                                    trig_.wait(std::chrono::milliseconds(-1));
+                                }
+                                if(!buf.eof() && buf.tellg()==buf.len()->length)
+                                    buf.setstate(std::ios_base::eofbit);
+                                triggers().set(n->native_handle(), POLLOUT);
+                            }                   
                             state_update(*conn, *type, connection_type::clock_type::now());
                             ++conn;
                         } else {
@@ -342,6 +376,7 @@ namespace cloudbus{
         int proxy_connector::_south_pollout_handler(south_type::stream_type& stream, event_mask& revents){
             if(revents & POLLERR) return -1;
             auto& ssp = std::get<south_type::stream_ptr>(stream);
+            if(ssp->fail()) return -1;
             if(ssp->flush().bad()) return -1;
             if(ssp->tellp() == 0)
                 triggers().clear(std::get<south_type::native_handle_type>(stream), POLLOUT);

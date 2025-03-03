@@ -18,14 +18,14 @@ namespace cloudbus{
     namespace proxy {
         static std::array<char, 256> _buf = {};
         static bool xmsg_read(messages::xmsgstream& buf, std::istream& is){
-            constexpr std::streamsize hdr_size = sizeof(messages::msgheader);
+            constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
             std::streamsize gcount = 0, p = 0;
             if(buf.eof()){
                 buf.seekg(0);
                 buf.seekp(0);
             }
-            for(p = buf.tellp(); p < hdr_size; p += gcount){
-                if((gcount = is.readsome(_buf.data(), hdr_size - p))){
+            for(p = buf.tellp(); p < HDRLEN; p += gcount){
+                if((gcount = is.readsome(_buf.data(), HDRLEN - p))){
                     if(buf.write(_buf.data(), gcount).bad())
                         throw std::runtime_error("Unable to write to xmsg buffer.");
                 } else return is.eof();

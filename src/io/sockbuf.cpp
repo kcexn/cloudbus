@@ -157,7 +157,8 @@ namespace io{
         }
         void sockbuf::_memmoverbuf(){
             auto len = Base::egptr()-Base::gptr();
-            std::memmove(Base::eback(), Base::gptr(), len);
+            if(len)
+                std::memmove(Base::eback(), Base::gptr(), len);
             Base::setg(Base::eback(), Base::eback(), Base::eback()+len);
         }
         void sockbuf::_resizewbuf(){
@@ -217,12 +218,29 @@ namespace io{
             } else return Base::seekpos(pos, which);
         }
         int sockbuf::sync() {
-            if(_which & std::ios_base::out){
-                auto size = Base::pptr()-Base::pbase();
-                if(_send(Base::pbase(), size))
-                    return -1;
-                _resizewbuf();
+            auto size = Base::pptr()-Base::pbase();
+            if(_send(Base::pbase(), size)){
+                auto&[addr, addrlen] = _addresses[1];
+                switch(_errno){
+                    case ENOTCONN:
+                        if(addr.ss_family == AF_UNSPEC) return -1;
+                        if(connectto(reinterpret_cast<const struct sockaddr*>(&addr), addrlen)){
+                            switch(_errno) {
+                                case EALREADY:
+                                case EAGAIN:
+                                case EINPROGRESS:
+                                    _resizewbuf();
+                                    return 0;
+                                case EISCONN:
+                                    return sync();
+                                default:
+                                    return -1;
+                            }
+                        } else return sync();
+                    default: return -1;
+                }
             }
+            _resizewbuf();
             return 0;
         }
         std::streamsize sockbuf::showmanyc() {
@@ -234,47 +252,23 @@ namespace io{
         }
         std::streamsize sockbuf::xsputn(const char *s, std::streamsize count){
             if(count == 0) return count;
-            std::streamsize remainder = Base::epptr()-Base::pptr();
-            auto len = std::min(remainder, count);
-            std::memcpy(Base::pptr(), s, len);
-            Base::pbump(len);
-            if(len == count) 
-                return len;
-            if(Base::epptr()==Base::pptr()){
-                auto *ch = s+len;
-                if(traits_type::eq_int_type(overflow(*ch), traits_type::eof()))
+            std::streamsize len = 0;
+            do{
+                std::streamsize remainder = Base::epptr()-Base::pptr(), size = std::min(remainder, count);
+                std::memcpy(Base::pptr(), s, size);
+                Base::pbump(size);
+                s += size; len += size;
+                if(len == count || traits_type::eq_int_type(overflow(traits_type::to_int_type(*s)), traits_type::eof()))
                     return len;
-                return len + xsputn(++ch, count-(len+1));
-            }
+                ++s; ++len;
+            }while(len < count);
             return len;
         }
         sockbuf::int_type sockbuf::overflow(sockbuf::int_type ch){
             if(Base::pbase() == nullptr)
                 return traits_type::eof();
-            if(sync()) {
-                auto&[addr, addrlen] = _addresses[1];
-                switch(_errno){
-                    case ENOTCONN:
-                        if(addr.ss_family == AF_UNSPEC) return traits_type::eof();
-                        if(connectto(reinterpret_cast<const struct sockaddr*>(&addr), addrlen)){
-                            switch(_errno) {
-                                case EALREADY:
-                                case EAGAIN:
-                                case EINPROGRESS:
-                                    _resizewbuf();
-                                    if(!traits_type::eq_int_type(ch, traits_type::eof())) 
-                                        return Base::sputc(ch);
-                                    return ch;
-                                case EISCONN:
-                                    return overflow(ch);
-                                default:
-                                    return traits_type::eof();
-                            }
-                        } else return overflow(ch);
-                    default:
-                        return traits_type::eof();
-                }
-            }
+            if(sync())
+                return traits_type::eof();
             if(Base::pptr()==Base::epptr()){
                 if(_poll(_socket, POLLOUT)) 
                     return traits_type::eof();

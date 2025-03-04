@@ -122,8 +122,7 @@ namespace cloudbus {
                 return events.begin() + off;
             } else it->revents |= POLLIN;
             return ev;
-        }              
-
+        }
         control_connector::control_connector(trigger_type& triggers): Base(triggers){}
         control_connector::norths_type::iterator control_connector::make(norths_type& n, const north_type::address_type addr, north_type::size_type addrlen){
             constexpr int backlog = 128;

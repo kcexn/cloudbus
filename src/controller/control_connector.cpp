@@ -73,6 +73,56 @@ namespace cloudbus {
             }
             return os;
         }
+        static control_connector::connections_type::iterator write_prepare(control_connector::connections_type& connections, const control_connector::north_type::stream_ptr& np, messages::msgheader& head, const std::streamsize& tellp){
+            const std::streamsize pos = MAX_BUFSIZE-(tellp+sizeof(head));
+            auto conn = connections.begin();
+            while(conn < connections.end()){
+                if(auto n = conn->north.lock()){
+                    if(n==np){
+                        head.eid = conn->uuid;
+                        if(auto s = conn->south.lock()){
+                            if(s->tellp() >= pos)
+                                s->flush();
+                            if(s->tellp() > pos)
+                                return conn;
+                            ++conn;
+                        } else conn = connections.erase(conn);
+                    } else ++conn;
+                } else conn = connections.erase(conn);
+            }
+            return conn;
+        }
+        static std::size_t write_commit(control_connector::connections_type& connections, const control_connector::north_type::stream_ptr& np, const messages::msgheader& head, control_connector::trigger_type& triggers, std::istream& is, const std::streamsize& tellp){
+            const auto time = control_connector::connection_type::clock_type::now();
+            std::size_t connected = 0;
+            for(auto& c: connections){
+                if(auto n = c.north.lock(); n && n==np){
+                    if(auto s = c.south.lock()){
+                        if(is.tellg() == 0) state_update(c, head.type, time);
+                        ++connected;
+                        s->write(reinterpret_cast<const char*>(&head), sizeof(head));
+                        stream_write(*s, is.seekg(0), tellp);
+                        triggers.set(s->native_handle(), POLLOUT);
+                    }
+                }
+            }
+            return connected;
+        }
+        static int clear_triggers(int sockfd, control_connector::trigger_type& triggers, control_connector::event_mask& revents, const control_connector::event_mask& mask){
+            revents &= ~mask;
+            triggers.clear(sockfd, mask);
+            return 0;
+        }
+        static control_connector::events_type::iterator read_restart(const int& sockfd, control_connector::trigger_type& triggers, control_connector::events_type& events, const control_connector::events_type::iterator& ev){
+            triggers.set(sockfd, POLLIN);
+            auto it = std::find_if(events.begin(), events.end(), [&](auto& e){ return e.fd == sockfd; });
+            if(it == events.end()){
+                auto off = ev - events.begin();
+                events.push_back(control_connector::event_type{sockfd, POLLIN, POLLIN});
+                return events.begin() + off;
+            } else it->revents |= POLLIN;
+            return ev;
+        }              
 
         control_connector::control_connector(trigger_type& triggers): Base(triggers){}
         control_connector::norths_type::iterator control_connector::make(norths_type& n, const north_type::address_type addr, north_type::size_type addrlen){
@@ -99,22 +149,11 @@ namespace cloudbus {
                         for(auto& stream: interface->streams()){
                             auto&[sockfd, nsp] = stream;
                             if(sockfd == ev->fd){
-                                if(ev->revents & (POLLOUT | POLLERR)){
-                                    for(auto& c: connections()){
-                                        if(auto n = c.north.lock(); n && n==nsp){
-                                            if(auto s = c.south.lock(); s && !s->eof()){
-                                                auto sfd = s->native_handle();
-                                                triggers().set(sfd, POLLIN);
-                                                auto it = std::find_if(events.begin(), events.end(), [&](auto& e){ return e.fd == sfd; });
-                                                if(it == events.end()){
-                                                    auto off = ev - events.begin();
-                                                    events.push_back(event_type{sfd, POLLIN, POLLIN});
-                                                    ev = events.begin() + off;
-                                                } else it->revents |= POLLIN;
-                                            }
-                                        }
-                                    }
-                                }
+                                if(ev->revents & (POLLOUT | POLLERR))
+                                    for(auto& c: connections())
+                                        if(auto n = c.north.lock(); n && n==nsp)
+                                            if(auto s = c.south.lock(); s && !s->eof())
+                                                ev = read_restart(s->native_handle(), triggers(), events, ev);
                                 handled += _handle(interface, stream, ev->revents);
                                 return true;
                             }
@@ -126,22 +165,11 @@ namespace cloudbus {
                         for(auto& stream: interface->streams()){
                             auto&[sockfd, ssp] = stream;
                             if(sockfd == ev->fd){
-                                if(ev->revents & (POLLOUT | POLLERR)){
-                                    for(auto& c: connections()){
-                                        if(auto s = c.south.lock(); s && s==ssp){
-                                            if(auto n = c.north.lock(); n && !n->eof()){
-                                                auto nfd = n->native_handle();
-                                                triggers().set(nfd, POLLIN);
-                                                auto it = std::find_if(events.begin(), events.end(), [&](auto& e){ return e.fd == nfd; });
-                                                if(it == events.end()){
-                                                    auto off = ev - events.begin();
-                                                    events.push_back(event_type{nfd, POLLIN, POLLIN});
-                                                    ev = events.begin() + off;
-                                                } else it->revents |= POLLIN;
-                                            }
-                                        }
-                                    }
-                                }
+                                if(ev->revents & (POLLOUT | POLLERR))
+                                    for(auto& c: connections())
+                                        if(auto s = c.south.lock(); s && s==ssp)
+                                            if(auto n = c.north.lock(); n && !n->eof())
+                                                ev = read_restart(n->native_handle(), triggers(), events, ev);
                                 handled += _handle(interface, stream, ev->revents);       
                                 return true;
                             }
@@ -184,30 +212,21 @@ namespace cloudbus {
             auto& sbd = south()[posit - north().cbegin()];
             const auto n = connection_type::clock_type::now();
             const auto eid = messages::make_uuid_v4();
-            if(sbd->streams().empty()){
-                auto&[sockfd, ssp] = sbd->make(sbd->address()->sa_family, SOCK_STREAM, 0);
-                set_flags(sockfd);
+            auto empty = sbd->streams().empty();
+            auto&[sfd, ssp] = (empty) ? sbd->make(sbd->address()->sa_family, SOCK_STREAM, 0) : sbd->streams().back();
+            if(empty){
+                set_flags(sfd);
                 ssp->connectto(sbd->address(), sbd->addrlen());
-                triggers().set(sockfd, (POLLIN | POLLOUT));
-                connections().push_back(
-                    (nsp->eof())
-                    ? connection_type{eid, nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
-                    : connection_type{eid, nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
-                );
-                return 0;
-            } else {
-                auto& [sfd, ssp] = sbd->streams().back();
-                connections().push_back(
-                    (nsp->eof())
-                    ? connection_type{eid, nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
-                    : connection_type{eid, nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
-                );
-                triggers().set(sfd, POLLOUT);
-                return _north_write(ssp, connections().back(), buf);
             }
+            connections().push_back(
+                (nsp->eof())
+                ? connection_type{eid, nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
+                : connection_type{eid, nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
+            );
+            triggers().set(sfd, (POLLIN | POLLOUT));
+            return _north_write(ssp, connections().back(), buf);
         }
         int control_connector::_north_pollin_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents){
-            constexpr std::streamsize HDRLEN=sizeof(messages::msgheader);
             /* forward the data arriving on the northbound connection to the southbound service. */
             auto it = marshaller().unmarshal(stream);
             auto& buf = std::get<marshaller_type::north_format>(*it);
@@ -216,48 +235,16 @@ namespace cloudbus {
                 revents &= ~(POLLIN | POLLHUP);
             const auto eof = nsp->eof();
             if(const auto p = buf.tellp(); eof || p > 0){
-                const std::streamsize pos = MAX_BUFSIZE-(p+HDRLEN);
-                const auto time = connection_type::clock_type::now();
                 messages::msgheader head = {
-                    {},{1, static_cast<std::uint16_t>(p+HDRLEN)},
+                    {},{1, static_cast<std::uint16_t>(static_cast<std::uint16_t>(p)+sizeof(head))},
                     {0,0},{(eof) ? messages::STOP : messages::DATA, 0}
                 };
-                auto conn = connections().begin();
-                while(conn < connections().end()){
-                    if(auto n = conn->north.lock()){
-                        if(n == nsp){
-                            head.eid = conn->uuid;
-                            if(auto s = conn->south.lock()){
-                                if(s->tellp() >= pos)
-                                    s->flush();
-                                if(s->tellp() > pos)
-                                    break;
-                                ++conn;
-                            } else conn = connections().erase(conn);
-                        } else ++conn;
-                    } else conn = connections().erase(conn);
-                }
-                if(conn != connections().end()){
-                    revents &= ~(POLLIN | POLLHUP);
-                    triggers().clear(nfd, POLLIN);
-                    return 0;
-                }
-                std::size_t connected = 0;
-                for(auto& c: connections()){
-                    if(auto n = c.north.lock(); n && n==nsp){
-                        if(auto s = c.south.lock()){
-                            ++connected;
-                            s->write(reinterpret_cast<const char*>(&head), HDRLEN);
-                            stream_write(*s, buf.seekg(0), p);
-                            triggers().set(s->native_handle(), POLLOUT);
-                            state_update(c, head.type, time);
-                        }
-                    }
-                }
-                if(!connected && !_north_connect_handler(interface, nsp, buf)){
-                    revents &= ~(POLLIN | POLLHUP);
-                    triggers().clear(nfd, POLLIN);
-                    return 0;
+                if(write_prepare(connections(), nsp, head, p) != connections().end())
+                    return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
+                if(!write_commit(connections(), nsp, head, triggers(), buf, p)){
+                    if(eof) return -1;
+                    else if(!_north_connect_handler(interface, nsp, buf))
+                        return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                 }
             }
             if(eof) triggers().clear(nfd, POLLIN);
@@ -321,7 +308,6 @@ namespace cloudbus {
             return handled;
         }
         void control_connector::_south_err_handler(shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
-            revents = 0;
             for(auto conn = connections().begin(); conn < connections().end();){
                 if(auto s = conn->south.lock()){
                     if(s == std::get<south_type::stream_ptr>(stream)){
@@ -333,10 +319,11 @@ namespace cloudbus {
                     } else ++conn;
                 } else conn = connections().erase(conn);
             }
+            revents = 0;
             triggers().clear(std::get<south_type::native_handle_type>(stream));
             interface->erase(stream);
         }
-        std::streamsize control_connector::_south_write(north_type::stream_ptr& n, marshaller_type::south_format& buf){            
+        std::streamsize control_connector::_south_write(north_type::stream_ptr& n, marshaller_type::south_format& buf){
             std::streamsize g=buf.tellg(), p=buf.tellp(), pos=MAX_BUFSIZE-(p-g);
             if(n->fail()) return -1;
             if(n->tellp() >= pos)
@@ -349,7 +336,7 @@ namespace cloudbus {
             } else return -1;
         }
         int control_connector::_south_pollin_handler(shared_south& interface, south_type::stream_type& stream, event_mask& revents){
-            constexpr std::streamsize hdrlen = sizeof(messages::msgheader);         
+            constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
             /* forward the data arriving on the northbound connection to the southbound service. */
             auto it = marshaller().marshal(stream);
             auto& [sfd, ssp] = stream;
@@ -358,18 +345,15 @@ namespace cloudbus {
                 revents &= ~(POLLIN | POLLHUP);
             const auto *eid = buf.eid();
             if(const auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
-                const auto seekpos = buf.tellg() <= hdrlen ? hdrlen : static_cast<std::streamsize>(buf.tellg());
+                const auto seekpos = buf.tellg() <= HDRLEN ? HDRLEN : static_cast<std::streamsize>(buf.tellg());
                 for(auto conn = connections().begin(); conn < connections().end();){
                     if(conn->uuid == *eid){
                         if(auto n = conn->north.lock()){
+                            if(seekpos == HDRLEN) state_update(*conn, *type, connection_type::clock_type::now());
                             buf.seekg(seekpos);
                             triggers().set(n->native_handle(), POLLOUT);
-                            if(_south_write(n, buf) < 0){
-                                revents &= ~(POLLIN | POLLHUP);
-                                triggers().clear(sfd, POLLIN);
-                                return 0;
-                            }
-                            state_update(*conn, *type, connection_type::clock_type::now());
+                            if(_south_write(n, buf) < 0)
+                                return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
                             if(ssp->eof()) return -1;
                             return 0;
                         } else conn = connections().erase(conn);
@@ -378,6 +362,7 @@ namespace cloudbus {
                 if(!buf.eof() && buf.tellg() <= seekpos)
                     buf.setstate(std::ios_base::eofbit);
             }
+            if(ssp->eof()) return -1;
             return 0;
         }
         int control_connector::_south_state_handler(const south_type::stream_type& stream){
@@ -387,8 +372,7 @@ namespace cloudbus {
                 if(auto s = conn->south.lock()){
                     if(s == ssp){
                         if(conn->state != connection_type::CLOSED){
-                            ++count;
-                            ++conn;
+                            ++count; ++conn;
                         } else conn = connections().erase(conn);
                     } else ++conn;
                 } else conn = connections().erase(conn);

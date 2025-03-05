@@ -26,6 +26,52 @@
 #endif
 namespace cloudbus{
     namespace segment{
+        volatile static std::sig_atomic_t signal = 0;
+        extern "C" {
+            static void sighandler(int sig){
+                signal = sig;
+            }
+        }
+        static segment_base::events_type filter_events(const segment_base::events_type& events, const segment_base::event_mask& mask=-1){
+            auto e_ = segment_base::events_type();
+            e_.reserve(events.size());
+            for(const auto& e: events)
+                if(e.revents & mask)
+                    e_.push_back(e);
+            return e_;
+        }        
+        int segment_base::_run(){
+            constexpr size_type FAIRNESS = 16;
+            const auto pause = std::chrono::milliseconds(-1);
+            std::signal(SIGTERM, sighandler);
+            std::signal(SIGINT, sighandler);
+            std::signal(SIGHUP, sighandler);
+            while(triggers().wait(pause) != trigger_type::npos){
+                auto events = triggers().events();
+                for(size_type i = 0, handled = handle(events); i++ < FAIRNESS && !handled; handled = handle(events)){
+                    if(handled == trigger_type::npos)
+                        return 0;
+                    if(i == FAIRNESS){
+                        if((i = triggers().wait(std::chrono::milliseconds(0)))){
+                            if(i == trigger_type::npos) return 0;
+                            events = filter_events(events);
+                            auto events_ = triggers().events();
+                            for(auto e = events_.begin(); i && e < events_.end(); ++e){
+                                if(e->revents && i--){
+                                    auto it = std::find_if(events.begin(), events.end(), [&](auto& ev){ return e->fd == ev.fd; });
+                                    if(it != events.end())
+                                        it->revents |= e->revents;
+                                    else events.push_back(*it);
+                                }
+                            }
+                        }
+                        if(signal) return signal;
+                    }
+                }
+                if(signal) return signal;
+            }
+            return 0;
+        }
         segment::segment(): Base(){
             struct sockaddr_storage ss = {};
             socklen_t len = 0;
@@ -49,52 +95,7 @@ namespace cloudbus{
                     unlink(reinterpret_cast<struct sockaddr_un*>(n->address())->sun_path);
             }
         }
-
-        volatile static std::sig_atomic_t signal = 0;
-        extern "C" {
-            static void sighandler(int sig){
-                signal = sig;
-            }
-        }
-        static segment::events_type filter_events(const segment::events_type& events, const segment::event_mask& mask=-1){
-            auto e_ = segment::events_type();
-            e_.reserve(events.size());
-            for(const auto& e: events)
-                if(e.revents & mask)
-                    e_.push_back(e);
-            return e_;
-        }        
-        int segment::run(){
-            constexpr int FAIRNESS = 16;
-            auto pause = std::chrono::milliseconds(-1);
-            std::signal(SIGTERM, sighandler);
-            std::signal(SIGINT, sighandler);
-            std::signal(SIGHUP, sighandler);
-            while(triggers().wait(pause) >= 0){
-                auto events = triggers().events();
-                for(int i = 0, handled = handle(events); handled > 0 && i++ < FAIRNESS; handled = handle(events)){
-                    if(i == FAIRNESS){
-                        if(signal) return signal;
-                        if((i = triggers().wait(std::chrono::milliseconds(0)))){
-                            if(i < 0) return 0;
-                            events = filter_events(events);
-                            auto events_ = triggers().events();
-                            for(auto e = events_.begin(); i && e < events_.end(); ++e){
-                                if(e->revents && i--){
-                                    auto it = std::find_if(events.begin(), events.end(), [&](auto& ev){ return e->fd == ev.fd; });
-                                    if(it != events.end())
-                                        it->revents |= e->revents;
-                                    else events.push_back(*it);
-                                }
-                            }
-                        }
-                    }
-                }
-                if(signal) return signal;
-            }
-            return 0;
-        }
-        int segment::_handle(events_type& events){
+        segment::size_type segment::_handle(events_type& events){
             return connector().handle(events);
         }
     }

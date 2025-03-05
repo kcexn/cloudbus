@@ -45,7 +45,8 @@ namespace cloudbus {
             using trigger_type = typename Base::trigger_type;
             using event_type = typename Base::event_type;
             using events_type = typename Base::events_type;
-            using event_mask = typename Base::event_mask;            
+            using event_mask = typename Base::event_mask;
+            using size_type = typename Base::size_type;    
 
             using marshaller_type = MarshallerT;
             using north_type = typename marshaller_type::north_type;

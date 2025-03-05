@@ -30,7 +30,8 @@ namespace cloudbus {
                 using trigger_type = Base::trigger_type;
                 using event_type = Base::event_type;
                 using events_type = Base::events_type;
-                using event_mask = Base::event_mask;            
+                using event_mask = Base::event_mask;
+                using size_type = Base::size_type;
 
                 using marshaller_type = Base::marshaller_type;
                 using north_type = Base::north_type;
@@ -47,8 +48,15 @@ namespace cloudbus {
                 using connections_type = Base::connections_type;
 
                 control_connector(trigger_type& triggers);
-                norths_type::iterator make(norths_type& n, const north_type::address_type addr, north_type::size_type addrlen);
-                souths_type::iterator make(souths_type& s, const south_type::address_type addr, south_type::size_type addrlen);     
+                norths_type::iterator make(norths_type& n, const north_type::address_type& addr, north_type::size_type addrlen);
+                souths_type::iterator make(souths_type& s, const south_type::address_type& addr, south_type::size_type addrlen);
+
+                int route(marshaller_type::north_format& buf, const shared_north& interface, north_type::stream_type& stream, event_mask& revents){ 
+                    return _route(buf, interface, stream, revents);
+                }
+                int route(marshaller_type::south_format& buf, const shared_south& interface, south_type::stream_type& stream, event_mask& revents){ 
+                    return _route(buf, interface, stream, revents);
+                }
 
                 ~control_connector() = default;
 
@@ -59,24 +67,26 @@ namespace cloudbus {
                 control_connector& operator=(control_connector&& other) = delete;               
 
             protected:
-                virtual int _handle(events_type& events) override;
+                virtual size_type _handle(events_type& events) override;
+                virtual int _route(marshaller_type::north_format& buf, const shared_north& interface, north_type::stream_type& stream, event_mask& revents);
+                virtual int _route(marshaller_type::south_format& buf, const shared_south& interface, south_type::stream_type& stream, event_mask& revents);
 
             private:
                 void _north_err_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents);
                 std::streamsize _north_write(south_type::stream_ptr& s, const connection_type& conn, marshaller_type::north_format& buf);
                 std::streamsize _north_connect_handler(const shared_north& interface, north_type::stream_ptr& nsp, marshaller_type::north_format& buf);
-                int _north_pollin_handler(shared_north& interface, north_type::stream_type& stream, event_mask& revents);
+                int _north_pollin_handler(const shared_north& interface, north_type::stream_type& stream, event_mask& revents);
                 int _north_accept_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents);
                 void _north_state_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents);
                 int _north_pollout_handler(north_type::stream_type& stream, event_mask& revents);
-                int _handle(shared_north& interface, north_type::stream_type& stream, event_mask& revents);
+                size_type _handle(shared_north& interface, north_type::stream_type& stream, event_mask& revents);
 
                 void _south_err_handler(shared_south& interface, const south_type::stream_type& stream, event_mask& revents);
                 std::streamsize _south_write(north_type::stream_ptr& n, marshaller_type::south_format& buf);
-                int _south_pollin_handler(shared_south& interface, south_type::stream_type& stream, event_mask& revents);
+                int _south_pollin_handler(const shared_south& interface, south_type::stream_type& stream, event_mask& revents);
                 int _south_state_handler(const south_type::stream_type& stream);
                 int _south_pollout_handler(south_type::stream_type& stream, event_mask& revents);
-                int _handle(shared_south& interface, south_type::stream_type& stream, event_mask& revents);
+                size_type _handle(shared_south& interface, south_type::stream_type& stream, event_mask& revents);
         };
     }
 }

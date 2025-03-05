@@ -176,6 +176,7 @@ namespace io {
             using event_type = Base::event_type;
             using events_type = Base::events_type;
             using event_mask = Base::event_mask;
+            using size_type = Base::size_type;
             
             trigger(): Base(_poller){}
             ~trigger() = default;
@@ -194,12 +195,13 @@ namespace io {
             using event_type = typename trigger_type::event_type;
             using events_type = typename trigger_type::events_type;
             using event_mask = typename trigger_type::event_mask;
+            using size_type = typename trigger_type::size_type;
 
-            int handle(events_type& events) { return _handle(events); }
+            size_type handle(events_type& events) { return _handle(events); }
             virtual ~basic_handler() = default;
 
         protected:
-            virtual int _handle(events_type& events) { return 0; }
+            virtual size_type _handle(events_type& events) { return trigger_type::npos; }
     };
 }
 #endif

@@ -19,35 +19,56 @@
 #define CLOUDBUS_PROXY
 namespace cloudbus{
     namespace proxy {
-        template<class ConnectorT>
-        class basic_proxy: public handler_type
+        class proxy_base: public handler_type
         {
             public:
                 using Base = handler_type;
                 using trigger_type = Base::trigger_type;
                 using event_type = Base::event_type;
                 using events_type = Base::events_type;
-                using event_mask = Base::event_mask;                    
+                using event_mask = Base::event_mask;
+                using size_type = Base::size_type;
 
-                using connector_type = ConnectorT;          
+                proxy_base() = default;
+                trigger_type& triggers() { return _triggers; }
+                int run() { return _run(); }
+                virtual ~proxy_base() = default;
 
-                basic_proxy(): _connector{_triggers}{}
+                proxy_base(proxy_base&& other) = delete;
+                proxy_base(const proxy_base& other) = delete;
+                proxy_base& operator=(proxy_base&& other) = delete;
+                proxy_base& operator=(const proxy_base& other) = delete;
 
-                trigger_type& triggers() { return _triggers; }              
+            protected:
+                virtual int _run();
+
+            private:
+                trigger_type _triggers;
+        };
+        template<class ConnectorT>
+        class basic_proxy: public proxy_base
+        {
+            public:
+                using Base = proxy_base;
+                using trigger_type = Base::trigger_type;
+                using event_type = Base::event_type;
+                using events_type = Base::events_type;
+                using event_mask = Base::event_mask;
+                using size_type = Base::size_type;
+
+                using connector_type = ConnectorT;    
+
+                basic_proxy(): _connector{Base::triggers()}{}
                 connector_type& connector() { return _connector; }
-
                 virtual ~basic_proxy() = default;
 
                 basic_proxy(basic_proxy&& other) = delete;
                 basic_proxy(const basic_proxy& other) = delete;
                 basic_proxy& operator=(basic_proxy&& other) = delete;
                 basic_proxy& operator=(const basic_proxy& other) = delete;
-
             private:
-                trigger_type _triggers;
                 connector_type _connector;
         };
-        
         class proxy : public basic_proxy<proxy_connector>
         {
             public:
@@ -55,10 +76,10 @@ namespace cloudbus{
                 using trigger_type = Base::trigger_type;
                 using events_type = Base::events_type;
                 using event_mask = Base::event_mask;
+                using size_type = Base::size_type;
                 using connector_type = Base::connector_type;
                 
                 proxy();
-                int run();
                 virtual ~proxy();
 
                 proxy(const proxy& other) = delete;
@@ -67,7 +88,7 @@ namespace cloudbus{
                 proxy& operator=(const proxy& other) = delete;
                 
             protected:
-                virtual int _handle(events_type& events) override;
+                virtual size_type _handle(events_type& events) override;
         };
     }
 }

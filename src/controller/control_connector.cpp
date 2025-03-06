@@ -225,7 +225,7 @@ namespace cloudbus {
                         } else conn = connections().erase(conn);
                     } else ++conn;
                 }
-                if(!buf.eof() && buf.tellp()==buf.len()->length)
+                if(!buf.eof() && pos==buf.len()->length)
                     buf.setstate(std::ios_base::eofbit);
             }
             if(ssp->eof()) return -1;

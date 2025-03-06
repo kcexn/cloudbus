@@ -311,9 +311,10 @@ namespace cloudbus {
             return 0;
         }
         void control_connector::_north_state_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
+            const auto&[nfd, nsp] = stream;
             for(auto conn = connections().begin(); conn < connections().end();){
                 if(auto n = conn->north.lock()){
-                    if(n == std::get<north_type::stream_ptr>(stream)){
+                    if(n == nsp){
                         switch(conn->state){
                             case connection_type::CLOSED:
                                 if(auto s = conn->south.lock())
@@ -322,7 +323,7 @@ namespace cloudbus {
                                 return _north_err_handler(interface, stream, revents);
                             case connection_type::HALF_CLOSED:
                                 revents |= POLLHUP;
-                                shutdown(std::get<north_type::native_handle_type>(stream), SHUT_WR);
+                                shutdown(nfd, SHUT_WR);
                             default: return;
                         }
                     } else ++conn;

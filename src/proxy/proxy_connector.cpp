@@ -60,9 +60,8 @@ namespace cloudbus{
         static std::streamsize stream_write(std::ostream& os, std::istream& is, std::streamsize len){
             std::streamsize pos=MAX_BUFSIZE-len;
             if(os.fail()) return -1;
-            if(os.tellp() >= pos)
-                if(os.flush().bad())
-                    return -1;
+            if(os.tellp() >= pos && os.flush().bad())
+                return -1;
             if(os.tellp() < pos){
                 std::streamsize count = 0;
                 std::streamsize size = std::min(len, static_cast<std::streamsize>(_buf.max_size()));
@@ -201,7 +200,7 @@ namespace cloudbus{
                     }
                 } 
                 else if(nsp->eof()) return -1;
-                else if(_north_connect_handler(interface, nsp, buf) < 0)
+                else if(!_north_connect_handler(interface, nsp, buf))
                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
             }
             if(nsp->eof()) return -1;
@@ -211,13 +210,13 @@ namespace cloudbus{
             auto&[sfd, ssp] = stream;
             const auto *eid = buf.eid();
             if(const auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
-                const auto seekpos = buf.tellg();
+                const auto seekpos = buf.tellg(), pos = buf.tellp();
                 for(auto conn = connections().begin(); conn < connections().end();){
                     if(auto s = conn->south.lock(); conn->uuid == *eid && s && s==ssp){
                         if(auto n = conn->north.lock()){
-                            if(auto len = buf.tellp()-seekpos){
+                            if(auto len = pos-seekpos){
                                 triggers().set(n->native_handle(), POLLOUT);
-                                if(stream_write(*n, buf.seekg(seekpos), len) < 0)
+                                if(!stream_write(*n, buf.seekg(seekpos), len))
                                     return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
                                 if(!buf.eof() && buf.tellg()==buf.len()->length)
                                     buf.setstate(std::ios_base::eofbit);
@@ -232,7 +231,7 @@ namespace cloudbus{
                         } else conn = connections().erase(conn);
                     } else ++conn;
                 }
-                if(!buf.eof() && buf.tellg() != buf.tellp() && buf.tellp() == buf.len()->length)
+                if(pos == buf.len()->length)
                     buf.setstate(std::ios_base::eofbit);
             }
             if(ssp->eof()) return -1;
@@ -312,16 +311,16 @@ namespace cloudbus{
         int proxy_connector::_north_pollout_handler(north_type::stream_type& stream, event_mask& revents){
             auto&[nfd, nsp] = stream;
             nsp->flush();
-            if(nsp->fail() || revents & POLLERR)
+            if(nsp->fail() || revents & (POLLERR | POLLNVAL))
                 return -1;
             if(nsp->tellp() == 0)
                 triggers().clear(nfd, POLLOUT);
-            revents &= ~(POLLOUT | POLLERR);
+            revents &= ~(POLLOUT | POLLERR | POLLNVAL);
             return 0;
         }
         proxy_connector::size_type proxy_connector::_handle(shared_north& interface, north_type::stream_type& stream, event_mask& revents){
             size_type handled = 0;
-            if(revents & (POLLOUT | POLLERR)){
+            if(revents & (POLLOUT | POLLERR | POLLNVAL)){
                 ++handled;
                 if(_north_pollout_handler(stream, revents))
                     _north_err_handler(interface, stream, revents);
@@ -386,16 +385,16 @@ namespace cloudbus{
         int proxy_connector::_south_pollout_handler(south_type::stream_type& stream, event_mask& revents){
             auto&[sfd, ssp] = stream;
             ssp->flush();
-            if(ssp->fail() || revents & POLLERR)
+            if(ssp->fail() || revents & (POLLERR | POLLNVAL))
                 return -1;
             if(ssp->tellp() == 0)
                 triggers().clear(sfd, POLLOUT);
-            revents &= ~(POLLOUT | POLLERR);
+            revents &= ~(POLLOUT | POLLERR | POLLNVAL);
             return 0;
         }
         proxy_connector::size_type proxy_connector::_handle(shared_south& interface, south_type::stream_type& stream, event_mask& revents){
           size_type handled = 0;
-          if(revents & (POLLOUT | POLLERR)){
+          if(revents & (POLLOUT | POLLERR | POLLNVAL)){
             ++handled;
             if(_south_pollout_handler(stream, revents))
                 _south_err_handler(interface, stream, revents);

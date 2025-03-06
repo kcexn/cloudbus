@@ -313,25 +313,23 @@ namespace cloudbus {
         void control_connector::_north_state_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             const auto&[nfd, nsp] = stream;
             for(auto conn = connections().begin(); conn < connections().end();){
-                if(auto n = conn->north.lock()){
-                    if(n == nsp){
-                        switch(conn->state){
-                            case connection_type::CLOSED:
-                                if(auto s = conn->south.lock())
-                                    triggers().set(s->native_handle(), POLLOUT);
-                                connections().erase(conn);
-                                return _north_err_handler(interface, stream, revents);
-                            case connection_type::HALF_CLOSED:
-                                revents |= POLLHUP;
-                                shutdown(nfd, SHUT_WR);
-                            default: return;
-                        }
-                    } else ++conn;
-                } else conn = connections().erase(conn);
+                if(auto n = conn->north.lock(); n && n == nsp){
+                    switch(conn->state){
+                        case connection_type::CLOSED:
+                            if(auto s = conn->south.lock())
+                                triggers().set(s->native_handle(), POLLOUT);
+                            connections().erase(conn);
+                            return _north_err_handler(interface, stream, revents);
+                        case connection_type::HALF_CLOSED:
+                            revents |= POLLHUP;
+                            shutdown(nfd, SHUT_WR);
+                        default: return;
+                    }
+                } else ++conn;
             }
         }
-        int control_connector::_north_pollout_handler(north_type::stream_type& stream, event_mask& revents){       
-            auto&[nfd, nsp] = stream;
+        int control_connector::_north_pollout_handler(north_type::stream_type& stream, event_mask& revents){
+            auto&[nfd, nsp]=stream;
             nsp->flush();
             if(nsp->fail() || revents & (POLLERR | POLLNVAL))
                 return -1;
@@ -417,7 +415,7 @@ namespace cloudbus {
             return 0;
         }
         control_connector::size_type control_connector::_handle(shared_south& interface, south_type::stream_type& stream, event_mask& revents){
-            size_type handled = 0; 
+            size_type handled = 0;
             if(revents & (POLLOUT | POLLERR | POLLNVAL)){
                 ++handled;
                 if(_south_pollout_handler(stream, revents))

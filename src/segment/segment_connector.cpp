@@ -161,7 +161,7 @@ namespace cloudbus{
                         if(auto s = conn->south.lock()){
                             buf.seekg(seekpos);
                             triggers().set(s->native_handle(), POLLOUT);
-                            if(pos > seekpos &&!_north_write(s, buf))
+                            if(pos > seekpos && !_north_write(s, buf))
                                 return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                             if(!buf.eof() && buf.tellg() == buf.len()->length)
                                 buf.setstate(std::ios_base::eofbit);
@@ -347,19 +347,17 @@ namespace cloudbus{
         void segment_connector::_south_state_handler(shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
             const auto&[sfd, ssp] = stream;
             for(auto conn = connections().begin(); conn < connections().end();){
-                if(auto s = conn->south.lock()){
-                    if(s == ssp){
-                        switch(conn->state){
-                            case connection_type::CLOSED:
-                                connections().erase(conn);
-                                return _south_err_handler(interface, stream, revents);
-                            case connection_type::HALF_CLOSED:
-                                revents |= POLLHUP;
-                                shutdown(sfd, SHUT_WR);
-                            default: return;
-                        }
-                    } else ++conn;
-                } else conn = connections().erase(conn);
+                if(auto s = conn->south.lock(); s && s == ssp){
+                    switch(conn->state){
+                        case connection_type::CLOSED:
+                            connections().erase(conn);
+                            return _south_err_handler(interface, stream, revents);
+                        case connection_type::HALF_CLOSED:
+                            revents |= POLLHUP;
+                            shutdown(sfd, SHUT_WR);
+                        default: return;
+                    }
+                } else ++conn;
             }
         }
         int segment_connector::_south_pollout_handler(south_type::stream_type& stream, event_mask& revents){

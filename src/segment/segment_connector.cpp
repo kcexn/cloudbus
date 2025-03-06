@@ -159,14 +159,19 @@ namespace cloudbus{
                 for(auto conn = connections().begin(); conn < connections().end();){
                     if(auto n = conn->north.lock(); conn->uuid == *eid && n && n == nsp){
                         if(auto s = conn->south.lock()){
-                            buf.seekg(seekpos);
-                            triggers().set(s->native_handle(), POLLOUT);
-                            if(pos > seekpos && !_north_write(s, buf))
-                                return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
-                            if(!buf.eof() && buf.tellg() == buf.len()->length)
-                                buf.setstate(std::ios_base::eofbit);
-                            if(seekpos == HDRLEN)
-                                state_update(*conn, *type, connection_type::clock_type::now());
+                            if(conn->state==connection_type::HALF_CLOSED && !s->eof()){
+                                if(!buf.eof() && pos==buf.len()->length)
+                                    buf.setstate(std::ios_base::eofbit);
+                            } else {
+                                buf.seekg(seekpos);
+                                triggers().set(s->native_handle(), POLLOUT);
+                                if(pos > seekpos && !_north_write(s, buf))
+                                    return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
+                                if(!buf.eof() && buf.tellg() == buf.len()->length)
+                                    buf.setstate(std::ios_base::eofbit);
+                                if(seekpos == HDRLEN)
+                                    state_update(*conn, *type, connection_type::clock_type::now());
+                            }
                         } else connections().erase(conn);
                         return 0;
                     } else ++conn;

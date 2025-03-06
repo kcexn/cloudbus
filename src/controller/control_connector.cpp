@@ -210,18 +210,41 @@ namespace cloudbus {
                     ? HDRLEN
                     : static_cast<std::streamsize>(buf.tellg());
                 const std::streamsize pos = buf.tellp();
+                const auto time = connection_type::clock_type::now();
                 for(auto conn = connections().begin(); conn < connections().end();){
                     if(auto s = conn->south.lock(); conn->uuid == *eid && s && s == ssp){
-                        if(auto n = conn->north.lock()){
+                        if(conn->state == connection_type::CLOSED){
+                            if(type->op == messages::STOP)
+                                conn = connections().erase(conn);
+                            break;
+                        } else if(auto n = conn->north.lock()){
+                            if(conn->state==connection_type::HALF_CLOSED && !n->eof())
+                                break;
                             buf.seekg(seekpos);
                             triggers().set(n->native_handle(), POLLOUT);
                             if(pos > seekpos && !_south_write(n, buf))
                                 return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
                             if(!buf.eof() && buf.tellg()==buf.len()->length)
                                 buf.setstate(std::ios_base::eofbit);
-                            if(seekpos == HDRLEN) 
-                                state_update(*conn, *type, connection_type::clock_type::now());
-                            return 0;
+                            if(seekpos == HDRLEN){
+                                state_update(*conn, *type, time);
+                                const messages::msgheader stop = {
+                                    *eid, {1, sizeof(stop)},
+                                    {0,0},{messages::STOP, 0}
+                                };
+                                for(auto& c: connections()){
+                                    // This is a very awkward way to do this, but I have implemented it like this to keep 
+                                    // open the option of implementing UDP transport. With unreliable transports, it is 
+                                    // necessary to retry control messages until after the remote end sends back an ACK.
+                                    if(auto sp = c.south.lock(); c.uuid == *eid && sp && sp != ssp){
+                                        sp->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
+                                        triggers().set(sp->native_handle(), POLLOUT);
+                                        state_update(c, stop.type, time);
+                                        state_update(c, stop.type, time);
+                                    }
+                                }
+                            }
+                            break;
                         } else conn = connections().erase(conn);
                     } else ++conn;
                 }
@@ -257,42 +280,40 @@ namespace cloudbus {
             triggers().clear(nfd);
             interface->erase(stream);
         }
-        std::streamsize control_connector::_north_write(south_type::stream_ptr& ssp, const connection_type& conn, marshaller_type::north_format& buf){
-            std::streamsize bp = buf.tellp(), size=sizeof(messages::msgheader)+bp, pos=MAX_BUFSIZE-size;
-            if(ssp->fail()) return -1;
-            if(ssp->tellp() >= pos)
-                if(ssp->flush().bad()) return -1;
-            if(ssp->tellp() < pos){
-                auto nsp = conn.north.lock();
-                const messages::msgheader head = {
-                    conn.uuid,
-                    {1, static_cast<std::uint16_t>(size)},
-                    {0,0},
-                    {(!nsp || nsp->eof()) ? messages::STOP : messages::DATA, 0}
-                };
-                if(ssp->write(reinterpret_cast<const char*>(&head), sizeof(head)).bad()) return -1;
-                if(stream_write(*ssp, buf.seekg(0), bp).bad()) return -1;
-                return size;
-            } else return 0;
-        }
         std::streamsize control_connector::_north_connect_handler(const shared_north& interface, north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
-            auto posit = std::find(north().cbegin(), north().cend(), interface);
-            auto& sbd = south()[posit - north().cbegin()];
             const auto n = connection_type::clock_type::now();
             const auto eid = messages::make_uuid_v4();
-            auto empty = sbd->streams().empty();
-            auto&[sfd, ssp] = (empty) ? sbd->make(sbd->address()->sa_family, SOCK_STREAM, 0) : sbd->streams().back();
-            if(empty){
-                set_flags(sfd);
-                ssp->connectto(sbd->address(), sbd->addrlen());
+            connections_type connect;
+            for(auto& sbd: south()){
+                auto empty = sbd->streams().empty();
+                auto&[sfd, ssp] = (empty) ? sbd->make(sbd->address()->sa_family, SOCK_STREAM, 0) : sbd->streams().back();
+                if(empty){
+                    set_flags(sfd);
+                    ssp->connectto(sbd->address(), sbd->addrlen());
+                }
+                connect.push_back(
+                    (nsp->eof())
+                    ? connection_type{eid, nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
+                    : connection_type{eid, nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
+                );
+                triggers().set(sfd, (POLLIN | POLLOUT));
             }
-            connections().push_back(
-                (nsp->eof())
-                ? connection_type{eid, nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
-                : connection_type{eid, nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
-            );
-            triggers().set(sfd, (POLLIN | POLLOUT));
-            return _north_write(ssp, connections().back(), buf);
+            connections().insert(connections().cend(), connect.begin(), connect.end());
+            const std::streamsize pos = buf.tellp();
+            messages::msgheader head = {
+                {},{1, static_cast<std::uint16_t>(pos+sizeof(head))},
+                {0,0},{(nsp->eof()) ? messages::STOP : messages::DATA, 0}
+            };
+            if(write_prepare(connect, nsp, head, pos) == connect.end()){
+                for(auto& c: connect){
+                    if(auto s = c.south.lock()){
+                        s->write(reinterpret_cast<const char*>(&head), sizeof(head));
+                        stream_write(*s, buf.seekg(0), pos);
+                    }
+                }
+                return sizeof(head) + pos;
+            }
+            return 0;
         }
         int control_connector::_north_pollin_handler(const shared_north& interface, north_type::stream_type& stream, event_mask& revents){
             auto it = marshaller().unmarshal(stream);

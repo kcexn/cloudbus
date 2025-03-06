@@ -198,7 +198,7 @@ namespace cloudbus{
                             }
                         }
                     }
-                } 
+                }
                 else if(nsp->eof()) return -1;
                 else if(!_north_connect_handler(interface, nsp, buf))
                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
@@ -213,7 +213,11 @@ namespace cloudbus{
                 const auto seekpos = buf.tellg(), pos = buf.tellp();
                 for(auto conn = connections().begin(); conn < connections().end();){
                     if(auto s = conn->south.lock(); conn->uuid == *eid && s && s==ssp){
-                        if(auto n = conn->north.lock()){
+                        if(conn->state == connection_type::CLOSED){
+                            if(type->op == messages::STOP)
+                                conn = connections().erase(conn);
+                            break;
+                        } else if(auto n = conn->north.lock()){
                             if(auto len = pos-seekpos){
                                 triggers().set(n->native_handle(), POLLOUT);
                                 if(!stream_write(*n, buf.seekg(seekpos), len))
@@ -221,13 +225,31 @@ namespace cloudbus{
                                 if(!buf.eof() && buf.tellg()==buf.len()->length)
                                     buf.setstate(std::ios_base::eofbit);
                             }
-                            if(seekpos == 0) state_update(*conn, *type, connection_type::clock_type::now());
+                            if(seekpos == 0) {
+                                const auto time = connection_type::clock_type::now();
+                                state_update(*conn, *type, time);
+                                const messages::msgheader stop = {
+                                    *eid, {1, sizeof(stop)},
+                                    {0,0},{messages::STOP, 0}
+                                };
+                                for(auto& c: connections()){
+                                    // This is a very awkward way to do this, but I have implemented it like this to keep 
+                                    // open the option of implementing UDP transport. With unreliable transports, it is 
+                                    // necessary to retry control messages until after the remote end sends back an ACK.
+                                    if(auto sp = c.south.lock(); c.uuid == *eid && sp && sp != ssp){
+                                        sp->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
+                                        triggers().set(sp->native_handle(), POLLOUT);
+                                        state_update(c, stop.type, time);
+                                        state_update(c, stop.type, time);
+                                    }
+                                }
+                            }
                             if(auto rem = buf.len()->length-buf.tellp(); ssp->eof() && rem) {
                                 triggers().set(n->native_handle(), POLLOUT);
                                 std::vector<char> tmp(rem);
                                 n->write(tmp.data(), tmp.size());
                             }
-                            return 0;
+                            break;
                         } else conn = connections().erase(conn);
                     } else ++conn;
                 }
@@ -264,22 +286,31 @@ namespace cloudbus{
             interface->erase(stream);
         }
         std::streamsize proxy_connector::_north_connect_handler(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
-            auto posit = std::find(north().cbegin(), north().cend(), interface);
-            auto& sbd = south()[posit - north().cbegin()];
             const auto n = connection_type::clock_type::now();
-            auto empty = sbd->streams().empty();
-            auto&[sfd, ssp] = (empty) ? sbd->make(sbd->address()->sa_family, SOCK_STREAM, 0) : sbd->streams().back();
-            if(empty){
-                set_flags(sfd);
-                ssp->connectto(sbd->address(), sbd->addrlen());
+            connections_type connect;
+            for(auto& sbd: south()){
+                auto empty = sbd->streams().empty();
+                auto&[sfd, ssp] = (empty) ? sbd->make(sbd->address()->sa_family, SOCK_STREAM, 0) : sbd->streams().back();
+                if(empty){
+                    set_flags(sfd);
+                    ssp->connectto(sbd->address(), sbd->addrlen());
+                }
+                connect.push_back(
+                    (buf.type()->op==messages::STOP)
+                    ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
+                    : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
+                );
+                triggers().set(sfd, (POLLIN | POLLOUT));
             }
-            connections().push_back(
-                (buf.type()->op==messages::STOP)
-                ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
-                : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
-            );
-            triggers().set(sfd, (POLLIN | POLLOUT));
-            return stream_write(*ssp, buf, buf.tellp()-buf.tellg());
+            connections().insert(connections().cend(), connect.begin(), connect.end());
+            const std::streamsize len = buf.tellp() - buf.tellg();
+            if(write_prepare(connect, *buf.eid(), len) == connect.end()){
+                for(auto& c: connect)
+                    if(auto s = c.south.lock())
+                        stream_write(*s, buf.seekg(0), len);
+                return len;
+            }
+            return 0;
         }
         int proxy_connector::_north_pollin_handler(const shared_north& interface, north_type::stream_type& stream, event_mask& revents){
             auto it = marshaller().unmarshal(stream);

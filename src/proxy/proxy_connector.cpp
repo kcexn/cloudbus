@@ -224,23 +224,23 @@ namespace cloudbus{
                                     return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
                                 if(!buf.eof() && buf.tellg()==buf.len()->length)
                                     buf.setstate(std::ios_base::eofbit);
-                            }
-                            if(seekpos == 0) {
-                                const auto time = connection_type::clock_type::now();
-                                state_update(*conn, *type, time);
-                                const messages::msgheader stop = {
-                                    *eid, {1, sizeof(stop)},
-                                    {0,0},{messages::STOP, 0}
-                                };
-                                for(auto& c: connections()){
-                                    // This is a very awkward way to do this, but I have implemented it like this to keep 
-                                    // open the option of implementing UDP transport. With unreliable transports, it is 
-                                    // necessary to retry control messages until after the remote end sends back an ACK.
-                                    if(auto sp = c.south.lock(); c.uuid == *eid && sp && sp != ssp){
-                                        sp->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
-                                        triggers().set(sp->native_handle(), POLLOUT);
-                                        state_update(c, stop.type, time);
-                                        state_update(c, stop.type, time);
+                                if(seekpos == 0) {
+                                    const auto time = connection_type::clock_type::now();
+                                    state_update(*conn, *type, time);
+                                    const messages::msgheader stop = {
+                                        *eid, {1, sizeof(stop)},
+                                        {0,0},{messages::STOP, 0}
+                                    };
+                                    for(auto c=connections().begin(); c < connections().end() && conn->state < connection_type::HALF_CLOSED; ++conn){
+                                        // This is a very awkward way to do this, but I have implemented it like this to keep 
+                                        // open the option of implementing UDP transport. With unreliable transports, it is 
+                                        // necessary to retry control messages until after the remote end sends back an ACK.
+                                        if(auto sp = c->south.lock(); c->uuid == *eid && sp && sp != ssp){
+                                            sp->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
+                                            triggers().set(sp->native_handle(), POLLOUT);
+                                            state_update(*c, stop.type, time);
+                                            state_update(*c, stop.type, time);
+                                        }
                                     }
                                 }
                             }
@@ -330,14 +330,33 @@ namespace cloudbus{
         }
         void proxy_connector::_north_state_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             const auto& nsp = std::get<north_type::stream_ptr>(stream);
-            for(auto conn = connections().begin(); conn < connections().end();){
+            int session_state = connection_type::CLOSED;
+            for(auto& c: connections())
+                if(auto n = c.north.lock(); n && n==nsp && c.state < session_state)
+                    session_state = c.state;
+            const auto time = connection_type::clock_type::now();
+            messages::msgheader stop = {
+                {},{1, sizeof(stop)},
+                {0,0},{messages::STOP, 0}
+            };
+            for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto n = conn->north.lock(); n && n == nsp){
-                    if(conn->state == connection_type::CLOSED){
-                        if(auto s = conn->south.lock())
-                            triggers().set(s->native_handle(), POLLOUT);
-                        conn = connections().erase(conn);
-                    } else ++conn;
-                } else ++conn;
+                    switch(auto s = conn->south.lock(); session_state){
+                        case connection_type::HALF_OPEN:
+                        case connection_type::OPEN:
+                            if(s && conn->state == connection_type::HALF_CLOSED){
+                                stop.eid = conn->uuid;
+                                s->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
+                                triggers().set(s->native_handle(), POLLOUT);
+                                state_update(*conn, stop.type, time);
+                            }
+                        case connection_type::HALF_CLOSED: break;
+                        case connection_type::CLOSED:
+                            if(s) triggers().set(s->native_handle(), POLLOUT);
+                            conn = --connections().erase(conn);
+                        default: break;
+                    }
+                }
             }
         }
         int proxy_connector::_north_pollout_handler(north_type::stream_type& stream, event_mask& revents){

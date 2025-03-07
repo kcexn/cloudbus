@@ -232,15 +232,15 @@ namespace cloudbus {
                                     *eid, {1, sizeof(stop)},
                                     {0,0},{messages::STOP, 0}
                                 };
-                                for(auto& c: connections()){
+                                for(auto c=connections().begin(); c < connections().end() && conn->state < connection_type::HALF_CLOSED; ++conn){
                                     // This is a very awkward way to do this, but I have implemented it like this to keep 
                                     // open the option of implementing UDP transport. With unreliable transports, it is 
                                     // necessary to retry control messages until after the remote end sends back an ACK.
-                                    if(auto sp = c.south.lock(); c.uuid == *eid && sp && sp != ssp){
+                                    if(auto sp = c->south.lock(); c->uuid == *eid && sp && sp != ssp){
                                         sp->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
                                         triggers().set(sp->native_handle(), POLLOUT);
-                                        state_update(c, stop.type, time);
-                                        state_update(c, stop.type, time);
+                                        state_update(*c, stop.type, time);
+                                        state_update(*c, stop.type, time);
                                     }
                                 }
                             }
@@ -333,20 +333,43 @@ namespace cloudbus {
         }
         void control_connector::_north_state_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             const auto&[nfd, nsp] = stream;
-            for(auto conn = connections().begin(); conn < connections().end();){
-                if(auto n = conn->north.lock(); n && n == nsp){
-                    switch(conn->state){
-                        case connection_type::CLOSED:
-                            if(auto s = conn->south.lock())
-                                triggers().set(s->native_handle(), POLLOUT);
-                            connections().erase(conn);
-                            return _north_err_handler(interface, stream, revents);
-                        case connection_type::HALF_CLOSED:
-                            revents |= POLLHUP;
-                            shutdown(nfd, SHUT_WR);
-                        default: return;
+            int session_state = connection_type::CLOSED;
+            for(auto& c: connections())
+                if(auto n = c.north.lock(); n && n==nsp && c.state < session_state)
+                    session_state = c.state;
+            const auto time = connection_type::clock_type::now();
+            messages::msgheader stop = {
+                {},{1, sizeof(stop)},
+                {0,0},{messages::STOP, 0}
+            };                    
+            switch(session_state){
+                case connection_type::HALF_CLOSED:
+                    revents |= POLLHUP;
+                    shutdown(nfd, SHUT_WR);
+                    return;
+                default:
+                    for(auto conn = connections().begin(); conn < connections().end(); ++conn){
+                        if(auto n = conn->north.lock(); n && n==nsp){
+                            switch(auto s = conn->south.lock(); session_state){
+                                case connection_type::HALF_OPEN:
+                                case connection_type::OPEN:
+                                    if(s && conn->state == connection_type::HALF_CLOSED){
+                                        stop.eid = conn->uuid;
+                                        s->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
+                                        triggers().set(s->native_handle(), POLLOUT);
+                                        state_update(*conn, stop.type, time);
+                                    }
+                                case connection_type::HALF_CLOSED: break;
+                                case connection_type::CLOSED:
+                                    if(s) triggers().set(s->native_handle(), POLLOUT);
+                                    conn = --connections().erase(conn);
+                                default: break;
+                            }
+                        }
                     }
-                } else ++conn;
+                    if(session_state == connection_type::CLOSED)
+                        return _north_err_handler(interface, stream, revents);
+                    return;
             }
         }
         int control_connector::_north_pollout_handler(north_type::stream_type& stream, event_mask& revents){

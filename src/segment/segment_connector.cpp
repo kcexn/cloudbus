@@ -156,7 +156,7 @@ namespace cloudbus{
                         ? HDRLEN 
                         : static_cast<std::streamsize>(buf.tellg());
                 const std::streamsize pos = buf.tellp();
-                for(auto conn = connections().begin(); conn < connections().end();){
+                for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                     if(auto n = conn->north.lock(); conn->uuid == *eid && n && n == nsp){
                         if(auto s = conn->south.lock()){
                             if(conn->state==connection_type::HALF_CLOSED && !s->eof()){
@@ -174,7 +174,7 @@ namespace cloudbus{
                             }
                         } else connections().erase(conn);
                         return 0;
-                    } else ++conn;
+                    }
                 }
                 if(!buf.eof() && buf.tellg() != pos){
                     buf.seekg(HDRLEN);

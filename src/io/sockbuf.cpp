@@ -243,26 +243,13 @@ namespace io{
             return 0;
         }
         std::streamsize sockbuf::showmanyc() {
-            _memmoverbuf();
-            if(_recv() && Base::egptr()==Base::gptr())
-                return -1;
+            if(auto len = Base::egptr()-Base::gptr(); !len){
+                _memmoverbuf();
+                if(_recv())
+                    return -1;
+            }
             return Base::egptr() - Base::gptr();
         }
-        // std::streamsize sockbuf::xsputn(const char *s, std::streamsize count){
-        //     if(count == 0) return count;
-        //     std::streamsize len=0, remainder=Base::epptr()-Base::pptr(), size=std::min(remainder, count);
-        //     do{
-        //         if(remainder == 0){
-        //             if(traits_type::eq_int_type(traits_type::to_int_type(overflow(*s)), traits_type::eof()))
-        //                 return len;
-        //         }                
-        //         remainder = Base::epptr()-Base::pptr(), size=std::min(remainder, count);
-        //         std::memcpy(Base::pptr(), s, size);
-        //         Base::pbump(size);
-        //         s += size; len += size; remainder -= size;
-        //     }while(len < count);
-        //     return len;
-        // }
         sockbuf::int_type sockbuf::overflow(sockbuf::int_type ch){
             if(Base::pbase() == nullptr)
                 return traits_type::eof();

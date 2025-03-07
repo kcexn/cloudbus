@@ -119,7 +119,6 @@ namespace io{
                 virtual int sync() override;
                 virtual std::streamsize showmanyc() override;
 
-                // virtual std::streamsize xsputn(const char *s, std::streamsize count) override;
                 virtual int_type overflow(int_type ch = traits_type::eof()) override;
                 virtual int_type underflow() override;
             private:

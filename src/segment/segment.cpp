@@ -85,8 +85,9 @@ namespace cloudbus{
             connector().make(connector().north(), reinterpret_cast<const connector_type::north_type::address_type>(&ss), len);
 
             line.clear();
-            std::getline(f, line);
-            if(registry::make_address(line, reinterpret_cast<struct sockaddr*>(&ss), &len, protocol)) throw std::runtime_error("Invalid configuration.");
+            std::getline(f,line);
+            if(registry::make_address(line, reinterpret_cast<struct sockaddr*>(&ss), &len, protocol)) 
+                throw std::runtime_error("Invalid configuration.");
             connector().make(connector().south(), reinterpret_cast<const connector_type::south_type::address_type>(&ss), len);
         }
         segment::~segment() {

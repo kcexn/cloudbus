@@ -78,7 +78,7 @@ namespace cloudbus{
             const std::streamsize pos = MAX_BUFSIZE-len;
             auto conn = connections.begin();
             while(conn < connections.end()){
-                if(conn->uuid == uuid){
+                if(!messages::uuid_cmpnode(&conn->uuid, &uuid)){
                     if(auto s = conn->south.lock()){
                         if(s->tellp() >= pos)
                             s->flush();
@@ -95,7 +95,7 @@ namespace cloudbus{
             const auto seekpos = is.tellg();
             std::size_t connected = 0;
             for(auto& c: connections){
-                if(auto s = c.south.lock(); c.uuid == uuid && s){
+                if(auto s = c.south.lock(); !messages::uuid_cmpnode(&c.uuid, &uuid) && s){
                     if(seekpos == 0) state_update(c, type, time);
                     ++connected;
                     stream_write(*s, is.seekg(seekpos), len);
@@ -212,7 +212,7 @@ namespace cloudbus{
             if(const auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
                 const auto seekpos = buf.tellg(), pos = buf.tellp();
                 for(auto conn = connections().begin(); conn < connections().end();){
-                    if(auto s = conn->south.lock(); conn->uuid == *eid && s && s==ssp){
+                    if(auto s = conn->south.lock(); !messages::uuid_cmpnode(&conn->uuid, eid) && s && s==ssp){
                         if(conn->state == connection_type::CLOSED){
                             if(type->op == messages::STOP)
                                 conn = connections().erase(conn);
@@ -235,7 +235,7 @@ namespace cloudbus{
                                         // This is a very awkward way to do this, but I have implemented it like this to keep 
                                         // open the option of implementing UDP transport. With unreliable transports, it is 
                                         // necessary to retry control messages until after the remote end sends back an ACK.
-                                        if(auto sp = c->south.lock(); c->uuid == *eid && sp && sp != ssp){
+                                        if(auto sp = c->south.lock(); c->uuid==*eid && sp && sp != ssp){
                                             sp->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
                                             triggers().set(sp->native_handle(), POLLOUT);
                                             state_update(*c, stop.type, time);
@@ -295,6 +295,11 @@ namespace cloudbus{
                     set_flags(sfd);
                     ssp->connectto(sbd->address(), sbd->addrlen());
                 }
+                if(Base::mode() == Base::FULL_DUPLEX){
+                    if((buf.eid()->clock_seq_reserved & messages::CLOCK_SEQ_MAX) == messages::CLOCK_SEQ_MAX)
+                        buf.eid()->clock_seq_reserved &= ~messages::CLOCK_SEQ_MAX;
+                    else ++buf.eid()->clock_seq_reserved;
+                }
                 connect.push_back(
                     (buf.type()->op==messages::STOP)
                     ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
@@ -330,10 +335,16 @@ namespace cloudbus{
         }
         void proxy_connector::_north_state_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             const auto& nsp = std::get<north_type::stream_ptr>(stream);
-            int session_state = connection_type::CLOSED;
-            for(auto& c: connections())
-                if(auto n = c.north.lock(); n && n==nsp && c.state < session_state)
-                    session_state = c.state;
+            connections_type states;
+            for(auto& c: connections()){
+                if(auto n = c.north.lock(); n && n==nsp){
+                    auto it = std::find_if(states.begin(), states.end(), [&](auto& sc){ return !messages::uuid_cmpnode(&sc.uuid, &c.uuid); });
+                    if(it == states.end())
+                        states.push_back(c);
+                    else if(c.state < it->state)
+                        it->state = c.state;
+                }
+            }
             const auto time = connection_type::clock_type::now();
             messages::msgheader stop = {
                 {},{1, sizeof(stop)},
@@ -341,10 +352,12 @@ namespace cloudbus{
             };
             for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto n = conn->north.lock(); n && n == nsp){
-                    switch(auto s = conn->south.lock(); session_state){
+                    auto it = std::find_if(states.cbegin(), states.cend(), [&](const auto& sc){ return !messages::uuid_cmpnode(&sc.uuid, &conn->uuid); });
+                    if(it == states.cend()) continue;
+                    switch(auto s = conn->south.lock(); it->state){
                         case connection_type::HALF_OPEN:
                         case connection_type::OPEN:
-                            if(s && conn->state == connection_type::HALF_CLOSED){
+                            if(Base::mode()==Base::HALF_DUPLEX && s && conn->state == connection_type::HALF_CLOSED){
                                 stop.eid = conn->uuid;
                                 s->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
                                 triggers().set(s->native_handle(), POLLOUT);

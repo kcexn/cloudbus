@@ -84,9 +84,21 @@ namespace cloudbus{
             connector().make(connector().north(), reinterpret_cast<const connector_type::north_type::address_type>(&ss), len);
 
             line.clear();
-            std::getline(f, line);
-            if(registry::make_address(line, reinterpret_cast<struct sockaddr*>(&ss), &len, protocol)) throw std::runtime_error("Invalid configuration.");
-            connector().make(connector().south(), reinterpret_cast<const connector_type::south_type::address_type>(&ss), len);
+            while(std::getline(f, line)){
+                if(registry::make_address(line, reinterpret_cast<struct sockaddr*>(&ss), &len, protocol)) 
+                    throw std::runtime_error("Invalid configuration.");
+                connector().make(connector().south(), reinterpret_cast<const connector_type::south_type::address_type>(&ss), len);
+                line.clear();
+            }
+            std::string mode;
+            if(auto *m = std::getenv("CLOUDBUS_SERVICE_MODE"); m != nullptr)
+                mode=std::string(m);
+            std::transform(mode.begin(), mode.end(), mode.begin(), [](const unsigned char c){ return std::toupper(c); });
+            if(!mode.empty() && mode=="FULL_DUPLEX"){
+                if(connector().south().size() > messages::CLOCK_SEQ_MAX)
+                    throw std::runtime_error("The service fanout ratio will overflow the UUID clock_seq.");
+                connector().mode() = connector_type::FULL_DUPLEX;
+            } else connector().mode() = connector_type::HALF_DUPLEX;
         }
         proxy::~proxy() {
             for(auto& n: connector().north()){

@@ -24,24 +24,20 @@ namespace cloudbus{
         typedef struct {
             std::uint32_t time_low;
             std::uint16_t time_mid;
-            std::uint16_t time_hi_and_version;
-            std::uint8_t clock_seq_hi_and_reserved;
+            std::uint16_t time_high_version;
+            std::uint16_t clock_seq_reserved;
             std::uint8_t clock_seq_low;
             char node[6];
         } uuid;
         // UUID utils.
+        constexpr std::uint16_t TIME_HIGH_MAX = 0x0FFF;
+        constexpr std::uint16_t CLOCK_SEQ_MAX = 0x3FFF;
         uuid make_uuid_v4();
-        inline bool operator==(const uuid& lhs, const uuid& rhs){
-            const unsigned char *lhs_ = reinterpret_cast<const unsigned char*>(&lhs);
-            const unsigned char *rhs_ = reinterpret_cast<const unsigned char*>(&rhs);
-            for(std::size_t i=0; i < sizeof(uuid); ++i)
-                if(lhs_[i] != rhs_[i]) return false;
-            return true;
-        }
-        inline bool operator!=(const uuid& lhs, const uuid& rhs){
-            return !(lhs == rhs);
-        }
-        
+        uuid make_uuid_v7();
+        int uuid_cmpnode(const uuid *lhs, const uuid *rhs);
+        bool operator==(const uuid& lhs, const uuid& rhs);
+        bool operator!=(const uuid& lhs, const uuid& rhs);
+
         // Message structures.
         typedef struct {
             std::uint16_t seqno; 

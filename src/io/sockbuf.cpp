@@ -157,8 +157,7 @@ namespace io{
         }
         void sockbuf::_memmoverbuf(){
             auto len = Base::egptr()-Base::gptr();
-            if(len)
-                std::memmove(Base::eback(), Base::gptr(), len);
+            std::memmove(Base::eback(), Base::gptr(), len);
             Base::setg(Base::eback(), Base::eback(), Base::eback()+len);
         }
         void sockbuf::_resizewbuf(){
@@ -244,26 +243,26 @@ namespace io{
             return 0;
         }
         std::streamsize sockbuf::showmanyc() {
-            if(Base::gptr() != Base::eback())
-                _memmoverbuf();
+            _memmoverbuf();
             if(_recv() && Base::egptr()==Base::gptr())
                 return -1;
-            return Base::egptr()-Base::gptr();
+            return Base::egptr() - Base::gptr();
         }
-        std::streamsize sockbuf::xsputn(const char *s, std::streamsize count){
-            if(count == 0) return count;
-            std::streamsize len = 0;
-            do{
-                std::streamsize remainder = Base::epptr()-Base::pptr(), size = std::min(remainder, count);
-                std::memcpy(Base::pptr(), s, size);
-                Base::pbump(size);
-                s += size; len += size;
-                if(len == count || traits_type::eq_int_type(overflow(traits_type::to_int_type(*s)), traits_type::eof()))
-                    return len;
-                ++s; ++len;
-            }while(len < count);
-            return len;
-        }
+        // std::streamsize sockbuf::xsputn(const char *s, std::streamsize count){
+        //     if(count == 0) return count;
+        //     std::streamsize len=0, remainder=Base::epptr()-Base::pptr(), size=std::min(remainder, count);
+        //     do{
+        //         if(remainder == 0){
+        //             if(traits_type::eq_int_type(traits_type::to_int_type(overflow(*s)), traits_type::eof()))
+        //                 return len;
+        //         }                
+        //         remainder = Base::epptr()-Base::pptr(), size=std::min(remainder, count);
+        //         std::memcpy(Base::pptr(), s, size);
+        //         Base::pbump(size);
+        //         s += size; len += size; remainder -= size;
+        //     }while(len < count);
+        //     return len;
+        // }
         sockbuf::int_type sockbuf::overflow(sockbuf::int_type ch){
             if(Base::pbase() == nullptr)
                 return traits_type::eof();
@@ -281,8 +280,7 @@ namespace io{
         sockbuf::int_type sockbuf::underflow() {
             if(Base::eback() == nullptr) 
                 return traits_type::eof();
-            if(Base::gptr() != Base::eback())
-                _memmoverbuf();
+            _memmoverbuf();
             if(_recv())
                 return traits_type::eof();
             if(Base::gptr()==Base::egptr()){

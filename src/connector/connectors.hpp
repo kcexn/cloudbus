@@ -67,6 +67,7 @@ namespace cloudbus {
 
             using connection_type = connection<north_ptr, south_ptr>;
             using connections_type = std::vector<connection_type>;
+            enum modes {HALF_DUPLEX, FULL_DUPLEX};
 
             basic_connector(trigger_type& triggers): _triggers{triggers}{}
 
@@ -74,7 +75,8 @@ namespace cloudbus {
             norths_type& north() { return _north; }
             souths_type& south() { return _south; }
             connections_type& connections() { return _connections; }
-            marshaller_type& marshaller() { return _marshaller; }    
+            marshaller_type& marshaller() { return _marshaller; }
+            int& mode() { return _mode; }
             
             virtual ~basic_connector() = default;
 
@@ -89,6 +91,7 @@ namespace cloudbus {
             souths_type _south;
             connections_type _connections;
             marshaller_type _marshaller;
+            int _mode;
     };
 }
 #endif

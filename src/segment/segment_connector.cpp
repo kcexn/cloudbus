@@ -61,12 +61,14 @@ namespace cloudbus{
         static std::array<char, 256> _buf = {};
         static std::ostream& stream_write(std::ostream& os, std::istream& is){
             while(auto gcount = is.readsome(_buf.data(), _buf.max_size()))
-                if(os.write(_buf.data(), gcount).bad()) return os;
+                if(os.write(_buf.data(), gcount).bad())
+                    return os;
             return os;
-        }              
+        }
         static std::ostream& stream_write(std::ostream& os, std::istream& is, std::streamsize maxlen){
             while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.max_size())))){
-                if(os.write(_buf.data(), gcount).bad()) return os;
+                if(os.write(_buf.data(), gcount).bad())
+                    return os;
                 maxlen -= gcount;
             }
             return os;
@@ -189,7 +191,7 @@ namespace cloudbus{
             auto&[sfd, ssp] = stream;
             const auto p = buf.tellp();
             if(const auto eof = ssp->eof(); eof || p > 0){
-                for(auto conn = connections().begin(); conn < connections().end();){
+                for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                     if(auto s = conn->south.lock(); s && s == ssp){
                         if(auto n = conn->north.lock()){
                             messages::msgtype t = {messages::DATA, 0};
@@ -205,8 +207,8 @@ namespace cloudbus{
                             }
                             if(eof) triggers().clear(sfd, POLLIN);
                             return 0;
-                        } else conn = connections().erase(conn);
-                    } else ++conn;
+                        } else conn = --connections().erase(conn);
+                    }
                 }
                 return -1;
             }
@@ -231,7 +233,6 @@ namespace cloudbus{
         }
         std::streamsize segment_connector::_north_write(south_type::stream_ptr& s, marshaller_type::north_format& buf){
             std::streamsize g=buf.tellg(), p=buf.tellp(), pos=MAX_BUFSIZE-(p-g);
-            if(s->fail()) return -1;
             if(s->tellp() >= pos)
                 if(s->flush().bad())
                     return -1;

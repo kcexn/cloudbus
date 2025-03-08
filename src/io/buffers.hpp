@@ -74,8 +74,6 @@ namespace io{
                 void _resizewbuf();
         };
         
-        
-        
         class sockbuf : public std::streambuf {
             public:     
                 using Base = std::streambuf;

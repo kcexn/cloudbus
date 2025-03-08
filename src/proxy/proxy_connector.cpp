@@ -418,7 +418,7 @@ namespace cloudbus{
                         state_update(*conn, head.type, time);
                         if(conn->state == connection_type::CLOSED)
                             conn = --connections().erase(conn);
-                    } conn = --connections().erase(conn);
+                    } else conn = --connections().erase(conn);
                 }
             }
             revents = 0;

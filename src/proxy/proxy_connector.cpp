@@ -408,7 +408,7 @@ namespace cloudbus{
             };
             auto&[sfd, ssp] = stream;
             const auto time = connection_type::clock_type::now();
-            for(auto conn = connections().begin(); conn < connections().end();){
+            for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto s = conn->south.lock(); s && s == ssp){
                     head.eid = conn->uuid;
                     if(auto n = conn->north.lock()){
@@ -417,10 +417,9 @@ namespace cloudbus{
                             n->write(reinterpret_cast<const char*>(&head), sizeof(head));
                         state_update(*conn, head.type, time);
                         if(conn->state == connection_type::CLOSED)
-                            conn = connections().erase(conn);
-                        else ++conn;
-                    } conn = connections().erase(conn);
-                } else ++conn;
+                            conn = --connections().erase(conn);
+                    } conn = --connections().erase(conn);
+                }
             }
             revents = 0;
             triggers().clear(sfd);

@@ -363,7 +363,7 @@ namespace cloudbus {
                     switch(auto s = conn->south.lock(); it->state){
                         case connection_type::HALF_OPEN:
                         case connection_type::OPEN:
-                            if(Base::mode()==Base::HALF_DUPLEX && s && conn->state == connection_type::HALF_CLOSED){
+                            if(s && conn->state == connection_type::HALF_CLOSED){
                                 stop.eid = conn->uuid;
                                 s->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
                                 triggers().set(s->native_handle(), POLLOUT);

@@ -179,7 +179,7 @@ namespace cloudbus{
             }
             return handled;
         }
-        int proxy_connector::_route(marshaller_type::north_format& buf, const shared_north& interface, north_type::stream_type& stream, event_mask& revents){
+        int proxy_connector::_route(marshaller_type::north_format& buf, const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             auto&[nfd, nsp] = stream;
             const auto *eid = buf.eid();
             if(const auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
@@ -206,7 +206,7 @@ namespace cloudbus{
             if(nsp->eof()) return -1;
             return 0;
         }
-        int proxy_connector::_route(marshaller_type::south_format& buf, const shared_south& interface, south_type::stream_type& stream, event_mask& revents){
+        int proxy_connector::_route(marshaller_type::south_format& buf, const shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
             auto&[sfd, ssp] = stream;
             const auto *eid = buf.eid();
             if(const auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
@@ -259,7 +259,7 @@ namespace cloudbus{
             if(ssp->eof()) return -1;
             return 0;
         }
-        void proxy_connector::_north_err_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
+        void proxy_connector::_north_err_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             messages::msgheader head = {
                 {}, {1, sizeof(head)},
                 {0,0}, {messages::STOP, 0}
@@ -317,13 +317,13 @@ namespace cloudbus{
             }
             return 0;
         }
-        int proxy_connector::_north_pollin_handler(const shared_north& interface, north_type::stream_type& stream, event_mask& revents){
+        int proxy_connector::_north_pollin_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             auto it = marshaller().unmarshal(stream);
             if(std::get<north_type::stream_ptr>(stream)->gcount() == 0)
                 revents &= ~(POLLIN | POLLHUP);
             return route(std::get<marshaller_type::north_format>(*it), interface, stream, revents);
         }
-        int proxy_connector::_north_accept_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
+        int proxy_connector::_north_accept_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             int sockfd = 0;
             const auto listenfd = std::get<north_type::native_handle_type>(stream);
             while((sockfd = _accept(listenfd, nullptr, nullptr)) >= 0){
@@ -333,7 +333,7 @@ namespace cloudbus{
             revents &= ~(POLLIN | POLLHUP);
             return 0;
         }
-        void proxy_connector::_north_state_handler(shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
+        void proxy_connector::_north_state_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             const auto& nsp = std::get<north_type::stream_ptr>(stream);
             connections_type states;
             for(auto& c: connections()){
@@ -372,8 +372,8 @@ namespace cloudbus{
                 }
             }
         }
-        int proxy_connector::_north_pollout_handler(north_type::stream_type& stream, event_mask& revents){
-            auto&[nfd, nsp] = stream;
+        int proxy_connector::_north_pollout_handler(const north_type::stream_type& stream, event_mask& revents){
+            const auto&[nfd, nsp] = stream;
             nsp->flush();
             if(nsp->fail() || revents & (POLLERR | POLLNVAL))
                 return -1;
@@ -382,7 +382,7 @@ namespace cloudbus{
             revents &= ~(POLLOUT | POLLERR | POLLNVAL);
             return 0;
         }
-        proxy_connector::size_type proxy_connector::_handle(shared_north& interface, north_type::stream_type& stream, event_mask& revents){
+        proxy_connector::size_type proxy_connector::_handle(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             size_type handled = 0;
             if(revents & (POLLOUT | POLLERR | POLLNVAL)){
                 ++handled;
@@ -401,7 +401,7 @@ namespace cloudbus{
             return handled;
         }
 
-        void proxy_connector::_south_err_handler(shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
+        void proxy_connector::_south_err_handler(const shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
             messages::msgheader head = {
                 {}, {1, sizeof(head)},
                 {0,0}, {messages::STOP, 0}
@@ -425,7 +425,7 @@ namespace cloudbus{
             triggers().clear(sfd);
             interface->erase(stream);
         }
-        int proxy_connector::_south_pollin_handler(const shared_south& interface, south_type::stream_type& stream, event_mask& revents){       
+        int proxy_connector::_south_pollin_handler(const shared_south& interface, const south_type::stream_type& stream, event_mask& revents){       
             auto it = marshaller().marshal(stream);
             if(std::get<south_type::stream_ptr>(stream)->gcount() == 0)
                 revents &= ~(POLLIN | POLLHUP);
@@ -444,7 +444,7 @@ namespace cloudbus{
             if(count == 0) return -1;
             return 0;
         }
-        int proxy_connector::_south_pollout_handler(south_type::stream_type& stream, event_mask& revents){
+        int proxy_connector::_south_pollout_handler(const south_type::stream_type& stream, event_mask& revents){
             auto&[sfd, ssp] = stream;
             ssp->flush();
             if(ssp->fail() || revents & (POLLERR | POLLNVAL))
@@ -454,7 +454,7 @@ namespace cloudbus{
             revents &= ~(POLLOUT | POLLERR | POLLNVAL);
             return 0;
         }
-        proxy_connector::size_type proxy_connector::_handle(shared_south& interface, south_type::stream_type& stream, event_mask& revents){
+        proxy_connector::size_type proxy_connector::_handle(const shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
           size_type handled = 0;
           if(revents & (POLLOUT | POLLERR | POLLNVAL)){
             ++handled;

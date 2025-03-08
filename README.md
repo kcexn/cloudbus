@@ -18,7 +18,7 @@ scale (often no more than a dozen nodes), these frameworks begin to exhibit sign
 
 Cloudbus aims to be a distributed I/O framework that addresses many of these problems and more at the session layer (OSI layer 5). Cloudbus will achieve this in three ways:
 
-- Cloudbus communication modes that are native to distributed environments: one-to-one full-duplex, one-to-N half-duplex, and one-to-N full-duplex communication.
+- Cloudbus implements communication modes that are native to distributed environments: one-to-one full-duplex, one-to-N half-duplex, and one-to-N full-duplex communication.
 - Cloudbus exposes services to users through an autonomously managed dynamic DNS zone. (WIP)
 - Cloudbus provides application agnostic rate-control and load-balancing mechanisms that dynamically accommodate for changing network conditions. (WIP)
 

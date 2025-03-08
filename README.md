@@ -1,11 +1,15 @@
 # Cloudbus: Session-layer Control for Open Network Services
 Cloudbus is a framework of distributed network proxies that support application developers and system administrators to transition from simple client-server deployments to 
 highly-available application clusters. This transition to more complex distributed computing models typically becomes necessary as application computing requirements exceed what can 
-be provided by a single server. Some example applications that need distributed computing include: data processing clusters for machine-learning, distributed 
-databases, and distributed data pipelines. There are many open-source frameworks that provide turn-key distributed computing solutions e.g., Apache Storm, Apache 
-CouchDB, Apache OpenWhisk, etc. Each of these frameworks imposes its own management and communication model for applications and services that depend on them. It is 
-our experience that once applications require a sufficient degree of horizontal scale (often no more than a dozen nodes), these frameworks begin to exhibit signs of poor 
-performance due to poor configuration, design limitations, or both. Common problems include:
+be provided by a single server. Some example applications that need distributed computing include: 
+
+- data processing clusters for machine-learning
+- distributed databases
+- and distributed data pipelines.
+
+There are many open-source frameworks that provide turn-key distributed computing solutions e.g., Apache Storm, Apache CouchDB, Apache OpenWhisk, etc. Each of these frameworks imposes 
+its own management and communication model for applications and services that depend on them. It is our experience that once applications require a sufficient degree of horizontal 
+scale (often no more than a dozen nodes), these frameworks begin to exhibit signs of poor performance due to poor configuration, design limitations, or both. Common problems include:
 
 - Poor usage of the available network bandwidth in the data pipeline between distributed services.
 - Poor usage of transport protocol mechanisms like congestion control.

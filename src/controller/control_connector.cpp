@@ -74,12 +74,11 @@ namespace cloudbus {
             }
             return os;
         }
-        static control_connector::connections_type::iterator write_prepare(control_connector::connections_type& connections, control_connector::trigger_type& triggers, const control_connector::north_type::stream_ptr& np, messages::msgheader& head, const std::streamsize& tellp){
-            const std::streamsize pos = MAX_BUFSIZE-(tellp+sizeof(head));
+        static control_connector::connections_type::iterator write_prepare(control_connector::connections_type& connections, control_connector::trigger_type& triggers, const control_connector::north_type::stream_ptr& np, const std::streamsize& tellp){
+            const std::streamsize pos = MAX_BUFSIZE-(tellp+sizeof(messages::msgheader));
             auto conn = connections.begin();
             while(conn < connections.end()){
                 if(auto n = conn->north.lock(); n && n==np){
-                    head.eid = conn->uuid;
                     if(auto s = conn->south.lock()){
                         if(s->tellp() >= pos)
                             if(s->flush().bad())
@@ -91,22 +90,6 @@ namespace cloudbus {
                 } else ++conn;
             }
             return conn;
-        }
-        static std::size_t write_commit(control_connector::connections_type& connections, const control_connector::north_type::stream_ptr& np, const messages::msgheader& head, control_connector::trigger_type& triggers, std::istream& is, const std::streamsize& tellp){
-            const auto time = control_connector::connection_type::clock_type::now();
-            std::size_t connected = 0;
-            for(auto& c: connections){
-                if(auto n = c.north.lock(); n && n==np){
-                    if(auto s = c.south.lock()){
-                        if(is.tellg() == 0) state_update(c, head.type, time);
-                        ++connected;
-                        s->write(reinterpret_cast<const char*>(&head), sizeof(head));
-                        stream_write(*s, is.seekg(0), tellp);
-                        triggers.set(s->native_handle(), POLLOUT);
-                    }
-                }
-            }
-            return connected;
         }
         static int clear_triggers(int sockfd, control_connector::trigger_type& triggers, control_connector::event_mask& revents, const control_connector::event_mask& mask){
             revents &= ~mask;
@@ -191,9 +174,24 @@ namespace cloudbus {
                     {},{1, static_cast<std::uint16_t>(static_cast<std::uint16_t>(p)+sizeof(head))},
                     {0,0},{(eof) ? messages::STOP : messages::DATA, 0}
                 };
-                if(write_prepare(connections(), triggers(), nsp, head, p) != connections().end())
+                if(write_prepare(connections(), triggers(), nsp, p) != connections().end())
                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
-                if(!write_commit(connections(), nsp, head, triggers(), buf, p)){
+                const auto time = control_connector::connection_type::clock_type::now();
+                std::size_t connected = 0;
+                for(auto& c: connections()){
+                    if(auto n = c.north.lock(); n && n==nsp && c.state < control_connector::connection_type::CLOSED){
+                        if(auto s = c.south.lock()){
+                            if(buf.tellg() == 0) 
+                                state_update(c, head.type, time);
+                            ++connected;
+                            head.eid = c.uuid;
+                            s->write(reinterpret_cast<const char*>(&head), sizeof(head));
+                            stream_write(*s, buf.seekg(0), p);
+                            triggers().set(s->native_handle(), POLLOUT);
+                        }
+                    }
+                }
+                if(!connected){
                     if(eof) return -1;
                     else if(!_north_connect_handler(interface, nsp, buf))
                         return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
@@ -230,11 +228,11 @@ namespace cloudbus {
                                 buf.setstate(std::ios_base::eofbit);
                             if(seekpos == HDRLEN){
                                 state_update(*conn, *type, time);
-                                const messages::msgheader stop = {
+                                messages::msgheader stop = {
                                     *eid, {1, sizeof(stop)},
                                     {0,0},{messages::STOP, 0}
                                 };
-                                for(auto c=connections().begin(); c < connections().end() && conn->state < connection_type::HALF_CLOSED; ++conn){
+                                for(auto c=connections().begin(); c < connections().end() && conn->state < connection_type::HALF_CLOSED; ++c){
                                     // This is a very awkward way to do this, but I have implemented it like this to keep 
                                     // open the option of implementing UDP transport. With unreliable transports, it is 
                                     // necessary to retry control messages until after the remote end sends back an ACK.
@@ -311,9 +309,10 @@ namespace cloudbus {
                 {},{1, static_cast<std::uint16_t>(pos+sizeof(head))},
                 {0,0},{(nsp->eof()) ? messages::STOP : messages::DATA, 0}
             };
-            if(write_prepare(connect, triggers(), nsp, head, pos) == connect.end()){
+            if(write_prepare(connect, triggers(), nsp, pos) == connect.end()){
                 for(auto& c: connect){
                     if(auto s = c.south.lock()){
+                        head.eid = c.uuid;
                         s->write(reinterpret_cast<const char*>(&head), sizeof(head));
                         stream_write(*s, buf.seekg(0), pos);
                     }

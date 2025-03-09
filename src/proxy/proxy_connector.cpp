@@ -81,7 +81,8 @@ namespace cloudbus{
                 if(!messages::uuid_cmpnode(&conn->uuid, &uuid)){
                     if(auto s = conn->south.lock()){
                         if(s->tellp() >= pos)
-                            s->flush();
+                            if(s->flush().bad())
+                                return connections.end();
                         if(s->tellp() > pos)
                             return conn;
                         ++conn;
@@ -89,20 +90,6 @@ namespace cloudbus{
                 } else ++conn;
             }
             return conn;
-        }
-        static std::size_t write_commit(proxy_connector::connections_type& connections, const messages::uuid& uuid, const messages::msgtype& type, proxy_connector::trigger_type& triggers, std::istream& is, const std::streamsize& len){
-            const auto time = proxy_connector::connection_type::clock_type::now();
-            const auto seekpos = is.tellg();
-            std::size_t connected = 0;
-            for(auto& c: connections){
-                if(auto s = c.south.lock(); !messages::uuid_cmpnode(&c.uuid, &uuid) && s){
-                    if(seekpos == 0) state_update(c, type, time);
-                    ++connected;
-                    stream_write(*s, is.seekg(seekpos), len);
-                    triggers.set(s->native_handle(), POLLOUT);
-                }
-            }
-            return connected;
         }
         static int clear_triggers(int sockfd, proxy_connector::trigger_type& triggers, proxy_connector::event_mask& revents, const proxy_connector::event_mask& mask){
             revents &= ~mask;
@@ -186,7 +173,18 @@ namespace cloudbus{
                 const auto seekpos = buf.tellg();
                 if(write_prepare(connections(), *eid, buf.tellp()-seekpos) != connections().end())
                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
-                if(write_commit(connections(), *eid, *type, triggers(), buf.seekg(seekpos), buf.tellp()-seekpos)){
+                const auto time = proxy_connector::connection_type::clock_type::now();
+                std::size_t connected = 0;
+                for(auto& c: connections()){
+                    if(auto s = c.south.lock(); !messages::uuid_cmpnode(&c.uuid, eid) && s && c.state < proxy_connector::connection_type::CLOSED){
+                        if(seekpos == 0) state_update(c, *type, time);
+                        ++connected;
+                        *buf.eid() = c.uuid;
+                        stream_write(*s, buf.seekg(seekpos), buf.tellp()-seekpos);
+                        triggers().set(s->native_handle(), POLLOUT);
+                    }
+                }
+                if(connected){
                     if(!buf.eof() && buf.tellg()==buf.len()->length)
                         buf.setstate(std::ios_base::eofbit);
                     if(auto rem=buf.len()->length-buf.tellp(); nsp->eof() && rem){
@@ -197,7 +195,7 @@ namespace cloudbus{
                                 s->write(tmp.data(), tmp.size());
                             }
                         }
-                    }
+                    }                    
                 }
                 else if(nsp->eof()) return -1;
                 else if(!_north_connect_handler(interface, nsp, buf))
@@ -209,9 +207,9 @@ namespace cloudbus{
         int proxy_connector::_route(marshaller_type::south_format& buf, const shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
             auto&[sfd, ssp] = stream;
             const auto *eid = buf.eid();
-            if(const auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
+            if(auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
                 const auto seekpos = buf.tellg(), pos = buf.tellp();
-                for(auto conn = connections().begin(); conn < connections().end();){
+                for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                     if(auto s = conn->south.lock(); !messages::uuid_cmpnode(&conn->uuid, eid) && s && s==ssp){
                         if(conn->state == connection_type::CLOSED){
                             if(type->op == messages::STOP)
@@ -220,18 +218,22 @@ namespace cloudbus{
                         } else if(auto n = conn->north.lock()){
                             if(auto len = pos-seekpos){
                                 triggers().set(n->native_handle(), POLLOUT);
-                                if(!stream_write(*n, buf.seekg(seekpos), len))
+                                auto tmp = *type;
+                                type->op = messages::DATA;
+                                auto written = stream_write(*n, buf.seekg(seekpos), len);
+                                *type = tmp;
+                                if(!written)
                                     return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
                                 if(!buf.eof() && buf.tellg()==buf.len()->length)
                                     buf.setstate(std::ios_base::eofbit);
                                 if(seekpos == 0) {
                                     const auto time = connection_type::clock_type::now();
-                                    state_update(*conn, *type, time);
                                     const messages::msgheader stop = {
                                         *eid, {1, sizeof(stop)},
                                         {0,0},{messages::STOP, 0}
                                     };
-                                    for(auto c=connections().begin(); c < connections().end() && conn->state < connection_type::HALF_CLOSED; ++conn){
+                                    state_update(*conn, *type, time);
+                                    for(auto c=connections().begin(); c < connections().end() && c->state < connection_type::HALF_CLOSED; ++c){
                                         // This is a very awkward way to do this, but I have implemented it like this to keep 
                                         // open the option of implementing UDP transport. With unreliable transports, it is 
                                         // necessary to retry control messages until after the remote end sends back an ACK.
@@ -250,8 +252,8 @@ namespace cloudbus{
                                 n->write(tmp.data(), tmp.size());
                             }
                             break;
-                        } else conn = connections().erase(conn);
-                    } else ++conn;
+                        } else conn = --connections().erase(conn);
+                    }
                 }
                 if(!buf.eof() && pos == buf.len()->length)
                     buf.setstate(std::ios_base::eofbit);
@@ -311,8 +313,10 @@ namespace cloudbus{
             const std::streamsize len = buf.tellp() - buf.tellg();
             if(write_prepare(connect, *buf.eid(), len) == connect.end()){
                 for(auto& c: connect)
-                    if(auto s = c.south.lock())
+                    if(auto s = c.south.lock()){
+                        *buf.eid() = c.uuid;
                         stream_write(*s, buf.seekg(0), len);
+                    }
                 return len;
             }
             return 0;
@@ -363,7 +367,12 @@ namespace cloudbus{
                                 triggers().set(s->native_handle(), POLLOUT);
                                 state_update(*conn, stop.type, time);
                             }
-                        case connection_type::HALF_CLOSED: break;
+                            break;
+                        case connection_type::HALF_CLOSED:
+                            stop.eid = conn->uuid;
+                            n->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
+                            triggers().set(n->native_handle(), POLLOUT);
+                            return;
                         case connection_type::CLOSED:
                             if(s) triggers().set(s->native_handle(), POLLOUT);
                             conn = --connections().erase(conn);

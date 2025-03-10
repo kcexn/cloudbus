@@ -45,7 +45,11 @@ namespace cloudbus{
                 }
             }
         }    
-        static void state_update(proxy_connector::connection_type& conn, const messages::msgtype& type, const proxy_connector::connection_type::time_point time){
+        static void state_update(
+            proxy_connector::connection_type& conn,
+            const messages::msgtype& type,
+            const proxy_connector::connection_type::time_point time
+        ){
             switch(conn.state){
                 case proxy_connector::connection_type::HALF_OPEN:
                     conn.timestamps[++conn.state] = time;
@@ -74,7 +78,11 @@ namespace cloudbus{
                 return count;
             } else return 0;
         }
-        static proxy_connector::connections_type::iterator write_prepare(proxy_connector::connections_type& connections, const messages::uuid& uuid, const std::streamsize& len){
+        static proxy_connector::connections_type::iterator write_prepare(
+            proxy_connector::connections_type& connections,
+            const messages::uuid& uuid,
+            const std::streamsize& len
+        ){
             const std::streamsize pos = MAX_BUFSIZE-len;
             auto conn = connections.begin();
             while(conn < connections.end()){
@@ -91,12 +99,22 @@ namespace cloudbus{
             }
             return conn;
         }
-        static int clear_triggers(int sockfd, proxy_connector::trigger_type& triggers, proxy_connector::event_mask& revents, const proxy_connector::event_mask& mask){
+        static int clear_triggers(
+            int sockfd,
+            proxy_connector::trigger_type& triggers,
+            proxy_connector::event_mask& revents,
+            const proxy_connector::event_mask& mask
+        ){
             revents &= ~mask;
             triggers.clear(sockfd, mask);
             return 0;
         }
-        static proxy_connector::events_type::iterator read_restart(const int& sockfd, proxy_connector::trigger_type& triggers, proxy_connector::events_type& events, const proxy_connector::events_type::iterator& ev){
+        static proxy_connector::events_type::iterator read_restart(
+            const int& sockfd,
+            proxy_connector::trigger_type& triggers,
+            proxy_connector::events_type& events,
+            const proxy_connector::events_type::iterator& ev
+        ){
             triggers.set(sockfd, POLLIN);
             auto it = std::find_if(events.begin(), events.end(), [&](auto& e){ return e.fd == sockfd; });
             if(it == events.end()){

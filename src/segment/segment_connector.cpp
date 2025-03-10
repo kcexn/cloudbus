@@ -47,7 +47,11 @@ namespace cloudbus{
                 }
             } else return set_flags(fd);
         }
-        static void state_update(segment_connector::connection_type& conn, const messages::msgtype& type, const segment_connector::connection_type::time_point time){
+        static void state_update(
+            segment_connector::connection_type& conn,
+            const messages::msgtype& type,
+            const segment_connector::connection_type::time_point time
+        ){
             switch(conn.state){
                 case segment_connector::connection_type::HALF_OPEN:
                     conn.timestamps[++conn.state] = time;
@@ -73,12 +77,22 @@ namespace cloudbus{
             }
             return os;
         }
-        static int clear_triggers(int sockfd, segment_connector::trigger_type& triggers, segment_connector::event_mask& revents, const segment_connector::event_mask& mask){
+        static int clear_triggers(
+            int sockfd,
+            segment_connector::trigger_type& triggers,
+            segment_connector::event_mask& revents,
+            const segment_connector::event_mask& mask
+        ){
             revents &= ~mask;
             triggers.clear(sockfd, mask);
             return 0;
         }
-        static segment_connector::events_type::iterator read_restart(const int& sockfd, segment_connector::trigger_type& triggers, segment_connector::events_type& events, const segment_connector::events_type::iterator& ev){
+        static segment_connector::events_type::iterator read_restart(
+            const int& sockfd,
+            segment_connector::trigger_type& triggers,
+            segment_connector::events_type& events,
+            const segment_connector::events_type::iterator& ev
+        ){
             triggers.set(sockfd, POLLIN);
             auto it = std::find_if(events.begin(), events.end(), [&](auto& e){ return e.fd == sockfd; });
             if(it == events.end()){

@@ -48,7 +48,11 @@ namespace cloudbus {
                 }
             } else return set_flags(fd);
         }
-        static void state_update(control_connector::connection_type& conn, const messages::msgtype& type, const control_connector::connection_type::time_point time){
+        static void state_update(
+            control_connector::connection_type& conn,
+            const messages::msgtype& type,
+            const control_connector::connection_type::time_point time
+        ){
             switch(conn.state){
                 case control_connector::connection_type::HALF_OPEN:
                     conn.timestamps[++conn.state] = time;
@@ -74,7 +78,12 @@ namespace cloudbus {
             }
             return os;
         }
-        static control_connector::connections_type::iterator write_prepare(control_connector::connections_type& connections, control_connector::trigger_type& triggers, const control_connector::north_type::stream_ptr& np, const std::streamsize& tellp){
+        static control_connector::connections_type::iterator write_prepare(
+            control_connector::connections_type& connections, 
+            control_connector::trigger_type& triggers, 
+            const control_connector::north_type::stream_ptr& np, 
+            const std::streamsize& tellp
+        ){
             const std::streamsize pos = MAX_BUFSIZE-(tellp+sizeof(messages::msgheader));
             auto conn = connections.begin();
             while(conn < connections.end()){
@@ -91,12 +100,22 @@ namespace cloudbus {
             }
             return conn;
         }
-        static int clear_triggers(int sockfd, control_connector::trigger_type& triggers, control_connector::event_mask& revents, const control_connector::event_mask& mask){
+        static int clear_triggers(
+            int sockfd,
+            control_connector::trigger_type& triggers,
+            control_connector::event_mask& revents,
+            const control_connector::event_mask& mask
+        ){
             revents &= ~mask;
             triggers.clear(sockfd, mask);
             return 0;
         }
-        static control_connector::events_type::iterator read_restart(const int& sockfd, control_connector::trigger_type& triggers, control_connector::events_type& events, const control_connector::events_type::iterator& ev){
+        static control_connector::events_type::iterator read_restart(
+            const int& sockfd,
+            control_connector::trigger_type& triggers,
+            control_connector::events_type& events,
+            const control_connector::events_type::iterator& ev
+        ){
             triggers.set(sockfd, POLLIN);
             auto it = std::find_if(events.begin(), events.end(), [&](auto& e){ return e.fd == sockfd; });
             if(it == events.end()){

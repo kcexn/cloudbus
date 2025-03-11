@@ -137,7 +137,7 @@ namespace cloudbus {
                 return streams().back();
             }
             virtual stream_type& _make(native_handle_type sockfd){
-                streams().push_back(traits_type::make_stream(sockfd));           
+                streams().push_back(traits_type::make_stream(sockfd));
                 return streams().back();
             }
             virtual typename streams_type::const_iterator _erase(typename streams_type::const_iterator it){ return streams().erase(it); }

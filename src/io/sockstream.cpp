@@ -16,17 +16,6 @@
 #include "streams.hpp"
 namespace io {
     namespace streams {
-        sockstream& sockstream::operator=(sockstream&& other){
-            _buf = std::move(other._buf);
-            Base::operator=(std::move(other));
-            return *this;
-        }
-        void sockstream::swap(sockstream& other){
-            auto tmp = std::move(other._buf);
-            other._buf = std::move(tmp);
-            _buf = std::move(tmp);
-            Base::swap(other);
-        }
     }
 }
 

@@ -194,7 +194,7 @@ namespace cloudbus{
                 }
                 if(!buf.eof() && buf.tellg() != pos){
                     buf.seekg(HDRLEN);
-                    if(pos > HDRLEN && !_north_connect_handler(interface, nsp, buf))
+                    if(pos > HDRLEN && !north_connect(interface, nsp, buf))
                         return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                 }
             }
@@ -229,6 +229,21 @@ namespace cloudbus{
             if(p == 0) return 0;
             return -1;
         }
+        std::streamsize segment_connector::_north_connect(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
+            auto posit = std::find(north().cbegin(), north().cend(), interface);
+            auto& sbd = south()[posit - north().cbegin()];
+            auto&[sockfd, ssp] = sbd->make(sbd->address()->sa_family, SOCK_STREAM, 0);
+            set_flags(sockfd);
+            ssp->connectto(sbd->address(), sbd->addrlen());
+            const auto n = connection_type::clock_type::now();
+            connections().push_back(
+                (buf.type()->op == messages::STOP)
+                ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
+                : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
+            );
+            triggers().set(sockfd, (POLLIN | POLLOUT));
+            return _north_write(ssp, buf);
+        }        
         void segment_connector::_north_err_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             const auto time = connection_type::clock_type::now();
             const auto&[nfd, nsp] = stream;
@@ -256,21 +271,6 @@ namespace cloudbus{
                 return p-g;
             } else return 0;
         }
-        std::streamsize segment_connector::_north_connect_handler(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
-            auto posit = std::find(north().cbegin(), north().cend(), interface);
-            auto& sbd = south()[posit - north().cbegin()];
-            const auto&[sockfd, ssp] = sbd->make(sbd->address()->sa_family, SOCK_STREAM, 0);
-            set_flags(sockfd);
-            ssp->connectto(sbd->address(), sbd->addrlen());
-            const auto n = connection_type::clock_type::now();
-            connections().push_back(
-                (buf.type()->op == messages::STOP)
-                ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
-                : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
-            );
-            triggers().set(sockfd, (POLLIN | POLLOUT));
-            return _north_write(ssp, buf);
-        }
         int segment_connector::_north_pollin_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             auto it = marshaller().unmarshal(stream);
             if(std::get<north_type::stream_ptr>(stream)->gcount() == 0)
@@ -293,7 +293,7 @@ namespace cloudbus{
             if(nsp->fail() || revents & (POLLERR | POLLNVAL))
                 return -1;
             if(nsp->tellp() == 0)
-                triggers().clear(std::get<north_type::native_handle_type>(stream), POLLOUT);
+                triggers().clear(nfd, POLLOUT);
             revents &= ~(POLLOUT | POLLERR | POLLNVAL);
             return 0;
         }

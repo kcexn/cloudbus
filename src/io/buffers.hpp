@@ -14,11 +14,10 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include <ios>
-#include <initializer_list>
 #include <streambuf>
+#include <memory>
 #include <array>
 #include <vector>
-#include <string>
 #include <tuple>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -27,9 +26,7 @@
 #ifndef IO_BUFFERS
 #define IO_BUFFERS
 namespace io{
-    namespace buffers{
-        using optname = std::string;
-        using optval = std::vector<char>;           
+    namespace buffers{         
         class pipebuf : public std::streambuf {
             public:
                 using Base = std::streambuf;
@@ -73,7 +70,17 @@ namespace io{
                 void _mvrbuf();
                 void _resizewbuf();
         };
-        
+
+        struct socket_message {
+            using address_type = std::tuple<struct sockaddr_storage, socklen_t>;
+            using ancillary_buffer = std::vector<char>;
+            using data_buffer = std::tuple<struct iovec, std::vector<char> >;
+
+            struct msghdr header;
+            address_type addr;
+            ancillary_buffer ancillary;
+            data_buffer data;
+        };
         class sockbuf : public std::streambuf {
             public:     
                 using Base = std::streambuf;
@@ -82,34 +89,28 @@ namespace io{
                 using int_type = Base::int_type;
                 using traits_type = Base::traits_type;
                 using char_type = Base::char_type;
-                using buffer_type = std::vector<char>;
-                using buffers_type = std::array<buffer_type, 2>;
                 using size_type = std::size_t;
+                using buffer_type = std::shared_ptr<socket_message>;
+                using buffers_type = std::vector<buffer_type>;
                 using native_handle_type = int;
-                using cbuf_array_t = std::array<buffer_type, 2>;
-                using address_type = std::tuple<struct sockaddr_storage, socklen_t>;
-                using storage_array = std::array<address_type, 2>;
-                static constexpr size_type MIN_BUFSIZE = 16384;
+                static constexpr size_type MIN_BUFSIZE = 65536;
                 
                 sockbuf();
                 sockbuf(int domain, int type, int protocol):   
                     sockbuf(domain, type, protocol, std::ios_base::in | std::ios_base::out){}
                 sockbuf(native_handle_type sockfd):
                     sockbuf(sockfd, std::ios_base::in | std::ios_base::out){}
-                    
-                sockbuf(sockbuf&& other);
-                explicit sockbuf(native_handle_type sockfd, std::ios_base::openmode which);
-                explicit sockbuf(int domain, int type, int protocol, std::ios_base::openmode which);
-
-                sockbuf& operator=(sockbuf&& other);
+                sockbuf(native_handle_type sockfd, std::ios_base::openmode which);
+                sockbuf(int domain, int type, int protocol, std::ios_base::openmode which);
+                explicit sockbuf(const sockbuf& other);
                 
-                cbuf_array_t& cmsgs() { return _cbufs; }
-                storage_array& addresses() { return _addresses; }
-
-                int err(){ return _errno; }
-                int connectto(const struct sockaddr* addr, socklen_t addrlen);
+                sockbuf& operator=(const sockbuf& other);
+                void swap(sockbuf& other);
+                buffer_type connectto(const struct sockaddr* addr, socklen_t addrlen);
                 
                 native_handle_type native_handle() { return _socket; }
+                int err(){ return _errno; }
+                
                 ~sockbuf();
             protected:
                 virtual pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
@@ -122,17 +123,15 @@ namespace io{
             private:
                 std::ios_base::openmode _which;
                 buffers_type _buffers;
-                cbuf_array_t _cbufs;
-                storage_array _addresses;
                 native_handle_type _socket;
                 int _errno;
                 bool _connected;
                 
                 void _init_buf_ptrs();
-                int _send(char_type *buf, size_type size);
-                int _recv();
+                int _send(const buffer_type& buf);
+                void _resizewbuf(const buffer_type& buf);
                 void _memmoverbuf();
-                void _resizewbuf();
+                int _recv();
         };
     }
 }

@@ -56,6 +56,9 @@ namespace cloudbus {
                 int route(marshaller_type::south_format& buf, const shared_south& interface, const south_type::stream_type& stream, event_mask& revents){ 
                     return _route(buf, interface, stream, revents);
                 }
+                std::streamsize north_connect(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
+                    return _north_connect(interface, nsp, buf);
+                }                
 
                 ~segment_connector() = default;
 
@@ -69,11 +72,11 @@ namespace cloudbus {
                 virtual size_type _handle(events_type& events) override;
                 virtual int _route(marshaller_type::north_format& buf, const shared_north& interface, const north_type::stream_type& stream, event_mask& revents);
                 virtual int _route(marshaller_type::south_format& buf, const shared_south& interface, const south_type::stream_type& stream, event_mask& revents);
+                virtual std::streamsize _north_connect(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf);
 
             private:
                 void _north_err_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents);
                 std::streamsize _north_write(const south_type::stream_ptr& s, marshaller_type::north_format& buf);
-                std::streamsize _north_connect_handler(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf);
                 int _north_pollin_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents);
                 int _north_accept_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents);
                 int _north_pollout_handler(const north_type::stream_type& stream, event_mask& revents);

@@ -216,7 +216,7 @@ namespace cloudbus{
                     }                    
                 }
                 else if(nsp->eof()) return -1;
-                else if(!_north_connect_handler(interface, nsp, buf))
+                else if(!north_connect(interface, nsp, buf))
                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
             }
             if(nsp->eof()) return -1;
@@ -237,7 +237,8 @@ namespace cloudbus{
                             if(auto len = pos-seekpos){
                                 triggers().set(n->native_handle(), POLLOUT);
                                 auto tmp = *type;
-                                type->op = messages::DATA;
+                                if(conn->state < connection_type::HALF_CLOSED)
+                                    type->op = messages::DATA;
                                 auto written = stream_write(*n, buf.seekg(seekpos), len);
                                 *type = tmp;
                                 if(!written)
@@ -251,7 +252,7 @@ namespace cloudbus{
                                         {0,0},{messages::STOP, 0}
                                     };
                                     state_update(*conn, *type, time);
-                                    for(auto c=connections().begin(); c < connections().end() && c->state < connection_type::HALF_CLOSED; ++c){
+                                    for(auto c=connections().begin(); c < connections().end() && c->state < connection_type::HALF_CLOSED && Base::mode() == Base::HALF_DUPLEX; ++c){
                                         // This is a very awkward way to do this, but I have implemented it like this to keep 
                                         // open the option of implementing UDP transport. With unreliable transports, it is 
                                         // necessary to retry control messages until after the remote end sends back an ACK.
@@ -279,33 +280,7 @@ namespace cloudbus{
             if(ssp->eof()) return -1;
             return 0;
         }
-        void proxy_connector::_north_err_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
-            messages::msgheader head = {
-                {}, {1, sizeof(head)},
-                {0,0}, {messages::STOP, 0}
-            };
-            auto&[nfd, nsp] = stream;
-            const auto time = connection_type::clock_type::now();
-            for(auto conn = connections().begin(); conn < connections().end();){
-                if(auto n = conn->north.lock(); n && n == nsp){
-                    if(auto s = conn->south.lock()){
-                        triggers().set(s->native_handle(), POLLOUT);
-                        if(conn->state < connection_type::HALF_CLOSED || (!n->eof() && conn->state == connection_type::HALF_CLOSED)){
-                            head.eid = conn->uuid;
-                            s->write(reinterpret_cast<const char*>(&head), sizeof(head));
-                        }
-                        state_update(*conn, head.type, time);
-                        if(conn->state == connection_type::CLOSED)
-                            conn = connections().erase(conn);
-                        else ++conn;
-                    } else conn = connections().erase(conn);
-                } else ++conn;
-            }
-            revents = 0;
-            triggers().clear(nfd);
-            interface->erase(stream);
-        }
-        std::streamsize proxy_connector::_north_connect_handler(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
+        std::streamsize proxy_connector::_north_connect(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
             const auto n = connection_type::clock_type::now();
             connections_type connect;
             for(auto& sbd: south()){
@@ -338,6 +313,32 @@ namespace cloudbus{
                 return len;
             }
             return 0;
+        }        
+        void proxy_connector::_north_err_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
+            messages::msgheader head = {
+                {}, {1, sizeof(head)},
+                {0,0}, {messages::STOP, 0}
+            };
+            auto&[nfd, nsp] = stream;
+            const auto time = connection_type::clock_type::now();
+            for(auto conn = connections().begin(); conn < connections().end();){
+                if(auto n = conn->north.lock(); n && n == nsp){
+                    if(auto s = conn->south.lock()){
+                        triggers().set(s->native_handle(), POLLOUT);
+                        if(conn->state < connection_type::HALF_CLOSED || (!n->eof() && conn->state == connection_type::HALF_CLOSED)){
+                            head.eid = conn->uuid;
+                            s->write(reinterpret_cast<const char*>(&head), sizeof(head));
+                        }
+                        state_update(*conn, head.type, time);
+                        if(conn->state == connection_type::CLOSED)
+                            conn = connections().erase(conn);
+                        else ++conn;
+                    } else conn = connections().erase(conn);
+                } else ++conn;
+            }
+            revents = 0;
+            triggers().clear(nfd);
+            interface->erase(stream);
         }
         int proxy_connector::_north_pollin_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             auto it = marshaller().unmarshal(stream);

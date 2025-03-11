@@ -64,37 +64,18 @@ namespace io{
             
                 sockstream()
                     : Base(&_buf){}
-                
-                sockstream(sockstream&& other):
-                    Base(&_buf),
-                    _buf{std::move(other._buf)}
-                {}
-                
                 sockstream(int domain, int type, int protocol):
                     sockstream(domain, type, protocol, std::ios_base::in | std::ios_base::out){}
                 sockstream(native_handle_type sockfd):
-                    Base(&_buf),
-                    _buf(sockfd)
-                {}
-                    
-                explicit sockstream(native_handle_type sockfd, std::ios_base::openmode which):
-                    Base(&_buf),
-                    _buf(sockfd, which)
-                {}
-            
-                explicit sockstream(int domain, int type, int protocol, std::ios_base::openmode which):
-                    Base(&_buf),
-                    _buf(domain, type, protocol, which)
-                {}
+                    Base(&_buf), _buf(sockfd) {}
+                sockstream(native_handle_type sockfd, std::ios_base::openmode which):
+                    Base(&_buf), _buf(sockfd, which) {}
+                sockstream(int domain, int type, int protocol, std::ios_base::openmode which):
+                    Base(&_buf), _buf(domain, type, protocol, which) {}
 
-                sockstream& operator=(sockstream&& other);
-                void swap(sockstream& other);
-                sockbuf::cbuf_array_t& cmsgs() { return _buf.cmsgs(); }
                 sockbuf::native_handle_type native_handle() { return _buf.native_handle(); }
-                sockbuf::storage_array& addresses() { return _buf.addresses(); }
                 int err() { return _buf.err(); }
-                int connectto(const struct sockaddr* addr, socklen_t len) { return _buf.connectto(addr, len); }
-                
+                sockbuf::buffer_type connectto(const struct sockaddr* addr, socklen_t len) { return _buf.connectto(addr, len); }
                 ~sockstream(){}
         };
     }

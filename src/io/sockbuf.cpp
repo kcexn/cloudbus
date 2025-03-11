@@ -137,10 +137,11 @@ namespace io{
                 _errno = errno;
                 switch(_errno){
                     case EINTR: continue;
+                    case EISCONN:
+                        _connected = true;
                     case EAGAIN:
                     case EALREADY:
                     case EINPROGRESS:
-                    case EISCONN: 
                         return _buffers.back();
                     default: 
                         return buffer_type();
@@ -207,13 +208,12 @@ namespace io{
             if(!_connected && address.ss_family == AF_UNSPEC){
                 _resizewbuf(buf);
                 return 0;
-            }
-            if(!_connected && address.ss_family != AF_UNSPEC){
+            } else if(_connected){
+                header.msg_name = nullptr;
+                header.msg_namelen = 0;                
+            } else {
                 header.msg_name = &address;
                 header.msg_namelen = addrlen;
-            } else {
-                header.msg_name = nullptr;
-                header.msg_namelen = 0;
             }
             auto&[iov, sendbuf] = buf->data;
             auto size = iov.iov_len;

@@ -290,6 +290,7 @@ namespace io{
                                 switch(_errno){
                                     case EINTR: continue;
                                     case EISCONN:
+                                        _connected = true;
                                         goto SEND;
                                     case EALREADY:
                                     case EAGAIN:

@@ -323,7 +323,7 @@ namespace cloudbus {
             };
             const auto time = connection_type::clock_type::now();
             const auto&[nfd, nsp] = stream;
-            for(auto conn = connections().begin(); conn < connections().end();){
+            for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto n = conn->north.lock(); n && n == nsp){
                     if(auto s = conn->south.lock()){
                         triggers().set(s->native_handle(), POLLOUT);
@@ -333,10 +333,9 @@ namespace cloudbus {
                         }
                         state_update(*conn, head.type, time);
                         if(conn->state == connection_type::CLOSED)
-                            conn = connections().erase(conn);
-                        else ++conn;
-                    } else conn = connections().erase(conn);
-                } else ++conn;
+                            conn = --connections().erase(conn);
+                    } else conn = --connections().erase(conn);
+                }
             }            
             revents = 0;          
             triggers().clear(nfd);
@@ -434,14 +433,13 @@ namespace cloudbus {
         }
         void control_connector::_south_err_handler(const shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
             const auto&[sfd, ssp] = stream;
-            for(auto conn = connections().begin(); conn < connections().end();){
+            for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto s = conn->south.lock(); s && s == ssp){
                     if(auto n = conn->north.lock()){
                         state_update(*conn, {messages::STOP, 0}, connection_type::clock_type::now());
                         triggers().set(n->native_handle(), POLLOUT);
-                        ++conn;
-                    } else conn = connections().erase(conn);
-                } else ++conn;
+                    } else conn = --connections().erase(conn);
+                }
             }
             revents = 0;
             triggers().clear(sfd);
@@ -468,14 +466,12 @@ namespace cloudbus {
         int control_connector::_south_state_handler(const south_type::stream_type& stream){
             std::size_t count = 0;
             const auto& ssp = std::get<south_type::stream_ptr>(stream);
-            for(auto conn = connections().begin(); conn < connections().end();){
-                if(auto s = conn->south.lock()){
-                    if(s == ssp){
-                        if(conn->state != connection_type::CLOSED){
-                            ++count; ++conn;
-                        } else conn = connections().erase(conn);
-                    } else ++conn;
-                } else conn = connections().erase(conn);
+            for(auto conn = connections().begin(); conn < connections().end(); ++conn){
+                if(auto s = conn->south.lock(); s && s==ssp){
+                    if(conn->state != connection_type::CLOSED)
+                        ++count;
+                    else conn = --connections().erase(conn);
+                }
             }
             if(count == 0) return -1;
             return 0;

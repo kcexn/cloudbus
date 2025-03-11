@@ -320,7 +320,7 @@ namespace cloudbus{
             };
             auto&[nfd, nsp] = stream;
             const auto time = connection_type::clock_type::now();
-            for(auto conn = connections().begin(); conn < connections().end();){
+            for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto n = conn->north.lock(); n && n == nsp){
                     if(auto s = conn->south.lock()){
                         triggers().set(s->native_handle(), POLLOUT);
@@ -330,10 +330,9 @@ namespace cloudbus{
                         }
                         state_update(*conn, head.type, time);
                         if(conn->state == connection_type::CLOSED)
-                            conn = connections().erase(conn);
-                        else ++conn;
-                    } else conn = connections().erase(conn);
-                } else ++conn;
+                            conn = --connections().erase(conn);
+                    } else conn = --connections().erase(conn);
+                }
             }
             revents = 0;
             triggers().clear(nfd);
@@ -461,12 +460,12 @@ namespace cloudbus{
         int proxy_connector::_south_state_handler(const south_type::stream_type& stream){
             std::size_t count = 0;
             const auto& ssp = std::get<south_type::stream_ptr>(stream);
-            for(auto conn = connections().begin(); conn < connections().end();){
+            for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto s = conn->south.lock(); s && s == ssp){
-                    if(conn->state != connection_type::CLOSED){
-                        ++count; ++conn;
-                    } else conn = connections().erase(conn);
-                } else ++conn;
+                    if(conn->state != connection_type::CLOSED)
+                        ++count;
+                    else conn = --connections().erase(conn);
+                }
             }
             if(count == 0) return -1;
             return 0;

@@ -249,14 +249,13 @@ namespace cloudbus{
         void segment_connector::_north_err_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
             const auto time = connection_type::clock_type::now();
             const auto&[nfd, nsp] = stream;
-            for(auto conn = connections().begin(); conn < connections().end();){
+            for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto n = conn->north.lock(); n && n == nsp){
                     if(auto s = conn->south.lock()){
                         state_update(*conn, {messages::STOP, 0}, time);
                         triggers().set(s->native_handle(), POLLOUT);
-                        ++conn;
-                    } else conn = connections().erase(conn);
-                } else ++conn;
+                    } else conn = --connections().erase(conn);
+                }
             }
             revents = 0;
             triggers().clear(nfd);
@@ -318,7 +317,7 @@ namespace cloudbus{
         }
         void segment_connector::_south_err_handler(const shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
             const auto&[sfd, ssp] = stream;
-            for(auto conn = connections().begin(); conn < connections().end();){
+            for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto s = conn->south.lock(); s && s == ssp){
                     if(auto n = conn->north.lock()){
                         const messages::msgheader head = {
@@ -331,10 +330,10 @@ namespace cloudbus{
                         }
                         state_update(*conn, head.type, connection_type::clock_type::now());
                         if(conn->state == connection_type::CLOSED)
-                            conn = connections().erase(conn);
+                            conn = --connections().erase(conn);
                         break;
-                    } else conn = connections().erase(conn);
-                } else ++conn;
+                    } else conn = --connections().erase(conn);
+                }
             }
             revents = 0;
             triggers().clear(sfd);
@@ -368,7 +367,7 @@ namespace cloudbus{
         }
         void segment_connector::_south_state_handler(const shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
             const auto&[sfd, ssp] = stream;
-            for(auto conn = connections().begin(); conn < connections().end();){
+            for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto s = conn->south.lock(); s && s == ssp){
                     switch(conn->state){
                         case connection_type::CLOSED:
@@ -379,7 +378,7 @@ namespace cloudbus{
                             shutdown(sfd, SHUT_WR);
                         default: return;
                     }
-                } else ++conn;
+                }
             }
         }
         int segment_connector::_south_pollout_handler(const south_type::stream_type& stream, event_mask& revents){

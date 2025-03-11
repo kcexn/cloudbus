@@ -23,7 +23,7 @@
 #endif
 namespace cloudbus {
     namespace controller {
-        static constexpr std::streamsize MAX_BUFSIZE = 65536; //64KB
+        static constexpr std::streamsize MAX_BUFSIZE = 65536 * 512; /* 32MiB */
         static int set_flags(int fd){
             int flags = 0;
             if(fcntl(fd, F_SETFD, FD_CLOEXEC))
@@ -35,18 +35,19 @@ namespace cloudbus {
             return fd;
         }
         static int _accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen){
-            int fd =0;
-            if((fd = accept(sockfd, addr, addrlen)) < 0){
-                switch(errno){
-                    case EINTR:
-                        return _accept(sockfd, addr, addrlen);
-                    case EWOULDBLOCK:
-//                  case EAGAIN:
-                        return -1;
-                    default:
-                        throw std::runtime_error("Unable to accept connected socket.");
-                }
-            } else return set_flags(fd);
+            while(int fd = accept(sockfd, addr, addrlen)){
+                if(fd < 0){
+                    switch(errno){
+                        case EINTR: continue;
+                        case EWOULDBLOCK:
+                        /* case EAGAIN: */
+                            return -1;
+                        default:
+                            throw std::runtime_error("Unable to accept connected socket.");
+                    }
+                } else return set_flags(fd);
+            }
+            return 0;
         }
         static void state_update(
             control_connector::connection_type& conn,
@@ -162,7 +163,7 @@ namespace cloudbus {
                         }
                         return false;
                     });
-                    if(nit != north().cend()) continue;             
+                    if(nit != north().cend()) continue;
                     auto sit = std::find_if(south().cbegin(), south().cend(), [&](const auto& interface){
                         for(auto& stream: interface->streams()){
                             auto&[sockfd, ssp] = stream;

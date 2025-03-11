@@ -49,11 +49,12 @@ namespace cloudbus{
             while(triggers().wait(pause) != trigger_type::npos){
                 auto events = triggers().events();
                 for(size_type i = 0, handled = handle(events); i++ < FAIRNESS && !handled; handled = handle(events)){
-                    if(handled == trigger_type::npos)
-                        return 0;
+                    if(handled == trigger_type::npos) 
+                        goto EXIT;
                     if(i == FAIRNESS){
                         if((i = triggers().wait(std::chrono::milliseconds(0)))){
-                            if(i == trigger_type::npos) return 0;
+                            if(i == trigger_type::npos) 
+                                goto EXIT;
                             events = filter_events(events);
                             auto events_ = triggers().events();
                             for(auto e = events_.begin(); i && e < events_.end(); ++e){
@@ -70,6 +71,8 @@ namespace cloudbus{
                 }
                 if(signal) return signal;
             }
+        EXIT:
+            if(signal) return signal;
             return 0;
         }
         segment::segment(): Base(){

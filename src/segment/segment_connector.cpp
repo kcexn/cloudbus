@@ -22,7 +22,7 @@
 #endif
 namespace cloudbus{
     namespace segment {
-        static constexpr std::streamsize MAX_BUFSIZE = 65536; //64KB
+        static constexpr std::streamsize MAX_BUFSIZE = 65536 * 512; /* 32MiB */
         static int set_flags(int fd){
             int flags = 0;
             if(fcntl(fd, F_SETFD, FD_CLOEXEC))
@@ -34,18 +34,19 @@ namespace cloudbus{
             return fd;
         }
         static int _accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen){
-            int fd =0;
-            if((fd = accept(sockfd, addr, addrlen)) < 0){
-                switch(errno){
-                    case EINTR:
-                        return _accept(sockfd, addr, addrlen);
-                    case EWOULDBLOCK:
-//                  case EAGAIN:
-                        return -1;
-                    default:
-                        throw std::runtime_error("Unable to accept connected socket.");
-                }
-            } else return set_flags(fd);
+            while(int fd = accept(sockfd, addr, addrlen)){
+                if(fd < 0){
+                    switch(errno){
+                        case EINTR: continue;
+                        case EWOULDBLOCK:
+                        /* case EAGAIN: */
+                            return -1;
+                        default:
+                            throw std::runtime_error("Unable to accept connected socket.");
+                    }
+                } else return set_flags(fd);
+            }
+            return 0;
         }
         static void state_update(
             segment_connector::connection_type& conn,
@@ -62,14 +63,15 @@ namespace cloudbus{
                 default: return;
             }
         }       
-        static std::array<char, 256> _buf = {};
         static std::ostream& stream_write(std::ostream& os, std::istream& is){
+            std::array<char, 256> _buf = {};
             while(auto gcount = is.readsome(_buf.data(), _buf.max_size()))
                 if(os.write(_buf.data(), gcount).bad())
                     return os;
             return os;
         }
         static std::ostream& stream_write(std::ostream& os, std::istream& is, std::streamsize maxlen){
+            std::array<char, 256> _buf = {};
             while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.max_size())))){
                 if(os.write(_buf.data(), gcount).bad())
                     return os;

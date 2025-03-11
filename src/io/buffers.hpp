@@ -102,12 +102,13 @@ namespace io{
                     sockbuf(sockfd, std::ios_base::in | std::ios_base::out){}
                 sockbuf(native_handle_type sockfd, std::ios_base::openmode which);
                 sockbuf(int domain, int type, int protocol, std::ios_base::openmode which);
-                explicit sockbuf(const sockbuf& other);
+                sockbuf(const sockbuf& other);
                 
                 sockbuf& operator=(const sockbuf& other);
                 void swap(sockbuf& other);
                 buffer_type connectto(const struct sockaddr* addr, socklen_t addrlen);
-                
+
+                const buffer_type& recvbuf() const { return _buffers.front(); }
                 native_handle_type native_handle() { return _socket; }
                 int err(){ return _errno; }
                 

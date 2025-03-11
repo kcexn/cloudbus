@@ -18,7 +18,7 @@
 #include <fcntl.h>
 namespace cloudbus{
     namespace proxy {
-        static constexpr std::streamsize MAX_BUFSIZE = 65536; //64KB
+        static constexpr std::streamsize MAX_BUFSIZE = 65536 * 512; /* 32MiB */
         static int set_flags(int fd){
             int flags = 0;
             if(fcntl(fd, F_SETFD, FD_CLOEXEC))
@@ -30,20 +30,19 @@ namespace cloudbus{
             return fd;
         }
         static int _accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen){
-            int fd =0;
-            if((fd = accept(sockfd, addr, addrlen)) >= 0){
-                return set_flags(fd);
-            } else {
-                switch(errno){
-                    case EINTR:
-                        return _accept(sockfd, addr, addrlen);
-                    case EWOULDBLOCK:
-//                  case EAGAIN:
-                        return -1;
-                    default:
-                        throw std::runtime_error("Unable to accept connected socket.");
-                }
+            while(int fd = accept(sockfd, addr, addrlen)){
+                if(fd < 0){
+                    switch(errno){
+                        case EINTR: continue;
+                        case EWOULDBLOCK:
+                        /* case EAGAIN: */
+                            return -1;
+                        default:
+                            throw std::runtime_error("Unable to accept connected socket.");
+                    }
+                } else return set_flags(fd);
             }
+            return 0;
         }    
         static void state_update(
             proxy_connector::connection_type& conn,
@@ -60,8 +59,8 @@ namespace cloudbus{
                 default: return;
             }
         }
-        static std::array<char, 256> _buf = {};         
         static std::streamsize stream_write(std::ostream& os, std::istream& is, std::streamsize len){
+            std::array<char, 256> _buf = {};  
             std::streamsize pos=MAX_BUFSIZE-len;
             if(os.fail()) return -1;
             if(os.tellp() >= pos && os.flush().bad())

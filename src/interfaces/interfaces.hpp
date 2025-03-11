@@ -67,7 +67,7 @@ namespace cloudbus {
         using stream_type = ::io::streams::sockstream;
         using native_handle_type = stream_type::native_handle_type;
         using stream_ptr = std::shared_ptr<stream_type>;
-        using handle_type = std::tuple<native_handle_type, stream_ptr>;     
+        using handle_type = std::tuple<native_handle_type, stream_ptr>;
         using storage_type = struct sockaddr_storage;
         using size_type = socklen_t;
         using address_type = struct sockaddr*;

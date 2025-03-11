@@ -348,7 +348,8 @@ namespace cloudbus{
             int sockfd = 0;
             const auto listenfd = std::get<north_type::native_handle_type>(stream);
             while((sockfd = _accept(listenfd, nullptr, nullptr)) >= 0){
-                interface->make(sockfd);
+                auto& nsp = std::get<north_type::stream_ptr>(interface->make(sockfd));
+                nsp->connectto(interface->address(), interface->addrlen());
                 triggers().set(sockfd, POLLIN);
             }
             revents &= ~(POLLIN | POLLHUP);

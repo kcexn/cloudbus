@@ -204,6 +204,10 @@ namespace io{
         int sockbuf::_send(const buffer_type& buf){
             auto& header = buf->header;
             auto&[address, addrlen] = buf->addr;
+            if(!_connected && address.ss_family == AF_UNSPEC){
+                _resizewbuf(buf);
+                return 0;
+            }
             if(!_connected && address.ss_family != AF_UNSPEC){
                 header.msg_name = &address;
                 header.msg_namelen = addrlen;

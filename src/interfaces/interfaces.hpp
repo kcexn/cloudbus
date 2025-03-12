@@ -73,7 +73,7 @@ namespace cloudbus {
             std::string& uri() { return _uri; }
 
             const address_type& address();
-            addresses_type& addresses() { return _addresses; }
+            const addresses_type& addresses() const { return _addresses; }
             const addresses_type& addresses(const addresses_type& addrs);
             const addresses_type& addresses(addresses_type&& addrs);
 

@@ -210,7 +210,7 @@ namespace io{
                 return 0;
             } else if(_connected){
                 header.msg_name = nullptr;
-                header.msg_namelen = 0;                
+                header.msg_namelen = 0;
             } else {
                 header.msg_name = &address;
                 header.msg_namelen = addrlen;

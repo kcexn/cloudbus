@@ -72,9 +72,9 @@ namespace io{
             _errno{0}, _connected{false}
         { _init_buf_ptrs(); }
 
-        sockbuf::sockbuf(native_handle_type sockfd, std::ios_base::openmode which):
+        sockbuf::sockbuf(native_handle_type sockfd, bool connected, std::ios_base::openmode which):
             Base(), _which{which}, _buffers{},
-            _socket{sockfd}, _errno{0}, _connected{false}
+            _socket{sockfd}, _errno{0}, _connected{connected}
         { _init_buf_ptrs(); }
 
         sockbuf::sockbuf(int domain, int type, int protocol, std::ios_base::openmode which):
@@ -117,7 +117,7 @@ namespace io{
             other._connected = conn;
             return Base::swap(other);
         }
-        sockbuf::buffer_type sockbuf::connectto(const struct sockaddr* addr, socklen_t addrlen){
+        sockbuf::buffer_type sockbuf::connectto(const struct sockaddr *addr, socklen_t addrlen){
             auto& addr_ = std::get<struct sockaddr_storage>(_buffers.back()->addr);
             if(addr_.ss_family != AF_UNSPEC){
                 auto& piov = std::get<struct iovec>(_buffers.back()->data);

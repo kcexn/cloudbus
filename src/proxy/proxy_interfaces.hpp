@@ -19,77 +19,69 @@
 #define CLOUDBUS_PROXY_INTERFACES
 namespace cloudbus{
     namespace proxy {
-        class cbus_interface : public cs_interface
-        {
+        class cs_north : public cs_interface {
             public:
                 using Base = cs_interface;
-                using traits_type = Base::traits_type;
-                using stream_ptr = Base::stream_ptr;
-                using native_handle_type = Base::native_handle_type;
-                using stream_type = Base::stream_type;
-                using streams_type = Base::stream_type;
-                using storage_type = Base::storage_type;
-                using size_type = Base::size_type;
-                using address_type = Base::address_type;  
 
-                cbus_interface();
-                cbus_interface(const address_type addr, size_type addrlen);
-                cbus_interface(cbus_interface&& other);
-
-                cbus_interface& operator=(cbus_interface&& other);
-
-                cbus_interface(const cbus_interface& other) = delete;
-                cbus_interface& operator=(const cbus_interface& other) = delete;
-        };    
-        class cs_north : public cbus_interface
-        {
-            public:
-                using Base = cbus_interface;
-                using traits_type = Base::traits_type;
-                using stream_ptr = Base::stream_ptr;
-                using native_handle_type = Base::native_handle_type;
-                using stream_type = Base::stream_type;
-                using streams_type = Base::stream_type;
-                using storage_type = Base::storage_type;
-                using size_type = Base::size_type;
-                using address_type = Base::address_type;  
-
-                cs_north(): Base(){}
-                cs_north(const address_type addr, size_type addrlen): Base(addr, addrlen){}
-                cs_north(cs_north&& other): Base(std::move(other)){}
-
+                cs_north():
+                    cs_north(std::string(), nullptr, 0){}
+                cs_north(const std::string& uri):
+                    cs_north(uri, nullptr, 0){}
+                cs_north(const struct sockaddr *addr, socklen_t addrlen):
+                    cs_north(std::string(), addr, addrlen){}
+                cs_north(const addresses_type& addresses):
+                    cs_north(std::string(), addresses){}
+                cs_north(addresses_type&& addresses):
+                    cs_north(std::string(), std::move(addresses)){}
+                explicit cs_north(const std::string& uri, const struct sockaddr *addr, socklen_t addrlen):
+                    Base(uri, addr, addrlen){}
+                explicit cs_north(const std::string& uri, const addresses_type& addresses):
+                    Base(uri, addresses){}
+                explicit cs_north(const std::string& uri, addresses_type&& addresses):
+                    Base(uri, std::move(addresses)){}
+                explicit cs_north(cs_north&& other):
+                    Base(std::move(other)){}
                 cs_north& operator=(cs_north&& other){
                     Base::operator=(std::move(other));
                     return *this;
                 }
 
+                ~cs_north() = default;
+
                 cs_north(const cs_north& other) = delete;
-                cs_north& operator=(const cs_north& other) = delete;
+                cs_north& operator=(const cs_north& other) = delete;                        
         };
-        class cs_south : public cbus_interface
-        {
+        class cs_south : public cs_interface {
             public:
-                using Base = cbus_interface;
-                using traits_type = Base::traits_type;
-                using stream_ptr = Base::stream_ptr;
-                using native_handle_type = Base::native_handle_type;
-                using stream_type = Base::stream_type;
-                using streams_type = Base::stream_type;
-                using storage_type = Base::storage_type;
-                using size_type = Base::size_type;
-                using address_type = Base::address_type;  
+                using Base = cs_interface;
 
-                cs_south(): Base(){}
-                cs_south(const address_type addr, size_type addrlen): Base(addr, addrlen){}
-                cs_south(cs_south&& other): Base(std::move(other)){}
-
+                cs_south():
+                    cs_south(std::string(), nullptr, 0){}
+                cs_south(const std::string& uri):
+                    cs_south(uri, nullptr, 0){}
+                cs_south(const struct sockaddr *addr, socklen_t addrlen):
+                    cs_south(std::string(), addr, addrlen){}
+                cs_south(const addresses_type& addresses):
+                    cs_south(std::string(), addresses){}
+                cs_south(addresses_type&& addresses):
+                    cs_south(std::string(), std::move(addresses)){}
+                explicit cs_south(const std::string& uri, const struct sockaddr *addr, socklen_t addrlen):
+                    Base(uri, addr, addrlen){}
+                explicit cs_south(const std::string& uri, const addresses_type& addresses):
+                    Base(uri, addresses){}
+                explicit cs_south(const std::string& uri, addresses_type&& addresses):
+                    Base(uri, std::move(addresses)){}
+                explicit cs_south(cs_south&& other):
+                    Base(std::move(other)){}
                 cs_south& operator=(cs_south&& other){
                     Base::operator=(std::move(other));
                     return *this;
                 }
 
+                ~cs_south() = default;
+
                 cs_south(const cs_south& other) = delete;
-                cs_south& operator=(const cs_south& other) = delete;
+                cs_south& operator=(const cs_south& other) = delete;                    
         };
     }
 }

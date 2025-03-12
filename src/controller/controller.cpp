@@ -113,13 +113,13 @@ namespace cloudbus{
             registry::transport protocol;
             std::getline(f, line);
             if(registry::make_address(line, reinterpret_cast<struct sockaddr*>(&ss), &len, protocol)) throw std::runtime_error("Invalid configuration.");
-            connector().make(connector().north(), reinterpret_cast<const connector_type::north_type::address_type>(&ss), len);
+            connector().make(connector().north(), reinterpret_cast<const struct sockaddr*>(&ss), len);
 
             line.clear();
             while(std::getline(f, line)){
                 if(registry::make_address(line, reinterpret_cast<struct sockaddr*>(&ss), &len, protocol))
                     throw std::runtime_error("Invalid configuration.");
-                connector().make(connector().south(), reinterpret_cast<connector_type::south_type::address_type>(&ss), len);
+                connector().make(connector().south(), reinterpret_cast<const struct sockaddr*>(&ss), len);
                 line.clear();
             }
             std::string mode;
@@ -133,10 +133,10 @@ namespace cloudbus{
             } else connector().mode() = connector_type::HALF_DUPLEX;
         }
         controller::~controller(){
-            for(auto& n: connector().north()){
-                if(n->address()->sa_family == AF_UNIX)
-                    unlink(reinterpret_cast<struct sockaddr_un*>(n->address())->sun_path);
-            }
+            for(auto& n: connector().north())
+                for(const auto&[addr, addrlen]: n->addresses())
+                    if(addr.ss_family == AF_UNIX)
+                        unlink(reinterpret_cast<const struct sockaddr_un*>(&addr)->sun_path);
         }
         controller::size_type controller::_handle(events_type& events){
             return connector().handle(events);

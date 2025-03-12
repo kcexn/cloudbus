@@ -26,13 +26,13 @@ namespace cloudbus {
     {
         public:
             using north_type = NorthT;
-            using north_ptr = std::weak_ptr<typename north_type::traits_type::stream_type>;
-            using north_format = typename north_type::traits_type::format_type;
+            using north_ptr = std::weak_ptr<typename north_type::stream_type>;
+            using north_format = typename north_type::format_type;
             using north_buffer = std::tuple<north_ptr, north_format>;
             using north_buffers = std::vector<north_buffer>;
             using south_type = SouthT;
-            using south_ptr = std::weak_ptr<typename south_type::traits_type::stream_type>;
-            using south_format = typename south_type::traits_type::format_type;
+            using south_ptr = std::weak_ptr<typename south_type::stream_type>;
+            using south_format = typename south_type::format_type;
             using south_buffer = std::tuple<south_ptr, south_format>;
             using south_buffers = std::vector<south_buffer>;
 
@@ -55,15 +55,15 @@ namespace cloudbus {
                 return *this;
             }
 
-            typename north_buffers::iterator unmarshal(const typename north_type::stream_type& n){ return _unmarshal(n); }
-            typename south_buffers::iterator marshal(const typename south_type::stream_type& s){ return _marshal(s); }
+            typename north_buffers::iterator unmarshal(const typename north_type::handle_ptr& n){ return _unmarshal(n); }
+            typename south_buffers::iterator marshal(const typename south_type::handle_ptr& s){ return _marshal(s); }
             north_buffers& north() { return _north; }
             south_buffers& south() { return _south; }
 
             virtual ~basic_marshaller() = default;
         protected:
-            virtual typename north_buffers::iterator _unmarshal(const typename north_type::stream_type& n) { return _north.end(); }
-            virtual typename south_buffers::iterator _marshal(const typename south_type::stream_type& s) { return _south.end(); }
+            virtual typename north_buffers::iterator _unmarshal(const typename north_type::handle_ptr& n) { return _north.end(); }
+            virtual typename south_buffers::iterator _marshal(const typename south_type::handle_ptr& s) { return _south.end(); }
 
         private:
             north_buffers _north;

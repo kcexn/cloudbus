@@ -48,10 +48,10 @@ namespace cloudbus{
             return is.eof();
         }
 
-        control_marshaller::north_buffers::iterator control_marshaller::_unmarshal(const north_type::stream_type& stream){
+        control_marshaller::north_buffers::iterator control_marshaller::_unmarshal(const north_type::handle_ptr& stream){
             for(auto it = north().begin(); it < north().end();){
                 if(auto n = std::get<north_ptr>(*it).lock()){
-                    if(n == std::get<north_type::stream_ptr>(stream)){
+                    if(n == std::get<north_type::stream_ptr>(*stream)){
                         auto& buf = std::get<north_format>(*it);
                         if(buf.tellg() == buf.tellp()){
                             buf.seekg(0);
@@ -62,17 +62,17 @@ namespace cloudbus{
                     ++it;
                 } else it = north().erase(it);
             }
-            std::get<north_ptr>(north().emplace_back()) = std::get<north_type::stream_ptr>(stream);
+            std::get<north_ptr>(north().emplace_back()) = std::get<north_type::stream_ptr>(*stream);
             auto n = std::get<north_ptr>(north().back()).lock();
             auto& buf = std::get<north_format>(north().back());
             stream_copy(buf, *n);
             return --north().end(); 
         }
-        control_marshaller::south_buffers::iterator control_marshaller::_marshal(const south_type::stream_type& stream){
+        control_marshaller::south_buffers::iterator control_marshaller::_marshal(const south_type::handle_ptr& stream){
             for(auto it = south().begin(); it < south().end();){
                 south_buffer& buffer = *it;
                 if(auto s = std::get<south_ptr>(buffer).lock()){
-                    if(s == std::get<south_type::stream_ptr>(stream)){
+                    if(s == std::get<south_type::stream_ptr>(*stream)){
                         auto& format = std::get<south_format>(buffer);
                         xmsg_read(format, *s);
                         return it;
@@ -80,7 +80,7 @@ namespace cloudbus{
                     ++it;
                 } else it = south().erase(it);
             }
-            std::get<south_ptr>(south().emplace_back()) = std::get<south_type::stream_ptr>(stream);
+            std::get<south_ptr>(south().emplace_back()) = std::get<south_type::stream_ptr>(*stream);
             auto s = std::get<south_ptr>(south().back()).lock();
             auto& format = std::get<south_format>(south().back());
             xmsg_read(format, *s);

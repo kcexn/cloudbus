@@ -59,21 +59,21 @@ namespace io{
             sockbuf _buf;
             
             public:
-                using native_handle_type = buffers::sockbuf::native_handle_type;
-                using optval = std::vector<char>;
-            
-                sockstream()
-                    : Base(&_buf){}
+                using native_handle_type = sockbuf::native_handle_type;
+                sockstream(): 
+                    Base(&_buf){}
                 sockstream(int domain, int type, int protocol):
                     sockstream(domain, type, protocol, std::ios_base::in | std::ios_base::out){}
                 sockstream(native_handle_type sockfd):
-                    Base(&_buf), _buf(sockfd) {}
-                sockstream(native_handle_type sockfd, std::ios_base::openmode which):
-                    Base(&_buf), _buf(sockfd, which) {}
-                sockstream(int domain, int type, int protocol, std::ios_base::openmode which):
+                    sockstream(sockfd, false, std::ios_base::in | std::ios_base::out){}
+                sockstream(native_handle_type sockfd, bool connected):
+                    sockstream(sockfd, connected, std::ios_base::in | std::ios_base::out){}
+                explicit sockstream(native_handle_type sockfd, bool connected, std::ios_base::openmode which):
+                    Base(&_buf), _buf(sockfd, connected, which) {}
+                explicit sockstream(int domain, int type, int protocol, std::ios_base::openmode which):
                     Base(&_buf), _buf(domain, type, protocol, which) {}
 
-                sockbuf::native_handle_type native_handle() { return _buf.native_handle(); }
+                native_handle_type& native_handle() { return _buf.native_handle(); }
                 int err() { return _buf.err(); }
                 sockbuf::buffer_type connectto(const struct sockaddr* addr, socklen_t len) { return _buf.connectto(addr, len); }
                 ~sockstream(){}

@@ -106,18 +106,18 @@ namespace cloudbus{
         }
 
         segment_connector::segment_connector(trigger_type& triggers): Base(triggers){}
-        segment_connector::norths_type::iterator segment_connector::make(norths_type& n, const north_type::address_type& addr, north_type::size_type addrlen){
+        segment_connector::norths_type::iterator segment_connector::make(norths_type& n, const struct sockaddr *addr, socklen_t addrlen){
             constexpr int backlog = 128;
             n.push_back(make_north(addr, addrlen));
-            auto& interface = n.back();
-            auto& stream = interface->make(interface->address()->sa_family, SOCK_STREAM, 0);
-            auto sockfd = set_flags(std::get<north_type::native_handle_type>(stream));
-            if(bind(sockfd, interface->address(), interface->addrlen())) throw std::runtime_error("bind()");
+            auto& hnd = n.back()->make(addr->sa_family, SOCK_STREAM, 0);
+            auto& sockfd = std::get<north_type::native_handle_type>(*hnd);
+            set_flags(sockfd);
+            if(bind(sockfd, addr, addrlen)) throw std::runtime_error("bind()");
             if(listen(sockfd, backlog)) throw std::runtime_error("listen()");
             triggers().set(sockfd, POLLIN);
             return --n.end();
         }
-        segment_connector::souths_type::iterator segment_connector::make(souths_type& s, const south_type::address_type& addr, south_type::size_type addrlen){
+        segment_connector::souths_type::iterator segment_connector::make(souths_type& s, const struct sockaddr *addr, socklen_t addrlen){
             s.push_back(make_south(addr, addrlen));
             return --s.end();
         }
@@ -127,7 +127,7 @@ namespace cloudbus{
             if(ev->revents){
               auto nit = std::find_if(north().begin(), north().end(), [&](auto& interface){
                 for(auto& stream: interface->streams()){
-                    auto&[sockfd, nsp] = stream;
+                    auto&[sockfd, nsp] = *stream;
                     if(sockfd == ev->fd){
                         if(ev->revents & (POLLOUT | POLLERR))
                             for(auto& c: connections())
@@ -143,7 +143,7 @@ namespace cloudbus{
               if(nit != north().end()) continue;
               auto sit = std::find_if(south().begin(), south().end(), [&](auto& interface){
                 for(auto& stream: interface->streams()){
-                    auto&[sockfd, ssp] = stream;
+                    auto&[sockfd, ssp] = *stream;
                     if(sockfd == ev->fd){
                         if(ev->revents & (POLLOUT | POLLERR))
                             for(auto& c: connections())
@@ -164,9 +164,9 @@ namespace cloudbus{
           }
           return handled;
         }
-        int segment_connector::_route(marshaller_type::north_format& buf, const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
+        int segment_connector::_route(marshaller_type::north_format& buf, const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
             constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
-            const auto&[nfd, nsp] = stream;
+            const auto&[nfd, nsp] = *stream;
             const auto *eid = buf.eid();
             if(const auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
                 const std::streamsize seekpos = 
@@ -203,8 +203,8 @@ namespace cloudbus{
             if(nsp->eof()) return -1;
             return 0;
         }
-        int segment_connector::_route(marshaller_type::south_format& buf, const shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
-            auto&[sfd, ssp] = stream;
+        int segment_connector::_route(marshaller_type::south_format& buf, const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){
+            auto&[sfd, ssp] = *stream;
             const auto p = buf.tellp();
             if(const auto eof = ssp->eof(); eof || p > 0){
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){
@@ -234,21 +234,29 @@ namespace cloudbus{
         std::streamsize segment_connector::_north_connect(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
             auto posit = std::find(north().cbegin(), north().cend(), interface);
             auto& sbd = south()[posit - north().cbegin()];
-            auto&[sockfd, ssp] = sbd->make(sbd->address()->sa_family, SOCK_STREAM, 0);
-            set_flags(sockfd);
-            ssp->connectto(sbd->address(), sbd->addrlen());
+            auto& hnd = sbd->make();
+            sbd->register_connect(hnd, [&triggers=triggers()](const auto& hnd, const auto *addr, auto addrlen){
+                auto&[sfd, ssp] = *hnd;
+                if(!sfd){
+                    auto& sockfd = ssp->native_handle();
+                    sockfd = socket(addr->sa_family, SOCK_STREAM, 0);
+                    sfd = set_flags(sockfd);
+                }
+                ssp->connectto(addr, addrlen);
+                triggers.set(sfd, (POLLIN | POLLOUT));
+            });
             const auto n = connection_type::clock_type::now();
+            auto& ssp = std::get<south_type::stream_ptr>(*hnd);
             connections().push_back(
                 (buf.type()->op == messages::STOP)
                 ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
                 : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
             );
-            triggers().set(sockfd, (POLLIN | POLLOUT));
             return _north_write(ssp, buf);
-        }        
-        void segment_connector::_north_err_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
+        }
+        void segment_connector::_north_err_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
             const auto time = connection_type::clock_type::now();
-            const auto&[nfd, nsp] = stream;
+            const auto&[nfd, nsp] = *stream;
             for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto n = conn->north.lock(); n && n == nsp){
                     if(auto s = conn->south.lock()){
@@ -272,25 +280,24 @@ namespace cloudbus{
                 return p-g;
             } else return 0;
         }
-        int segment_connector::_north_pollin_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
+        int segment_connector::_north_pollin_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
             auto it = marshaller().unmarshal(stream);
-            if(std::get<north_type::stream_ptr>(stream)->gcount() == 0)
+            if(std::get<north_type::stream_ptr>(*stream)->gcount() == 0)
                 revents &= ~(POLLIN | POLLHUP);
             return route(std::get<marshaller_type::north_format>(*it), interface, stream, revents);
         }
-        int segment_connector::_north_accept_handler(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
+        int segment_connector::_north_accept_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
             int sockfd = 0;
-            const auto listenfd = std::get<north_type::native_handle_type>(stream);
+            const auto listenfd = std::get<north_type::native_handle_type>(*stream);
             while((sockfd = _accept(listenfd, nullptr, nullptr)) >= 0){
-                auto& nsp = std::get<north_type::stream_ptr>(interface->make(sockfd));
-                nsp->connectto(interface->address(), interface->addrlen());
+                interface->make(sockfd, true);
                 triggers().set(sockfd, POLLIN);
             }
             revents &= ~(POLLIN | POLLHUP);
             return 0;
         }
-        int segment_connector::_north_pollout_handler(const north_type::stream_type& stream, event_mask& revents){
-            auto&[nfd, nsp] = stream;
+        int segment_connector::_north_pollout_handler(const north_type::handle_ptr& stream, event_mask& revents){
+            auto&[nfd, nsp] = *stream;
             nsp->flush();
             if(nsp->fail() || revents & (POLLERR | POLLNVAL))
                 return -1;
@@ -299,7 +306,7 @@ namespace cloudbus{
             revents &= ~(POLLOUT | POLLERR | POLLNVAL);
             return 0;
         }
-        segment_connector::size_type segment_connector::_handle(const shared_north& interface, const north_type::stream_type& stream, event_mask& revents){
+        segment_connector::size_type segment_connector::_handle(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
             size_type handled = 0;
             if(revents & (POLLOUT | POLLERR | POLLNVAL)){
                 ++handled;
@@ -316,8 +323,8 @@ namespace cloudbus{
             }
             return handled;
         }
-        void segment_connector::_south_err_handler(const shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
-            const auto&[sfd, ssp] = stream;
+        void segment_connector::_south_err_handler(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){
+            const auto&[sfd, ssp] = *stream;
             for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto s = conn->south.lock(); s && s == ssp){
                     if(auto n = conn->north.lock()){
@@ -360,14 +367,14 @@ namespace cloudbus{
                 return -1;
             return size;
         }
-        int segment_connector::_south_pollin_handler(const shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
+        int segment_connector::_south_pollin_handler(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){
             auto it = marshaller().marshal(stream);
-            if(std::get<south_type::stream_ptr>(stream)->gcount() == 0)
+            if(std::get<south_type::stream_ptr>(*stream)->gcount() == 0)
                 revents &= ~(POLLIN | POLLHUP);
             return route(std::get<marshaller_type::south_format>(*it), interface, stream, revents);
         }
-        void segment_connector::_south_state_handler(const shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
-            const auto&[sfd, ssp] = stream;
+        void segment_connector::_south_state_handler(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){
+            const auto&[sfd, ssp] = *stream;
             for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto s = conn->south.lock(); s && s == ssp){
                     switch(conn->state){
@@ -382,8 +389,8 @@ namespace cloudbus{
                 }
             }
         }
-        int segment_connector::_south_pollout_handler(const south_type::stream_type& stream, event_mask& revents){
-            auto&[sfd, ssp] = stream;
+        int segment_connector::_south_pollout_handler(const south_type::handle_ptr& stream, event_mask& revents){
+            auto&[sfd, ssp] = *stream;
             ssp->flush();
             if(ssp->fail() || revents & (POLLERR | POLLNVAL))
                 return -1;
@@ -392,7 +399,7 @@ namespace cloudbus{
             revents &= ~(POLLOUT | POLLERR | POLLNVAL);
             return 0;
         }
-        segment_connector::size_type segment_connector::_handle(const shared_south& interface, const south_type::stream_type& stream, event_mask& revents){
+        segment_connector::size_type segment_connector::_handle(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){
             size_type handled = 0;
             if(revents & (POLLOUT | POLLERR | POLLNVAL)){
                 ++handled;

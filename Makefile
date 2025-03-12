@@ -32,17 +32,14 @@ COMMON = poller \
 	registry
 CONTROLLER := $(COMMON) \
 	control_connector \
-	control_interfaces \
 	control_marshallers \
 	controller
 SEGMENT := $(COMMON) \
 	segment_connector \
-	segment_interfaces \
 	segment_marshallers \
 	segment
 PROXY := $(COMMON) \
 	proxy_connector \
-	proxy_interfaces \
 	proxy_marshallers \
 	proxy
 EXECUTABLES := controller \

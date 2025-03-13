@@ -67,21 +67,23 @@ namespace cloudbus{
         static hostname_types _hostname_type(const char *c, std::size_t len){
             if(c == nullptr)
                 return HOSTNAME_ERROR;
-            std::size_t period_count=0, alpha_count=0;
-            for(; len-- > 0; ++c){
+            std::size_t period_count=0;
+            for(const char *const start = c; len-- > 0; ++c){
                 switch(*c){
                     case '.':
                         ++period_count;
                         break;
                     case '[':
-                        return IPV6;
+                        if(c == start)
+                            return IPV6;
+                        else return HOSTNAME_ERROR;
                     case ':':
-                        if(!alpha_count && period_count==3)
+                        if(period_count==3)
                             return IPV4;
                         else return HOSTNAME;
                     default:
                         if(!std::isdigit(*c))
-                            ++alpha_count;
+                            return HOSTNAME;
                         break;
                 }
             }
@@ -152,17 +154,17 @@ namespace cloudbus{
         }        
         /* unix:///<PATH> */
         /* tcp://<IP>:<PORT> */
-        static address_type make_address(const std::string& line, const std::string& type){
+        static address_type make_address(const std::string& line, std::string&& p){
             socket_address address{};
             auto&[addr, addrlen, protocol] = address;
-            protocol = type;
-            const char *start = line.data() + type.size() + 3;
+            protocol = std::move(p);
+            const char *start = line.data() + protocol.size() + 3;
             std::size_t size = line.size() - (start - line.data());
-            if(type == "UNIX"){
+            if(protocol == "UNIX"){
                 if(make_unix_address(_path(++start, --size), reinterpret_cast<struct sockaddr_un*>(&addr), &addrlen))
                     return address_type();
-                return address_type{address};
-            } else if (type == "TCP"){
+                return address_type{std::move(address)};
+            } else if (protocol == "TCP"){
                 auto host = _host(start, size);
                 if(!host.size())
                     return address_type();
@@ -170,13 +172,13 @@ namespace cloudbus{
                     case IPV4:
                         if(make_ipv4_address(host, reinterpret_cast<struct sockaddr_in*>(&addr), &addrlen))
                             return address_type();
-                        return address_type{address};
+                        return address_type{std::move(address)};
                     case IPV6:
                         if(make_ipv6_address(host, reinterpret_cast<struct sockaddr_in6*>(&addr), &addrlen))
                             return address_type();
-                        return address_type{address};                        
+                        return address_type{std::move(address)};
                     case HOSTNAME:
-                        return address_type{url{std::string(host), type}};
+                        return address_type{url{std::string(host), std::move(protocol)}};
                     default:
                         return address_type();
                 }
@@ -189,12 +191,12 @@ namespace cloudbus{
             return address_type(std::string(line.cbegin(), it));
         }
         address_type make_address(const std::string& line){
-            std::string type{_protocol(line.data(), line.size())};
-            if(type.empty())
+            std::string protocol{_protocol(line.data(), line.size())};
+            if(protocol.empty())
                 return make_urn(line);
-            std::transform(type.begin(), type.end(), type.begin(), [](const unsigned char c){ return std::toupper(c); });
-            if(type == "UNIX" || type=="TCP" || type=="UDP" || type == "SCTP")
-                return make_address(line, type);
+            std::transform(protocol.begin(), protocol.end(), protocol.begin(), [](const unsigned char c){ return std::toupper(c); });
+            if(protocol == "UNIX" || protocol=="TCP" || protocol=="UDP" || protocol == "SCTP")
+                return make_address(line, std::move(protocol));
             else return make_urn(line);
         }
     }

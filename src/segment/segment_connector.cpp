@@ -107,39 +107,22 @@ namespace cloudbus{
 
         segment_connector::segment_connector(trigger_type& triggers): Base(triggers){}
         segment_connector::norths_type::iterator segment_connector::make(norths_type& n, const registry::address_type& address){
-            switch(address.index()){
-                case registry::SOCKADDR:
-                {
-                    auto&[addr, addrlen, protocol] = std::get<registry::SOCKADDR>(address);
-                    n.push_back(std::make_shared<north_type>(reinterpret_cast<const struct sockaddr*>(&addr), addrlen, protocol));
-                    if(protocol == "TCP" || protocol == "UNIX"){
-                        auto& hnd = n.back()->make(addr.ss_family, SOCK_STREAM, 0);
-                        auto& sockfd = std::get<north_type::native_handle_type>(*hnd);
-                        set_flags(sockfd);
-                        int reuse = 1;
-                        setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
-                        if(bind(sockfd, reinterpret_cast<const struct sockaddr*>(&addr), addrlen))
-                            throw std::runtime_error("bind()");
-                        if(listen(sockfd, 128))
-                            throw std::runtime_error("listen()");
-                        triggers().set(sockfd, POLLIN);
-                    } else throw std::invalid_argument("Invalid configuration.");
-                    break;
-                }
-                case registry::URL:
-                {
-                    auto&[host, protocol] = std::get<registry::URL>(address);
-                    n.push_back(std::make_shared<north_type>(host, protocol));
-                    break;
-                }
-                case registry::URN:
-                    if(auto& urn = std::get<registry::URN>(address); !urn.empty()){
-                        n.push_back(std::make_shared<north_type>(urn));
-                        break;
-                    }
-                default:
-                    throw std::invalid_argument("Invalid configuration.");
-            }
+            if(address.index() != registry::SOCKADDR)
+                throw std::invalid_argument("Invalid configuration.");
+            auto&[addr, addrlen, protocol] = std::get<registry::SOCKADDR>(address);
+            n.push_back(std::make_shared<north_type>(reinterpret_cast<const struct sockaddr*>(&addr), addrlen, protocol));
+            if(protocol == "TCP" || protocol == "UNIX"){
+                auto& hnd = n.back()->make(addr.ss_family, SOCK_STREAM, 0);
+                auto& sockfd = std::get<north_type::native_handle_type>(*hnd);
+                set_flags(sockfd);
+                int reuse = 1;
+                setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+                if(bind(sockfd, reinterpret_cast<const struct sockaddr*>(&addr), addrlen))
+                    throw std::runtime_error("bind()");
+                if(listen(sockfd, 128))
+                    throw std::runtime_error("listen()");
+                triggers().set(sockfd, POLLIN);
+            } else throw std::invalid_argument("Invalid configuration.");
             return --n.end();
         }
         segment_connector::souths_type::iterator segment_connector::make(souths_type& s, const registry::address_type& address){
@@ -163,7 +146,7 @@ namespace cloudbus{
                     }
                 default:
                     throw std::invalid_argument("Invalid configuration.");
-            }            
+            }
             return --s.end();
         }
         segment_connector::size_type segment_connector::_handle(events_type& events){
@@ -277,17 +260,20 @@ namespace cloudbus{
             return -1;
         }
         std::streamsize segment_connector::_north_connect(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
+            constexpr std::size_t SHRINK_THRESHOLD = 1024;
             auto posit = std::find(north().cbegin(), north().cend(), interface);
             auto& sbd = south()[posit - north().cbegin()];
             auto& hnd = sbd->make();
-            sbd->register_connect(hnd, [&triggers=triggers()](const auto& hnd, const auto *addr, auto addrlen){
+            sbd->register_connect(hnd, [&triggers=triggers()](const auto& hnd, const auto *addr, auto addrlen, const std::string& protocol){
                 auto&[sfd, ssp] = *hnd;
                 if(!sfd){
                     auto& sockfd = ssp->native_handle();
-                    sockfd = socket(addr->sa_family, SOCK_STREAM, 0);
+                    if(protocol == "TCP" || protocol == "UNIX")
+                        sockfd = socket(addr->sa_family, SOCK_STREAM, 0);
+                    else throw std::invalid_argument("Unsupported transport protocol.");
                     sfd = set_flags(sockfd);
+                    ssp->connectto(addr, addrlen);
                 }
-                ssp->connectto(addr, addrlen);
                 triggers.set(sfd, (POLLIN | POLLOUT));
             });
             const auto n = connection_type::clock_type::now();
@@ -297,6 +283,9 @@ namespace cloudbus{
                 ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
                 : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
             );
+            if(connections().capacity() > SHRINK_THRESHOLD 
+                && connections().size() < connections().capacity()/2)
+                connections().shrink_to_fit();
             return _north_write(ssp, buf);
         }
         void segment_connector::_north_err_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){

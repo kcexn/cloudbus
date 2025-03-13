@@ -79,14 +79,12 @@ namespace cloudbus{
             std::string filename{"segment.ini"};
             std::fstream f(filename, f.in);
             if(!f.is_open()) throw std::runtime_error("Unable to open segment.ini");
-            std::string line, protocol;
+            std::string line{};
             std::getline(f, line);
-            auto address = registry::make_address(line);
-            connector().make(connector().north(), address);
+            connector().make(connector().north(), registry::make_address(line));
             line.clear();
             std::getline(f,line);
-            address = registry::make_address(line);
-            connector().make(connector().south(), address);
+            connector().make(connector().south(), registry::make_address(line));
         }
         segment::~segment() {
             for(auto& n: connector().north())

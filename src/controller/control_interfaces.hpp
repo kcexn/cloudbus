@@ -21,38 +21,32 @@ namespace cloudbus{
     namespace controller {
         class cs_north : public ss_interface {
             public:
-                using Base = ss_interface;
+                using Base = ss_interface;            
                 cs_north():
-                    cs_north(std::string(), addresses_type()){}
-                cs_north(const std::string& uri):
-                    cs_north(uri, addresses_type()){}
-                cs_north(const std::string& uri, const std::string& protocol):
-                    cs_north(uri, addresses_type(), protocol){}
-                cs_north(const struct sockaddr *addr, socklen_t addrlen, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
-                    cs_north(std::string(), addr, addrlen, protocol, ttl){}              
-                cs_north(const addresses_type& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
-                    cs_north(std::string(), addresses, protocol, ttl){}
-                cs_north(addresses_type&& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
-                    cs_north(std::string(), std::move(addresses), protocol, ttl){}
+                    cs_north(addresses_type()){}
+                cs_north(const std::string& urn):
+                    cs_north(addresses_type(), urn){}
+                cs_north(const std::string& url, const std::string& protocol):
+                    cs_north(addresses_type(), url, protocol){}
                 explicit cs_north(
-                    const std::string& uri,
                     const struct sockaddr *addr,
                     socklen_t addrlen,
                     const std::string& protocol,
+                    const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
-                ): Base(uri, addr, addrlen, protocol, ttl){}
+                ): Base(addr, addrlen, protocol, uri, ttl){}
                 explicit cs_north(
-                    const std::string& uri,
                     const addresses_type& addresses,
                     const std::string& protocol=std::string(),
+                    const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
-                ): Base(uri, addresses, protocol, ttl){}
+                ): Base(addresses, protocol, uri, ttl){}
                 explicit cs_north(
-                    const std::string& uri,
                     addresses_type&& addresses,
                     const std::string& protocol=std::string(),
+                    const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
-                ): Base(uri, std::move(addresses), protocol, ttl){}
+                ): Base(std::move(addresses), protocol, uri, ttl){}
                 cs_north& operator=(cs_north&& other){
                     Base::operator=(std::move(other));
                     return *this;
@@ -68,36 +62,30 @@ namespace cloudbus{
                 using Base = cs_interface;
 
                 cs_south():
-                    cs_south(std::string(), addresses_type()){}
-                cs_south(const std::string& uri):
-                    cs_south(uri, addresses_type()){}
-                cs_south(const std::string& uri, const std::string& protocol):
-                    cs_south(uri, addresses_type(), protocol){}
-                cs_south(const struct sockaddr *addr, socklen_t addrlen, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
-                    cs_south(std::string(), addr, addrlen, protocol, ttl){}              
-                cs_south(const addresses_type& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
-                    cs_south(std::string(), addresses, protocol, ttl){}
-                cs_south(addresses_type&& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
-                    cs_south(std::string(), std::move(addresses), protocol, ttl){}
+                    cs_south(addresses_type()){}
+                cs_south(const std::string& urn):
+                    cs_south(addresses_type(), urn){}
+                cs_south(const std::string& url, const std::string& protocol):
+                    cs_south(addresses_type(), url, protocol){}
                 explicit cs_south(
-                    const std::string& uri,
                     const struct sockaddr *addr,
                     socklen_t addrlen,
                     const std::string& protocol,
+                    const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
-                ): Base(uri, addr, addrlen, protocol, ttl){}
+                ): Base(addr, addrlen, protocol, uri, ttl){}
                 explicit cs_south(
-                    const std::string& uri,
                     const addresses_type& addresses,
                     const std::string& protocol=std::string(),
+                    const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
-                ): Base(uri, addresses, protocol, ttl){}
+                ): Base(addresses, protocol, uri, ttl){}
                 explicit cs_south(
-                    const std::string& uri,
                     addresses_type&& addresses,
                     const std::string& protocol=std::string(),
+                    const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
-                ): Base(uri, std::move(addresses), protocol, ttl){}
+                ): Base(std::move(addresses), protocol, uri, ttl){}
                 cs_south& operator=(cs_south&& other){
                     Base::operator=(std::move(other));
                     return *this;

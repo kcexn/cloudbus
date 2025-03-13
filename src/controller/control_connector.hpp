@@ -68,7 +68,7 @@ namespace cloudbus {
                 control_connector(const control_connector& other) = delete;
                 control_connector(control_connector&& other) = delete;
                 control_connector& operator=(const control_connector& other) = delete;
-                control_connector& operator=(control_connector&& other) = delete;               
+                control_connector& operator=(control_connector&& other) = delete;   
 
             protected:
                 virtual size_type _handle(events_type& events) override;

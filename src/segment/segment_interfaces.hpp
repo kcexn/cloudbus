@@ -23,36 +23,30 @@ namespace cloudbus{
             public:
                 using Base = cs_interface;
                 cbus_interface():
-                    cbus_interface(std::string(), addresses_type()){}
-                cbus_interface(const std::string& uri):
-                    cbus_interface(uri, addresses_type()){}
-                cbus_interface(const std::string& uri, const std::string& protocol):
-                    cbus_interface(uri, addresses_type(), protocol){}
-                cbus_interface(const struct sockaddr *addr, socklen_t addrlen, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
-                    cbus_interface(std::string(), addr, addrlen, protocol, ttl){}              
-                cbus_interface(const addresses_type& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
-                    cbus_interface(std::string(), addresses, protocol, ttl){}
-                cbus_interface(addresses_type&& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
-                    cbus_interface(std::string(), std::move(addresses), protocol, ttl){}
+                    cbus_interface(addresses_type()){}
+                cbus_interface(const std::string& urn):
+                    cbus_interface(addresses_type(), urn){}
+                cbus_interface(const std::string& url, const std::string& protocol):
+                    cbus_interface(addresses_type(), url, protocol){}
                 explicit cbus_interface(
-                    const std::string& uri,
                     const struct sockaddr *addr,
                     socklen_t addrlen,
                     const std::string& protocol,
+                    const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
-                ): Base(uri, addr, addrlen, protocol, ttl){}
+                ): Base(addr, addrlen, protocol, uri, ttl){}
                 explicit cbus_interface(
-                    const std::string& uri,
                     const addresses_type& addresses,
                     const std::string& protocol=std::string(),
+                    const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
-                ): Base(uri, addresses, protocol, ttl){}
+                ): Base(addresses, protocol, uri, ttl){}
                 explicit cbus_interface(
-                    const std::string& uri,
                     addresses_type&& addresses,
                     const std::string& protocol=std::string(),
+                    const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
-                ): Base(uri, std::move(addresses), protocol, ttl){}
+                ): Base(std::move(addresses), protocol, uri, ttl){}
                 cbus_interface& operator=(cbus_interface&& other){
                     Base::operator=(std::move(other));
                     return *this;
@@ -67,36 +61,30 @@ namespace cloudbus{
             public:
                 using Base = ss_interface;
                 service_interface():
-                    service_interface(std::string(), addresses_type()){}
-                service_interface(const std::string& uri):
-                    service_interface(uri, addresses_type()){}
-                service_interface(const std::string& uri, const std::string& protocol):
-                    service_interface(uri, addresses_type(), protocol){}
-                service_interface(const struct sockaddr *addr, socklen_t addrlen, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
-                    service_interface(std::string(), addr, addrlen, protocol, ttl){}              
-                service_interface(const addresses_type& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
-                    service_interface(std::string(), addresses, protocol, ttl){}
-                service_interface(addresses_type&& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
-                    service_interface(std::string(), std::move(addresses), protocol, ttl){}
+                    service_interface(addresses_type()){}
+                service_interface(const std::string& urn):
+                    service_interface(addresses_type(), urn){}
+                service_interface(const std::string& url, const std::string& protocol):
+                    service_interface(addresses_type(), url, protocol){}
                 explicit service_interface(
-                    const std::string& uri,
                     const struct sockaddr *addr,
                     socklen_t addrlen,
                     const std::string& protocol,
+                    const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
-                ): Base(uri, addr, addrlen, protocol, ttl){}
+                ): Base(addr, addrlen, protocol, uri, ttl){}
                 explicit service_interface(
-                    const std::string& uri,
                     const addresses_type& addresses,
                     const std::string& protocol=std::string(),
+                    const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
-                ): Base(uri, addresses, protocol, ttl){}
+                ): Base(addresses, protocol, uri, ttl){}
                 explicit service_interface(
-                    const std::string& uri,
                     addresses_type&& addresses,
                     const std::string& protocol=std::string(),
+                    const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
-                ): Base(uri, std::move(addresses), protocol, ttl){}
+                ): Base(std::move(addresses), protocol, uri, ttl){}
                 service_interface& operator=(service_interface&& other){
                     Base::operator=(std::move(other));
                     return *this;

@@ -79,17 +79,15 @@ namespace cloudbus{
             std::string filename{"proxy.ini"};
             std::fstream f(filename, f.in);
             if(!f.is_open()) throw std::runtime_error("Unable to open proxy.ini");
-            std::string line;
+            std::string line{};
             std::getline(f, line);
-            auto address = registry::make_address(line);
-            connector().make(connector().north(), address);
+            connector().make(connector().north(), registry::make_address(line));
             line.clear();
             while(std::getline(f, line)){
-                address = registry::make_address(line);
-                connector().make(connector().south(), address);
+                connector().make(connector().south(), registry::make_address(line));
                 line.clear();
             }
-            std::string mode;
+            std::string mode{};
             if(auto *m = std::getenv("CLOUDBUS_SERVICE_MODE"); m != nullptr)
                 mode=std::string(m);
             std::transform(mode.begin(), mode.end(), mode.begin(), [](const unsigned char c){ return std::toupper(c); });

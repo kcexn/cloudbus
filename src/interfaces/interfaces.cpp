@@ -16,6 +16,7 @@
 #include "interfaces.hpp"
 #include <cstring>
 namespace cloudbus {
+    static constexpr std::size_t SHRINK_THRESHOLD = 1024;
     const interface_base::address_type interface_base::NULLADDR = interface_base::address_type{};
     interface_base::address_type interface_base::make_address(const struct sockaddr *addr, socklen_t addrlen){
         auto address = address_type();
@@ -39,7 +40,13 @@ namespace cloudbus {
         return std::make_shared<handle_type>(sockfd, std::make_shared<stream_type>(sockfd, connected));
     }
 
-    interface_base::interface_base(const std::string& uri, const struct sockaddr *addr, socklen_t addrlen, const std::string& protocol, const duration_type& ttl):
+    interface_base::interface_base(
+        const struct sockaddr *addr, 
+        socklen_t addrlen, 
+        const std::string& protocol, 
+        const std::string& uri, 
+        const duration_type& ttl
+    ):  
         _uri{uri}, _protocol{protocol},
         _addresses{}, _idx{0}, _streams{}, _pending{}, 
         _timeout{clock_type::now(), ttl}
@@ -54,14 +61,25 @@ namespace cloudbus {
             "or addrlen < sizeof(sa_family_t)."
         );
     }
-    interface_base::interface_base(const std::string& uri, const addresses_type& addresses, const std::string& protocol, const duration_type& ttl):
+    interface_base::interface_base(
+        const addresses_type& addresses,
+        const std::string& protocol,
+        const std::string& uri,
+        const duration_type& ttl
+    ):  
         _uri{uri}, _protocol{protocol},
         _addresses{addresses}, _idx{0}, _streams{}, _pending{},
         _timeout{clock_type::now(), ttl}
     {}
-    interface_base::interface_base(const std::string& uri, addresses_type&& addresses, const std::string& protocol, const duration_type& ttl):
+    interface_base::interface_base(
+        addresses_type&& addresses,
+        const std::string& protocol,
+        const std::string& uri,
+        const duration_type& ttl
+    ):  
         _uri{uri}, _protocol{protocol},
-        _addresses{std::move(addresses)}, _idx{0}, _streams{}, _pending{},
+        _addresses{std::move(addresses)}, _idx{0},
+        _streams{}, _pending{},
         _timeout{clock_type::now(), ttl}
     {}
 
@@ -90,32 +108,46 @@ namespace cloudbus {
     const interface_base::addresses_type& interface_base::addresses(const addresses_type& addrs, const duration_type& ttl){
         _timeout = std::make_tuple(clock_type::now(), ttl);
         _addresses = addrs;
+        _addresses.shrink_to_fit();
         _resolve_callbacks();
         return _addresses;
     }
     const interface_base::addresses_type& interface_base::addresses(addresses_type&& addrs, const duration_type& ttl){
         _timeout = std::make_tuple(clock_type::now(), ttl);
         _addresses = std::move(addrs);
+        _addresses.shrink_to_fit();
         _resolve_callbacks();
         return _addresses;
     }
     interface_base::handle_ptr& interface_base::make(){
         _streams.push_back(make_handle());
+        if(_streams.capacity() > SHRINK_THRESHOLD
+            && _streams.size() < _streams.capacity()/2)
+            _streams.shrink_to_fit();
         return _streams.back();
     }
     interface_base::handle_ptr& interface_base::make(int domain, int type, int protocol){
         _streams.push_back(make_handle(domain, type, protocol));
+        if(_streams.capacity() > SHRINK_THRESHOLD
+            && _streams.size() < _streams.capacity()/2)
+            _streams.shrink_to_fit();
         return _streams.back();
     }
     interface_base::handle_ptr& interface_base::make(native_handle_type sockfd){
         _streams.push_back(make_handle(sockfd));
+        if(_streams.capacity() > SHRINK_THRESHOLD
+            &&_streams.size() < _streams.capacity()/2)
+            _streams.shrink_to_fit();
         return _streams.back();
     }
     interface_base::handle_ptr& interface_base::make(native_handle_type sockfd, bool connected){
         _streams.push_back(make_handle(sockfd, connected));
+        if(_streams.capacity() > SHRINK_THRESHOLD 
+            && _streams.size() < _streams.capacity()/2)
+            _streams.shrink_to_fit();
         return _streams.back();
     }
-    interface_base::handles_type::const_iterator interface_base::erase(handles_type::const_iterator cit){ 
+    interface_base::handles_type::const_iterator interface_base::erase(handles_type::const_iterator cit){
         return _streams.erase(cit); 
     }
     interface_base::handles_type::iterator interface_base::erase(handles_type::iterator it){ 
@@ -131,10 +163,16 @@ namespace cloudbus {
     }
     void interface_base::register_connect(std::weak_ptr<handle_type> wp, const callback_type& connect_callback){
         _pending.emplace_back(wp, connect_callback);
+        if(_pending.capacity() > SHRINK_THRESHOLD
+            && _pending.size() < _pending.capacity()/2)
+            _pending.shrink_to_fit();
         return _resolve_callbacks();
     }
     void interface_base::register_connect(std::weak_ptr<handle_type> wp, callback_type&& connect_callback){
         _pending.emplace_back(wp, std::move(connect_callback));
+        if(_pending.capacity() > SHRINK_THRESHOLD
+            && _pending.size() < _pending.capacity()/2)
+            _pending.shrink_to_fit();
         return _resolve_callbacks();
     }
     void interface_base::_resolve_callbacks(){
@@ -142,7 +180,7 @@ namespace cloudbus {
             for(auto&[wp, cb]: _pending){
                 if(auto ptr = wp.lock()){
                     const auto&[addr, addrlen] = address();
-                    cb(ptr, reinterpret_cast<const struct sockaddr*>(&addr), addrlen);
+                    cb(ptr, reinterpret_cast<const struct sockaddr*>(&addr), addrlen, _protocol);
                 }
             }
             _pending.clear();

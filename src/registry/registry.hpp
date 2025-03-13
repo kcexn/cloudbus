@@ -23,7 +23,7 @@
 namespace cloudbus{
     namespace registry {
         enum types { URN, URL, SOCKADDR };
-        using socket_address = std::tuple<struct sockaddr_storage, socklen_t, std::string>;
+        using socket_address = std::tuple<std::string, struct sockaddr_storage, socklen_t>;
         using url = std::tuple<std::string, std::string>;
         using address_type = std::variant<std::string, url, socket_address>;
         /* unix:///<PATH> */

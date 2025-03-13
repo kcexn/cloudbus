@@ -128,7 +128,7 @@ namespace cloudbus{
         proxy_connector::norths_type::iterator proxy_connector::make(norths_type& n, const registry::address_type& address){
             if(address.index() != registry::SOCKADDR)
                 throw std::invalid_argument("Invalid configuration.");
-            auto&[addr, addrlen, protocol] = std::get<registry::SOCKADDR>(address);
+            auto&[protocol, addr, addrlen] = std::get<registry::SOCKADDR>(address);
             n.push_back(std::make_shared<north_type>(reinterpret_cast<const struct sockaddr*>(&addr), addrlen, protocol));
             if(protocol == "TCP" || protocol == "UNIX"){
                 auto& hnd = n.back()->make(addr.ss_family, SOCK_STREAM, 0);
@@ -148,7 +148,7 @@ namespace cloudbus{
             switch(address.index()){
                 case registry::SOCKADDR:
                 {
-                    auto&[addr, addrlen, protocol] = std::get<registry::SOCKADDR>(address);
+                    auto&[protocol, addr, addrlen] = std::get<registry::SOCKADDR>(address);
                     s.push_back(std::make_shared<south_type>(reinterpret_cast<const struct sockaddr*>(&addr), addrlen, protocol));
                     break;
                 }

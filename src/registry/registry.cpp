@@ -156,7 +156,7 @@ namespace cloudbus{
         /* tcp://<IP>:<PORT> */
         static address_type make_address(const std::string& line, std::string&& p){
             socket_address address{};
-            auto&[addr, addrlen, protocol] = address;
+            auto&[protocol, addr, addrlen] = address;
             protocol = std::move(p);
             const char *start = line.data() + protocol.size() + 3;
             std::size_t size = line.size() - (start - line.data());

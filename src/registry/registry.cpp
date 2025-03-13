@@ -161,10 +161,10 @@ namespace cloudbus{
             const char *start = line.data() + protocol.size() + 3;
             std::size_t size = line.size() - (start - line.data());
             if(protocol == "UNIX"){
-                if(make_unix_address(_path(++start, --size), reinterpret_cast<struct sockaddr_un*>(&addr), &addrlen))
+                if(make_unix_address(_path(start, size), reinterpret_cast<struct sockaddr_un*>(&addr), &addrlen))
                     return address_type();
                 return address_type{std::move(address)};
-            } else if (protocol == "TCP"){
+            } else if (protocol == "TCP" || protocol=="UDP" || protocol == "SCTP"){
                 auto host = _host(start, size);
                 if(!host.size())
                     return address_type();

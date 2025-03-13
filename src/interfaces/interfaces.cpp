@@ -39,23 +39,27 @@ namespace cloudbus {
         return std::make_shared<handle_type>(sockfd, std::make_shared<stream_type>(sockfd, connected));
     }
 
-    interface_base::interface_base(const std::string& uri, const struct sockaddr *addr, socklen_t addrlen):
-        _uri{uri}, _addresses{}, _idx{0}, _streams{}, _pending{}
+    interface_base::interface_base(const std::string& uri, const struct sockaddr *addr, socklen_t addrlen, const duration_type& ttl):
+        _uri{uri}, _addresses{}, _idx{0}, _streams{}, _pending{}, 
+        _timeout{clock_type::now(), ttl}
     {
         if(addr != nullptr && addrlen > sizeof(sa_family_t))
             _addresses.push_back(make_address(addr, addrlen));
     }
-    interface_base::interface_base(const std::string& uri, const addresses_type& addresses):
-        _uri{uri}, _addresses{addresses}, _idx{0}, _streams{}, _pending{}
+    interface_base::interface_base(const std::string& uri, const addresses_type& addresses, const duration_type& ttl):
+        _uri{uri}, _addresses{addresses}, _idx{0}, _streams{}, _pending{},
+        _timeout{clock_type::now(), ttl}
     {}
-    interface_base::interface_base(const std::string& uri, addresses_type&& addresses):
-        _uri{uri}, _addresses{std::move(addresses)}, _idx{0}, _streams{}, _pending{}
+    interface_base::interface_base(const std::string& uri, addresses_type&& addresses, const duration_type& ttl):
+        _uri{uri}, _addresses{std::move(addresses)}, _idx{0}, _streams{}, _pending{},
+        _timeout{clock_type::now(), ttl}
     {}
 
     interface_base::interface_base(interface_base&& other):
         _uri{std::move(other._uri)},
         _addresses{std::move(other._addresses)}, _idx{other._idx}, 
-        _streams{std::move(other._streams)}, _pending{std::move(other._pending)}
+        _streams{std::move(other._streams)}, _pending{std::move(other._pending)},
+        _timeout{std::move(other._timeout)}
     { other._idx = 0; }
     interface_base& interface_base::operator=(interface_base&& other){
         _uri = std::move(other._uri);
@@ -63,6 +67,7 @@ namespace cloudbus {
         _idx = other._idx; other._idx = 0;
         _streams = std::move(other._streams);
         _pending = std::move(other._pending);
+        _timeout = std::move(other._timeout);
         return *this;
     }
     const interface_base::address_type& interface_base::address(){
@@ -71,12 +76,14 @@ namespace cloudbus {
         _idx = (_idx + 1) % _addresses.size();
         return _addresses[_idx];
     }
-    const interface_base::addresses_type& interface_base::addresses(const addresses_type& addrs){
+    const interface_base::addresses_type& interface_base::addresses(const addresses_type& addrs, const duration_type& ttl){
+        _timeout = std::make_tuple(clock_type::now(), ttl);
         _addresses = addrs;
         _resolve_callbacks();
         return _addresses;
     }
-    const interface_base::addresses_type& interface_base::addresses(addresses_type&& addrs){
+    const interface_base::addresses_type& interface_base::addresses(addresses_type&& addrs, const duration_type& ttl){
+        _timeout = std::make_tuple(clock_type::now(), ttl);
         _addresses = std::move(addrs);
         _resolve_callbacks();
         return _addresses;
@@ -128,6 +135,13 @@ namespace cloudbus {
                 }
             }
             _pending.clear();
+            if(auto&[time, ttl] = _timeout;
+                ttl.count() >= 0 && clock_type::now() >= time+ttl)
+                return _expire_addresses();
         }
+    }
+    void interface_base::_expire_addresses(){
+        _addresses.clear();
+        _timeout = std::make_tuple(clock_type::now(), duration_type(-1));
     }
 }

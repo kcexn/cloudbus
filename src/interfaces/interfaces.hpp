@@ -45,6 +45,10 @@ namespace cloudbus {
             using address_type = std::tuple<struct sockaddr_storage, socklen_t>;
             using addresses_type = std::vector<address_type>;
             using callback_type = std::function<void(const handle_ptr&, const struct sockaddr*, socklen_t)>;
+            using clock_type = std::chrono::system_clock;
+            using time_point = clock_type::time_point;
+            using duration_type = std::chrono::seconds;
+            using dns_ttl = std::tuple<time_point, duration_type>;
          
             static const address_type NULLADDR;
             static address_type make_address(const struct sockaddr *addr, socklen_t addrlen);
@@ -57,15 +61,15 @@ namespace cloudbus {
                 interface_base(std::string(), nullptr, 0){}
             interface_base(const std::string& uri):
                 interface_base(uri, nullptr, 0){}
-            interface_base(const struct sockaddr *addr, socklen_t addrlen):
-                interface_base(std::string(), addr, addrlen){}
-            interface_base(const addresses_type& addresses):
-                interface_base(std::string(), addresses){}
-            interface_base(addresses_type&& addresses):
-                interface_base(std::string(), std::move(addresses)){}
-            explicit interface_base(const std::string& uri, const struct sockaddr *addr, socklen_t addrlen);
-            explicit interface_base(const std::string& uri, const addresses_type& addresses);
-            explicit interface_base(const std::string& uri, addresses_type&& addresses);
+            interface_base(const struct sockaddr *addr, socklen_t addrlen, const duration_type& ttl=duration_type(-1)):
+                interface_base(std::string(), addr, addrlen, ttl){}
+            interface_base(const addresses_type& addresses, const duration_type& ttl=duration_type(-1)):
+                interface_base(std::string(), addresses, ttl){}
+            interface_base(addresses_type&& addresses, const duration_type& ttl=duration_type(-1)):
+                interface_base(std::string(), std::move(addresses), ttl){}
+            explicit interface_base(const std::string& uri, const struct sockaddr *addr, socklen_t addrlen, const duration_type& ttl=duration_type(-1));
+            explicit interface_base(const std::string& uri, const addresses_type& addresses, const duration_type& ttl=duration_type(-1));
+            explicit interface_base(const std::string& uri, addresses_type&& addresses, const duration_type& ttl=duration_type(-1));
             explicit interface_base(interface_base&& other);
 
             interface_base& operator=(interface_base&& other);
@@ -74,8 +78,8 @@ namespace cloudbus {
 
             const address_type& address();
             const addresses_type& addresses() const { return _addresses; }
-            const addresses_type& addresses(const addresses_type& addrs);
-            const addresses_type& addresses(addresses_type&& addrs);
+            const addresses_type& addresses(const addresses_type& addrs, const duration_type& ttl=duration_type(-1));
+            const addresses_type& addresses(addresses_type&& addrs, const duration_type& ttl=duration_type(-1));
 
             handles_type& streams() { return _streams; }
             handle_ptr& make();
@@ -103,8 +107,10 @@ namespace cloudbus {
             std::size_t _idx;
             handles_type _streams;
             callbacks_type _pending;
+            dns_ttl _timeout;
 
             void _resolve_callbacks();
+            void _expire_addresses();
     };
 
     template<class InterfaceT, class Traits = stream_traits<InterfaceT> >

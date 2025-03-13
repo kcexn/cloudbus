@@ -114,7 +114,7 @@ namespace cloudbus{
             std::getline(f, line);
             if(registry::make_address(line, reinterpret_cast<struct sockaddr*>(&ss), &len, protocol)) throw std::runtime_error("Invalid configuration.");
             connector().make(connector().north(), reinterpret_cast<const struct sockaddr*>(&ss), len);
-
+            
             line.clear();
             while(std::getline(f, line)){
                 if(registry::make_address(line, reinterpret_cast<struct sockaddr*>(&ss), &len, protocol))

@@ -45,6 +45,11 @@ namespace cloudbus {
     {
         if(addr != nullptr && addrlen > sizeof(sa_family_t))
             _addresses.push_back(make_address(addr, addrlen));
+        else throw std::runtime_error(
+            "interface_base::interface_base(const std::string& uri, "
+            "const struct sockaddr *addr, socklen_t addrlen, const "
+            "duration_type& ttl): Invalid address."
+        );
     }
     interface_base::interface_base(const std::string& uri, const addresses_type& addresses, const duration_type& ttl):
         _uri{uri}, _addresses{addresses}, _idx{0}, _streams{}, _pending{},

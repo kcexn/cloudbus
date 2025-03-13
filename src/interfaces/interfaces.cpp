@@ -49,8 +49,9 @@ namespace cloudbus {
         else throw std::invalid_argument(
             "interface_base::interface_base(const std::string& uri, "
             "const struct sockaddr *addr, socklen_t addrlen, const "
-            "duration_type& ttl=duration_type(-1)): Invalid address: "
-            "addr==nullptr or addrlen < sizeof(sa_family_t)."
+            "std::string& protocol, const duration_type& "
+            "ttl=duration_type(-1)): Invalid address: addr==nullptr "
+            "or addrlen < sizeof(sa_family_t)."
         );
     }
     interface_base::interface_base(const std::string& uri, const addresses_type& addresses, const std::string& protocol, const duration_type& ttl):

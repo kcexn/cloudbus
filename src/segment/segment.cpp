@@ -76,22 +76,17 @@ namespace cloudbus{
             return 0;
         }
         segment::segment(): Base(){
-            struct sockaddr_storage ss = {};
-            socklen_t len = 0;
             std::string filename{"segment.ini"};
             std::fstream f(filename, f.in);
             if(!f.is_open()) throw std::runtime_error("Unable to open segment.ini");
-            std::string line;
-            registry::transport protocol;
+            std::string line, protocol;
             std::getline(f, line);
-            if(registry::make_address(line, reinterpret_cast<struct sockaddr*>(&ss), &len, protocol)) throw std::runtime_error("Invalid configuration.");
-            connector().make(connector().north(), reinterpret_cast<const struct sockaddr*>(&ss), len);
-
+            auto address = registry::make_address(line);
+            connector().make(connector().north(), address);
             line.clear();
             std::getline(f,line);
-            if(registry::make_address(line, reinterpret_cast<struct sockaddr*>(&ss), &len, protocol)) 
-                throw std::runtime_error("Invalid configuration.");
-            connector().make(connector().south(), reinterpret_cast<const struct sockaddr*>(&ss), len);
+            address = registry::make_address(line);
+            connector().make(connector().south(), address);
         }
         segment::~segment() {
             for(auto& n: connector().north())

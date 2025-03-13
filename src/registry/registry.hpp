@@ -14,16 +14,21 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include <string>
+#include <tuple>
+#include <variant>
 #include <sys/socket.h>
 #pragma once
 #ifndef CLOUDBUS_REGISTRY
 #define CLOUDBUS_REGISTRY
 namespace cloudbus{
     namespace registry {
-        enum struct transport { UNKNOWN, UNIX, TCP };
+        enum types { URN, URL, SOCKADDR };
+        using socket_address = std::tuple<struct sockaddr_storage, socklen_t, std::string>;
+        using url = std::tuple<std::string, std::string>;
+        using address_type = std::variant<std::string, url, socket_address>;
         /* unix:///<PATH> */
         /* tcp://<IP>:<PORT> */
-        int make_address(const std::string& line, struct sockaddr *addr, socklen_t *len, transport& protocol);
+        address_type make_address(const std::string& line);
     }
 }
 #endif

@@ -15,6 +15,7 @@
 */
 #include "../connectors.hpp"
 #include "../io.hpp"
+#include "../registry.hpp"
 #include "control_marshallers.hpp"
 
 #pragma once
@@ -48,8 +49,8 @@ namespace cloudbus {
                 using connections_type = Base::connections_type;
 
                 control_connector(trigger_type& triggers);
-                norths_type::iterator make(norths_type& n, const struct sockaddr *addr, socklen_t addrlen);
-                souths_type::iterator make(souths_type& s, const struct sockaddr *addr, socklen_t addrlen);
+                norths_type::iterator make(norths_type& n, const registry::address_type& address);
+                souths_type::iterator make(souths_type& n, const registry::address_type& address);
 
                 int route(marshaller_type::north_format& buf, const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){ 
                     return _route(buf, interface, stream, revents);

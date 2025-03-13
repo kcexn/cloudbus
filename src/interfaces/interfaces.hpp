@@ -58,23 +58,42 @@ namespace cloudbus {
             static handle_ptr make_handle(native_handle_type sockfd, bool connected);
 
             interface_base():
-                interface_base(std::string(), nullptr, 0){}
+                interface_base(std::string(), addresses_type()){}
             interface_base(const std::string& uri):
-                interface_base(uri, nullptr, 0){}
-            interface_base(const struct sockaddr *addr, socklen_t addrlen, const duration_type& ttl=duration_type(-1)):
-                interface_base(std::string(), addr, addrlen, ttl){}
-            interface_base(const addresses_type& addresses, const duration_type& ttl=duration_type(-1)):
-                interface_base(std::string(), addresses, ttl){}
-            interface_base(addresses_type&& addresses, const duration_type& ttl=duration_type(-1)):
-                interface_base(std::string(), std::move(addresses), ttl){}
-            explicit interface_base(const std::string& uri, const struct sockaddr *addr, socklen_t addrlen, const duration_type& ttl=duration_type(-1));
-            explicit interface_base(const std::string& uri, const addresses_type& addresses, const duration_type& ttl=duration_type(-1));
-            explicit interface_base(const std::string& uri, addresses_type&& addresses, const duration_type& ttl=duration_type(-1));
+                interface_base(uri, addresses_type()){}
+            interface_base(const std::string& uri, const std::string& protocol):
+                interface_base(uri, addresses_type(), protocol){}
+            interface_base(const struct sockaddr *addr, socklen_t addrlen, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
+                interface_base(std::string(), addr, addrlen, protocol, ttl){}              
+            interface_base(const addresses_type& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
+                interface_base(std::string(), addresses, protocol, ttl){}
+            interface_base(addresses_type&& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
+                interface_base(std::string(), std::move(addresses), protocol, ttl){}
+            explicit interface_base(
+                const std::string& uri,
+                const struct sockaddr *addr,
+                socklen_t addrlen,
+                const std::string& protocol,
+                const duration_type& ttl=duration_type(-1)
+            );
+            explicit interface_base(
+                const std::string& uri,
+                const addresses_type& addresses,
+                const std::string& protocol=std::string(),
+                const duration_type& ttl=duration_type(-1)
+            );
+            explicit interface_base(
+                const std::string& uri,
+                addresses_type&& addresses,
+                const std::string& protocol=std::string(),
+                const duration_type& ttl=duration_type(-1)
+            );
             explicit interface_base(interface_base&& other);
 
             interface_base& operator=(interface_base&& other);
 
-            std::string& uri() { return _uri; }
+            const std::string& uri() const { return _uri; }
+            const std::string& protocol() const { return _protocol; }
 
             const address_type& address();
             const addresses_type& addresses() const { return _addresses; }
@@ -102,7 +121,7 @@ namespace cloudbus {
         private:
             using callbacks_type = std::vector<std::tuple<std::weak_ptr<handle_type>, callback_type> >;
 
-            std::string _uri;
+            std::string _uri, _protocol;
             addresses_type _addresses;
             std::size_t _idx;
             handles_type _streams;
@@ -122,23 +141,37 @@ namespace cloudbus {
             using format_type = typename traits_type::format_type;
 
             interface():
-                interface(std::string(), nullptr, 0){}
+                interface(std::string(), addresses_type()){}
             interface(const std::string& uri):
-                interface(uri, nullptr, 0){}
-            interface(const struct sockaddr *addr, socklen_t addrlen):
-                interface(std::string(), addr, addrlen){}
-            interface(const addresses_type& addresses):
-                interface(std::string(), addresses){}
-            interface(addresses_type&& addresses):
-                interface(std::string(), std::move(addresses)){}
-            explicit interface(const std::string& uri, const struct sockaddr *addr, socklen_t addrlen):
-                Base(uri, addr, addrlen){}
-            explicit interface(const std::string& uri, const addresses_type& addresses):
-                Base(uri, addresses){}
-            explicit interface(const std::string& uri, addresses_type&& addresses):
-                Base(uri, std::move(addresses)){}
-            explicit interface(interface&& other):
-                Base(std::move(other)){}
+                interface(uri, addresses_type()){}
+            interface(const std::string& uri, const std::string& protocol):
+                interface(uri, addresses_type(), protocol){}
+            interface(const struct sockaddr *addr, socklen_t addrlen, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
+                interface(std::string(), addr, addrlen, protocol, ttl){}              
+            interface(const addresses_type& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
+                interface(std::string(), addresses, protocol, ttl){}
+            interface(addresses_type&& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
+                interface(std::string(), std::move(addresses), protocol, ttl){}
+            explicit interface(
+                const std::string& uri,
+                const struct sockaddr *addr,
+                socklen_t addrlen,
+                const std::string& protocol,
+                const duration_type& ttl=duration_type(-1)
+            ): Base(uri, addr, addrlen, protocol, ttl){}
+            explicit interface(
+                const std::string& uri,
+                const addresses_type& addresses,
+                const std::string& protocol=std::string(),
+                const duration_type& ttl=duration_type(-1)
+            ): Base(uri, addresses, protocol, ttl){}
+            explicit interface(
+                const std::string& uri,
+                addresses_type&& addresses,
+                const std::string& protocol=std::string(),
+                const duration_type& ttl=duration_type(-1)
+            ): Base(uri, std::move(addresses), protocol, ttl){}
+
             interface& operator=(interface&& other){
                 Base::operator=(std::move(other));
                 return *this;
@@ -156,23 +189,36 @@ namespace cloudbus {
             using Base = interface<cbus_service>;
 
             cs_interface():
-                cs_interface(std::string(), nullptr, 0){}
+                cs_interface(std::string(), addresses_type()){}
             cs_interface(const std::string& uri):
-                cs_interface(uri, nullptr, 0){}
-            cs_interface(const struct sockaddr *addr, socklen_t addrlen):
-                cs_interface(std::string(), addr, addrlen){}
-            cs_interface(const addresses_type& addresses):
-                cs_interface(std::string(), addresses){}
-            cs_interface(addresses_type&& addresses):
-                cs_interface(std::string(), std::move(addresses)){}
-            explicit cs_interface(const std::string& uri, const struct sockaddr *addr, socklen_t addrlen):
-                Base(uri, addr, addrlen){}
-            explicit cs_interface(const std::string& uri, const addresses_type& addresses):
-                Base(uri, addresses){}
-            explicit cs_interface(const std::string& uri, addresses_type&& addresses):
-                Base(uri, std::move(addresses)){}
-            explicit cs_interface(cs_interface&& other):
-                Base(std::move(other)){}
+                cs_interface(uri, addresses_type()){}
+            cs_interface(const std::string& uri, const std::string& protocol):
+                cs_interface(uri, addresses_type(), protocol){}
+            cs_interface(const struct sockaddr *addr, socklen_t addrlen, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
+                cs_interface(std::string(), addr, addrlen, protocol, ttl){}              
+            cs_interface(const addresses_type& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
+                cs_interface(std::string(), addresses, protocol, ttl){}
+            cs_interface(addresses_type&& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
+                cs_interface(std::string(), std::move(addresses), protocol, ttl){}
+            explicit cs_interface(
+                const std::string& uri,
+                const struct sockaddr *addr,
+                socklen_t addrlen,
+                const std::string& protocol,
+                const duration_type& ttl=duration_type(-1)
+            ): Base(uri, addr, addrlen, protocol, ttl){}
+            explicit cs_interface(
+                const std::string& uri,
+                const addresses_type& addresses,
+                const std::string& protocol=std::string(),
+                const duration_type& ttl=duration_type(-1)
+            ): Base(uri, addresses, protocol, ttl){}
+            explicit cs_interface(
+                const std::string& uri,
+                addresses_type&& addresses,
+                const std::string& protocol=std::string(),
+                const duration_type& ttl=duration_type(-1)
+            ): Base(uri, std::move(addresses), protocol, ttl){}
             cs_interface& operator=(cs_interface&& other){
                 Base::operator=(std::move(other));
                 return *this;
@@ -190,23 +236,36 @@ namespace cloudbus {
             using Base = interface<stream_service>;
 
             ss_interface():
-                ss_interface(std::string(), nullptr, 0){}
+                ss_interface(std::string(), addresses_type()){}
             ss_interface(const std::string& uri):
-                ss_interface(uri, nullptr, 0){}
-            ss_interface(const struct sockaddr *addr, socklen_t addrlen):
-                ss_interface(std::string(), addr, addrlen){}
-            ss_interface(const addresses_type& addresses):
-                ss_interface(std::string(), addresses){}
-            ss_interface(addresses_type&& addresses):
-                ss_interface(std::string(), std::move(addresses)){}
-            explicit ss_interface(const std::string& uri, const struct sockaddr *addr, socklen_t addrlen):
-                Base(uri, addr, addrlen){}
-            explicit ss_interface(const std::string& uri, const addresses_type& addresses):
-                Base(uri, addresses){}
-            explicit ss_interface(const std::string& uri, addresses_type&& addresses):
-                Base(uri, std::move(addresses)){}
-            explicit ss_interface(ss_interface&& other):
-                Base(std::move(other)){}
+                ss_interface(uri, addresses_type()){}
+            ss_interface(const std::string& uri, const std::string& protocol):
+                ss_interface(uri, addresses_type(), protocol){}
+            ss_interface(const struct sockaddr *addr, socklen_t addrlen, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
+                ss_interface(std::string(), addr, addrlen, protocol, ttl){}              
+            ss_interface(const addresses_type& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
+                ss_interface(std::string(), addresses, protocol, ttl){}
+            ss_interface(addresses_type&& addresses, const std::string& protocol, const duration_type& ttl=duration_type(-1)):
+                ss_interface(std::string(), std::move(addresses), protocol, ttl){}
+            explicit ss_interface(
+                const std::string& uri,
+                const struct sockaddr *addr,
+                socklen_t addrlen,
+                const std::string& protocol,
+                const duration_type& ttl=duration_type(-1)
+            ): Base(uri, addr, addrlen, protocol, ttl){}
+            explicit ss_interface(
+                const std::string& uri,
+                const addresses_type& addresses,
+                const std::string& protocol=std::string(),
+                const duration_type& ttl=duration_type(-1)
+            ): Base(uri, addresses, protocol, ttl){}
+            explicit ss_interface(
+                const std::string& uri,
+                addresses_type&& addresses,
+                const std::string& protocol=std::string(),
+                const duration_type& ttl=duration_type(-1)
+            ): Base(uri, std::move(addresses), protocol, ttl){}
             ss_interface& operator=(ss_interface&& other){
                 Base::operator=(std::move(other));
                 return *this;

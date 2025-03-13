@@ -52,17 +52,11 @@ namespace cloudbus {
             using marshaller_type = MarshallerT;
             using north_type = typename marshaller_type::north_type;
             using shared_north = std::shared_ptr<north_type>;
-            static shared_north make_north(const struct sockaddr *addr, socklen_t addrlen){
-                return std::make_shared<north_type>(addr, addrlen);
-            }
             using norths_type = std::vector<shared_north>;
             using north_ptr = typename marshaller_type::north_ptr;
 
             using south_type = typename marshaller_type::south_type;
             using shared_south = std::shared_ptr<south_type>;
-            static shared_south make_south(const struct sockaddr *addr, socklen_t addrlen){
-                return std::make_shared<south_type>(addr, addrlen);
-            }
             using souths_type = std::vector<shared_south>;
             using south_ptr = typename marshaller_type::south_ptr;
 

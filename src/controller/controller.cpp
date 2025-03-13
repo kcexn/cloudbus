@@ -104,22 +104,17 @@ namespace cloudbus{
             return 0;
         }
         controller::controller(): Base(){
-            struct sockaddr_storage ss = {};
-            socklen_t len = 0;
             std::string filename{"controller.ini"};
             std::fstream f(filename, f.in);
             if(!f.is_open()) throw std::runtime_error("Unable to open controller.ini");
             std::string line;
-            registry::transport protocol;
             std::getline(f, line);
-            if(registry::make_address(line, reinterpret_cast<struct sockaddr*>(&ss), &len, protocol)) throw std::runtime_error("Invalid configuration.");
-            connector().make(connector().north(), reinterpret_cast<const struct sockaddr*>(&ss), len);
-            
+            auto address = registry::make_address(line);
+            connector().make(connector().north(), address);
             line.clear();
             while(std::getline(f, line)){
-                if(registry::make_address(line, reinterpret_cast<struct sockaddr*>(&ss), &len, protocol))
-                    throw std::runtime_error("Invalid configuration.");
-                connector().make(connector().south(), reinterpret_cast<const struct sockaddr*>(&ss), len);
+                address = registry::make_address(line);
+                connector().make(connector().south(), address);
                 line.clear();
             }
             std::string mode;

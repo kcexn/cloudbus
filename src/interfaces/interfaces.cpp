@@ -39,8 +39,9 @@ namespace cloudbus {
         return std::make_shared<handle_type>(sockfd, std::make_shared<stream_type>(sockfd, connected));
     }
 
-    interface_base::interface_base(const std::string& uri, const struct sockaddr *addr, socklen_t addrlen, const duration_type& ttl):
-        _uri{uri}, _addresses{}, _idx{0}, _streams{}, _pending{}, 
+    interface_base::interface_base(const std::string& uri, const struct sockaddr *addr, socklen_t addrlen, const std::string& protocol, const duration_type& ttl):
+        _uri{uri}, _protocol{protocol},
+        _addresses{}, _idx{0}, _streams{}, _pending{}, 
         _timeout{clock_type::now(), ttl}
     {
         if(addr != nullptr && addrlen >= sizeof(sa_family_t))
@@ -52,23 +53,26 @@ namespace cloudbus {
             "addr==nullptr or addrlen < sizeof(sa_family_t)."
         );
     }
-    interface_base::interface_base(const std::string& uri, const addresses_type& addresses, const duration_type& ttl):
-        _uri{uri}, _addresses{addresses}, _idx{0}, _streams{}, _pending{},
+    interface_base::interface_base(const std::string& uri, const addresses_type& addresses, const std::string& protocol, const duration_type& ttl):
+        _uri{uri}, _protocol{protocol},
+        _addresses{addresses}, _idx{0}, _streams{}, _pending{},
         _timeout{clock_type::now(), ttl}
     {}
-    interface_base::interface_base(const std::string& uri, addresses_type&& addresses, const duration_type& ttl):
-        _uri{uri}, _addresses{std::move(addresses)}, _idx{0}, _streams{}, _pending{},
+    interface_base::interface_base(const std::string& uri, addresses_type&& addresses, const std::string& protocol, const duration_type& ttl):
+        _uri{uri}, _protocol{protocol},
+        _addresses{std::move(addresses)}, _idx{0}, _streams{}, _pending{},
         _timeout{clock_type::now(), ttl}
     {}
 
     interface_base::interface_base(interface_base&& other):
-        _uri{std::move(other._uri)},
+        _uri{std::move(other._uri)}, _protocol(std::move(other._protocol)),
         _addresses{std::move(other._addresses)}, _idx{other._idx}, 
         _streams{std::move(other._streams)}, _pending{std::move(other._pending)},
         _timeout{std::move(other._timeout)}
     { other._idx = 0; }
     interface_base& interface_base::operator=(interface_base&& other){
         _uri = std::move(other._uri);
+        _protocol = std::move(other._protocol);
         _addresses = std::move(other._addresses);
         _idx = other._idx; other._idx = 0;
         _streams = std::move(other._streams);

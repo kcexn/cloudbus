@@ -11,7 +11,8 @@ COMPONENTS= io \
 	interfaces \
 	segment \
 	registry \
-	proxy
+	proxy \
+	connector
 VPATH=$(addprefix $(SRC)/,$(COMPONENTS))
 CPPFLAGS = -Wall \
 	-Wpedantic \
@@ -29,7 +30,8 @@ COMMON = poller \
 	messages \
 	sockstream \
 	interfaces \
-	registry
+	registry \
+	connectors
 CONTROLLER := $(COMMON) \
 	control_connector \
 	control_marshallers \

@@ -58,7 +58,7 @@ namespace cloudbus{
 
                 using connector_type = ConnectorT;
 
-                basic_segment(): _connector{Base::triggers()}{}
+                basic_segment(): _connector{triggers()}{}
                 connector_type& connector() { return _connector; }
                 virtual ~basic_segment() = default;
 

@@ -125,54 +125,11 @@ namespace cloudbus{
         }
 
         proxy_connector::proxy_connector(trigger_type& triggers): Base(triggers){}
-        proxy_connector::norths_type::iterator proxy_connector::make(norths_type& n, const registry::address_type& address){
-            if(address.index() != registry::SOCKADDR)
-                throw std::invalid_argument("Invalid configuration.");
-            auto&[protocol, addr, addrlen] = std::get<registry::SOCKADDR>(address);
-            n.push_back(std::make_shared<north_type>(reinterpret_cast<const struct sockaddr*>(&addr), addrlen, protocol));
-            if(protocol == "TCP" || protocol == "UNIX"){
-                auto& hnd = n.back()->make(addr.ss_family, SOCK_STREAM, 0);
-                auto& sockfd = std::get<north_type::native_handle_type>(*hnd);
-                set_flags(sockfd);
-                int reuse = 1;
-                setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
-                if(bind(sockfd, reinterpret_cast<const struct sockaddr*>(&addr), addrlen))
-                    throw std::runtime_error("bind()");
-                if(listen(sockfd, 128))
-                    throw std::runtime_error("listen()");
-                triggers().set(sockfd, POLLIN);
-            } else throw std::invalid_argument("Invalid configuration.");
-            return --n.end();
-        }
-        proxy_connector::souths_type::iterator proxy_connector::make(souths_type& s, const registry::address_type& address){
-            switch(address.index()){
-                case registry::SOCKADDR:
-                {
-                    auto&[protocol, addr, addrlen] = std::get<registry::SOCKADDR>(address);
-                    s.push_back(std::make_shared<south_type>(reinterpret_cast<const struct sockaddr*>(&addr), addrlen, protocol));
-                    break;
-                }
-                case registry::URL:
-                {
-                    auto&[host, protocol] = std::get<registry::URL>(address);
-                    s.push_back(std::make_shared<south_type>(host, protocol));
-                    break;
-                }
-                case registry::URN:
-                    if(auto& urn = std::get<registry::URN>(address); !urn.empty()){
-                        s.push_back(std::make_shared<south_type>(urn));
-                        break;
-                    }
-                default:
-                    throw std::invalid_argument("Invalid configuration.");
-            }
-            return --s.end();
-        }
         proxy_connector::size_type proxy_connector::_handle(events_type& events){
             size_type handled = 0;
             for(auto ev=events.begin(); ev < events.end(); ++ev){
                 if(ev->revents){
-                    auto nit = std::find_if(north().begin(), north().end(), [&](auto& interface){
+                    auto nit = std::find_if(north().cbegin(), north().cend(), [&](const interface_type& interface){
                         for(auto& stream: interface->streams()){
                             auto&[sockfd, nsp] = *stream;
                             if(sockfd == ev->fd){
@@ -181,14 +138,14 @@ namespace cloudbus{
                                         if(auto n = c.north.lock(); n && n==nsp)
                                             if(auto s = c.south.lock(); s && !s->eof())
                                                 ev = read_restart(s->native_handle(), triggers(), events, ev);
-                                handled += _handle(interface, stream, ev->revents);
+                                handled += _handle(std::static_pointer_cast<north_type>(interface), stream, ev->revents);
                                 return true;
                             }
                         }
                         return false;
                     });
                     if(nit != north().end()) continue;
-                    auto sit = std::find_if(south().begin(), south().end(), [&](auto& interface){
+                    auto sit = std::find_if(south().cbegin(), south().cend(), [&](const interface_type& interface){
                         for(auto& stream: interface->streams()){
                             auto&[sockfd, ssp] = *stream;
                             if(sockfd == ev->fd){
@@ -197,7 +154,7 @@ namespace cloudbus{
                                         if(auto s = c.south.lock(); s && s==ssp)
                                             if(auto n = c.north.lock(); n && !n->eof())
                                                 ev = read_restart(n->native_handle(), triggers(), events, ev);
-                                handled += _handle(interface, stream, ev->revents);
+                                handled += _handle(std::static_pointer_cast<south_type>(interface), stream, ev->revents);
                                 return true;
                             }
                         }

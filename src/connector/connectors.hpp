@@ -13,6 +13,8 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
+#include "../registry.hpp"
+#include "../interfaces.hpp"
 #include "../messages.hpp"
 #include <memory>
 #include <tuple>
@@ -23,55 +25,153 @@
 #ifndef CLOUDBUS_CONNECTOR
 #define CLOUDBUS_CONNECTOR
 namespace cloudbus {
-    template<class NorthWeakPtr, class SouthWeakPtr>
+    template<class WeakPtr>
     struct connection {
         using uuid_type = messages::uuid;
-        using north_ptr = NorthWeakPtr;
-        using south_ptr = SouthWeakPtr;
+        using socket_type = WeakPtr;
         using clock_type = std::chrono::steady_clock;
         using time_point = clock_type::time_point;
         using times_type = std::array<time_point, 4>;
         enum states {HALF_OPEN, OPEN, HALF_CLOSED, CLOSED};
         uuid_type uuid;
-        north_ptr north;
-        south_ptr south;
+        socket_type north, south;
         int state;
         times_type timestamps;
     };
-    template<class MarshallerT, class HandlerT>
-    class basic_connector: public HandlerT
-    {
+
+    template<class MarshallerT>
+    struct connector_traits {
+        using marshaller_type = MarshallerT;
+        using north_type = typename marshaller_type::north_type;
+        using shared_north = std::shared_ptr<north_type>;
+        using south_type = typename marshaller_type::south_type;
+        using shared_south = std::shared_ptr<south_type>;
+    };
+
+    class connector_base {
         public:
-            using Base = HandlerT;
-            using trigger_type = typename Base::trigger_type;
-            using event_type = typename Base::event_type;
-            using events_type = typename Base::events_type;
-            using event_mask = typename Base::event_mask;
-            using size_type = typename Base::size_type;    
+            using interface_type = std::shared_ptr<interface_base>;
+            using interfaces = std::vector<interface_type>;
+            using stream_ptr = std::weak_ptr<interface_base::stream_type>;
 
-            using marshaller_type = MarshallerT;
-            using north_type = typename marshaller_type::north_type;
-            using shared_north = std::shared_ptr<north_type>;
-            using norths_type = std::vector<shared_north>;
-            using north_ptr = typename marshaller_type::north_ptr;
-
-            using south_type = typename marshaller_type::south_type;
-            using shared_south = std::shared_ptr<south_type>;
-            using souths_type = std::vector<shared_south>;
-            using south_ptr = typename marshaller_type::south_ptr;
-
-            using connection_type = connection<north_ptr, south_ptr>;
+            using connection_type = connection<stream_ptr>;
             using connections_type = std::vector<connection_type>;
             enum modes {HALF_DUPLEX, FULL_DUPLEX};
+           
+            connector_base():
+                connector_base(0){}
+            explicit connector_base(int mode);
 
-            basic_connector(trigger_type& triggers): _triggers{triggers}{}
+            interface_base::native_handle_type make_north(const registry::address_type& address);
+            int make_south(const registry::address_type& address);
+
+            interfaces& north() { return _north; }
+            interfaces& south() { return _south; }
+            connections_type& connections() { return _connections; }
+            int& mode() { return _mode; }
+
+            virtual ~connector_base() = default;
+
+            connector_base(const connector_base& other) = delete;
+            connector_base(connector_base&& other) = delete;
+            connector_base& operator=(const connector_base& other) = delete;
+            connector_base& operator=(connector_base&& other) = delete;
+
+        private:
+            interfaces _north, _south;
+            connections_type _connections;
+            int _mode;
+    };
+
+    template<class HandlerT>
+    class connector_handler : public HandlerT, public connector_base
+    {
+        public:
+            using HandlerBase = HandlerT;
+            using ConnectorBase = connector_base;
+
+            using trigger_type = typename HandlerBase::trigger_type;
+
+            connector_handler(trigger_type& triggers):
+                _triggers{triggers}{}
 
             trigger_type& triggers() { return _triggers; }
-            norths_type& north() { return _north; }
-            souths_type& south() { return _south; }
-            connections_type& connections() { return _connections; }
+
+            virtual ~connector_handler() = default;
+
+            connector_handler() = delete;
+            connector_handler(const connector_handler& other) = delete;
+            connector_handler(connector_handler&& other) = delete;
+            connector_handler& operator=(const connector_handler& other) = delete;
+            connector_handler& operator=(connector_handler&& other) = delete;
+
+        private:
+            trigger_type& _triggers;
+    };
+
+    template<class MarshallerT>
+    class connector_marshaller : public connector_traits<MarshallerT>
+    {
+        public:
+            using Base = connector_traits<MarshallerT>;
+            using marshaller_type = typename Base::marshaller_type;
+
+            connector_marshaller() = default;
+
             marshaller_type& marshaller() { return _marshaller; }
-            int& mode() { return _mode; }
+
+            virtual ~connector_marshaller() = default;
+
+            connector_marshaller(const connector_marshaller& other) = delete;
+            connector_marshaller(connector_marshaller&& other) = delete;
+            connector_marshaller& operator=(const connector_marshaller& other) = delete;
+            connector_marshaller& operator=(connector_marshaller&& other) = delete;            
+
+        private:
+            marshaller_type _marshaller;
+    };
+
+    template<class MarshallerT, class HandlerT>
+    class basic_connector: public connector_handler<HandlerT>, public connector_marshaller<MarshallerT>
+    {
+        public:
+            using HandlerBase = connector_handler<HandlerT>;
+            using trigger_type = typename HandlerBase::trigger_type;
+            using event_mask = typename HandlerBase::event_mask;
+
+            using MarshallerBase = connector_marshaller<MarshallerT>;
+            using marshaller_type = typename MarshallerBase::marshaller_type;
+            using north_type = typename MarshallerBase::north_type;
+            using shared_north = typename MarshallerBase::shared_north;
+            using south_type = typename MarshallerBase::south_type;
+            using shared_south = typename MarshallerBase::shared_south;
+
+            basic_connector(trigger_type& triggers):
+                HandlerBase(triggers){}
+
+            int route(
+                typename marshaller_type::north_format& buf,
+                const shared_north& interface,
+                const typename north_type::handle_ptr& stream,
+                event_mask& revents
+            ){ 
+                return _route(buf, interface, stream, revents);
+            }
+            int route(
+                typename marshaller_type::south_format& buf,
+                const shared_south& interface,
+                const typename south_type::handle_ptr& stream,
+                event_mask& revents
+            ){ 
+                return _route(buf, interface, stream, revents);
+            }
+            std::streamsize north_connect(
+                const shared_north& interface,
+                const typename north_type::stream_ptr& nsp,
+                typename marshaller_type::north_format& buf
+            ){
+                return _north_connect(interface, nsp, buf);
+            }
             
             virtual ~basic_connector() = default;
 
@@ -79,14 +179,27 @@ namespace cloudbus {
             basic_connector(const basic_connector& other) = delete;
             basic_connector(basic_connector&& other) = delete;
             basic_connector& operator=(const basic_connector& other) = delete;
-            basic_connector& operator=(basic_connector&& other) = delete;            
-        private:
-            trigger_type& _triggers;
-            norths_type _north;
-            souths_type _south;
-            connections_type _connections;
-            marshaller_type _marshaller;
-            int _mode;
+            basic_connector& operator=(basic_connector&& other) = delete;
+        protected:
+            virtual int _route(
+                typename marshaller_type::north_format& buf,
+                const shared_north& interface,
+                const typename north_type::handle_ptr& stream,
+                event_mask& revents
+            ){ return -1; }
+
+            virtual int _route(
+                typename marshaller_type::south_format& buf,
+                const shared_south& interface,
+                const typename south_type::handle_ptr& stream,
+                event_mask& revents
+            ){ return -1; }
+
+            virtual std::streamsize _north_connect(
+                const shared_north& interface,
+                const typename north_type::stream_ptr& nsp,
+                typename marshaller_type::north_format& buf
+            ){ return -1; }
     };
 }
 #endif

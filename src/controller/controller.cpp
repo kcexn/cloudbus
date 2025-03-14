@@ -109,10 +109,14 @@ namespace cloudbus{
             if(!f.is_open()) throw std::runtime_error("Unable to open controller.ini");
             std::string line{};
             std::getline(f, line);
-            connector().make(connector().north(), registry::make_address(line));
+            
+            if(auto nfd = connector().make_north(registry::make_address(line)); nfd >= 0)
+                triggers().set(nfd, POLLIN);
+            else throw std::invalid_argument("Invalid configuration.");
             line.clear();
             while(std::getline(f, line)){
-                connector().make(connector().south(), registry::make_address(line));
+                if(connector().make_south(registry::make_address(line)))
+                    throw std::invalid_argument("Invalid configuration.");
                 line.clear();
             }
             std::string mode{};

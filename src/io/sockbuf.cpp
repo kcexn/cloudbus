@@ -208,7 +208,13 @@ namespace io{
             if(!_connected && address.ss_family == AF_UNSPEC){
                 _resizewbuf(buf);
                 return 0;
-            } else if(_connected){
+            } else if(_connected ||
+                /* This next line is so that we can take advantage of *
+                 * the connected() socket fast paths in the kernel ev-*
+                 * en when using disconnected transports like UDP and *
+                 * SOCK_DGRAM Unix domain sockets.                    */
+                buf == _buffers.back()
+            ){
                 header.msg_name = nullptr;
                 header.msg_namelen = 0;
             } else {

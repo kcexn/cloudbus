@@ -73,6 +73,8 @@ namespace io{
                 explicit sockstream(int domain, int type, int protocol, std::ios_base::openmode which):
                     Base(&_buf), _buf(domain, type, protocol, which) {}
 
+                const sockbuf::buffer_type& recvbuf() const { return _buf.recvbuf(); }
+                const sockbuf::buffer_type& sendbuf() const { return _buf.sendbuf(); }
                 native_handle_type& native_handle() { return _buf.native_handle(); }
                 int err() { return _buf.err(); }
                 sockbuf::buffer_type connectto(const struct sockaddr* addr, socklen_t len) { return _buf.connectto(addr, len); }

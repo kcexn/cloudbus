@@ -19,9 +19,10 @@
 #define CLOUDBUS_CONTROLLER_INTERFACES
 namespace cloudbus{
     namespace controller {
-        class cs_north : public ss_interface {
+        class cs_north : public ss_interface 
+        {
             public:
-                using Base = ss_interface;            
+                using Base = ss_interface;
                 cs_north():
                     cs_north(addresses_type()){}
                 cs_north(const std::string& urn):
@@ -57,7 +58,8 @@ namespace cloudbus{
                 cs_north(const cs_north& other) = delete;
                 cs_north& operator=(const cs_north& other) = delete;                        
         };
-        class cs_south : public cs_interface {
+        class cs_south : public cs_interface 
+        {
             public:
                 using Base = cs_interface;
 

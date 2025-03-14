@@ -111,6 +111,7 @@ namespace io{
                 buffer_type connectto(const struct sockaddr *addr, socklen_t addrlen);
 
                 const buffer_type& recvbuf() const { return _buffers.front(); }
+                const buffer_type& sendbuf() const { return _buffers.back(); }
                 native_handle_type& native_handle() { return _socket; }
                 int err(){ return _errno; }
                 

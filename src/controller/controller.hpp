@@ -23,11 +23,6 @@ namespace cloudbus{
         {
             public:
                 using Base = handler_type;
-                using trigger_type = Base::trigger_type;
-                using event_type = Base::event_type;
-                using events_type = Base::events_type;
-                using event_mask = Base::event_mask;
-                using size_type = Base::size_type;
                 
                 controller_base() = default;
                 trigger_type& triggers() { return _triggers; }
@@ -49,14 +44,9 @@ namespace cloudbus{
         {
             public:
                 using Base = controller_base;
-                using trigger_type = Base::trigger_type;
-                using event_type = Base::event_type;
-                using events_type = Base::events_type;
-                using event_mask = Base::event_mask;
-                using size_type = Base::size_type;               
-                using connector_type = ConnectorT;          
+                using connector_type = ConnectorT;
 
-                basic_controller(): _connector{Base::triggers()}{}
+                basic_controller(): _connector{triggers()}{}
                 connector_type& connector() { return _connector; }
                 virtual ~basic_controller() = default;
 
@@ -71,11 +61,6 @@ namespace cloudbus{
         {
             public:
                 using Base = basic_controller<control_connector>;
-                using event_type = Base::event_type;
-                using events_type = Base::events_type;
-                using event_mask = Base::event_mask;
-                using size_type = Base::size_type;
-                using connector_type = Base::connector_type;
                 
                 controller();
                 virtual ~controller();

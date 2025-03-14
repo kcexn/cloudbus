@@ -23,11 +23,6 @@ namespace cloudbus{
         {
             public:
                 using Base = handler_type;
-                using trigger_type = Base::trigger_type;
-                using event_type = Base::event_type;
-                using events_type = Base::events_type;
-                using event_mask = Base::event_mask;
-                using size_type = Base::size_type;
 
                 proxy_base() = default;
                 trigger_type& triggers() { return _triggers; }
@@ -50,15 +45,9 @@ namespace cloudbus{
         {
             public:
                 using Base = proxy_base;
-                using trigger_type = Base::trigger_type;
-                using event_type = Base::event_type;
-                using events_type = Base::events_type;
-                using event_mask = Base::event_mask;
-                using size_type = Base::size_type;
-
                 using connector_type = ConnectorT;    
 
-                basic_proxy(): _connector{Base::triggers()}{}
+                basic_proxy(): _connector{triggers()}{}
                 connector_type& connector() { return _connector; }
                 virtual ~basic_proxy() = default;
 
@@ -73,11 +62,6 @@ namespace cloudbus{
         {
             public:
                 using Base = basic_proxy<proxy_connector>;
-                using trigger_type = Base::trigger_type;
-                using events_type = Base::events_type;
-                using event_mask = Base::event_mask;
-                using size_type = Base::size_type;
-                using connector_type = Base::connector_type;
                 
                 proxy();
                 virtual ~proxy();

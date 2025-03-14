@@ -17,7 +17,6 @@
 #include "../formats.hpp"
 #include <sstream>
 #include <functional>
-
 #pragma once
 #ifndef CLOUDBUS_INTERFACES
 #define CLOUDBUS_INTERFACES

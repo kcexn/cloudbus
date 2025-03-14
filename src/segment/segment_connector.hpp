@@ -13,15 +13,14 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
+#include "segment_marshallers.hpp"
 #include "../io.hpp"
 #include "../connectors.hpp"
-#include "segment_marshallers.hpp"
 #pragma once
 #ifndef CLOUDBUS_SEGMENT_CONNECTOR
 #define CLOUDBUS_SEGMENT_CONNECTOR
 namespace cloudbus {
     namespace segment {
-        using handler_type = ::io::basic_handler<::io::trigger>;
         class segment_connector: public basic_connector<segment_marshaller, handler_type>
         {
             public:
@@ -34,7 +33,7 @@ namespace cloudbus {
                 segment_connector(const segment_connector& other) = delete;
                 segment_connector(segment_connector&& other) = delete;
                 segment_connector& operator=(const segment_connector& other) = delete;
-                segment_connector& operator=(segment_connector&& other) = delete;               
+                segment_connector& operator=(segment_connector&& other) = delete;
 
             protected:
                 virtual size_type _handle(events_type& events) override;
@@ -56,7 +55,7 @@ namespace cloudbus {
                 void _south_state_handler(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents);
                 int _south_pollout_handler(const south_type::handle_ptr& stream, event_mask& revents);
                 size_type _handle(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents);
-        }; 
+        };
     }
 }
 #endif

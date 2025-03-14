@@ -87,10 +87,10 @@ namespace cloudbus {
     class connector_handler : public HandlerT, public connector_base
     {
         public:
-            using HandlerBase = HandlerT;
+            using handler_type = HandlerT;
             using ConnectorBase = connector_base;
 
-            using trigger_type = typename HandlerBase::trigger_type;
+            using trigger_type = typename handler_type::trigger_type;
 
             connector_handler(trigger_type& triggers):
                 _triggers{triggers}{}

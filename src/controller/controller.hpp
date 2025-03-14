@@ -14,53 +14,16 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "control_connector.hpp"
+#include "../node.hpp"
 #pragma once
 #ifndef CLOUDBUS_CONTROLLER
 #define CLOUDBUS_CONTROLLER
 namespace cloudbus{
     namespace controller {
-        class controller_base: public handler_type
+        class controller : public basic_node<control_connector>
         {
             public:
-                using Base = handler_type;
-                
-                controller_base() = default;
-                trigger_type& triggers() { return _triggers; }
-                int run() { return _run(); }
-                virtual ~controller_base() = default;
-
-                controller_base(controller_base&& other) = delete;
-                controller_base(const controller_base& other) = delete;
-                controller_base& operator=(controller_base&& other) = delete;
-                controller_base& operator=(const controller_base& other) = delete;                
-            protected:
-                virtual int _run();
-
-            private:
-                trigger_type _triggers;
-        };
-        template<class ConnectorT>
-        class basic_controller: public controller_base
-        {
-            public:
-                using Base = controller_base;
-                using connector_type = ConnectorT;
-
-                basic_controller(): _connector{triggers()}{}
-                connector_type& connector() { return _connector; }
-                virtual ~basic_controller() = default;
-
-                basic_controller(basic_controller&& other) = delete;
-                basic_controller(const basic_controller& other) = delete;
-                basic_controller& operator=(basic_controller&& other) = delete;
-                basic_controller& operator=(const basic_controller& other) = delete;
-            private:
-                connector_type _connector;
-        };
-        class controller : public basic_controller<control_connector>
-        {
-            public:
-                using Base = basic_controller<control_connector>;
+                using Base = basic_node<control_connector>;
                 
                 controller();
                 virtual ~controller();
@@ -69,9 +32,6 @@ namespace cloudbus{
                 controller(controller&& other) = delete;
                 controller& operator=(controller&& other) = delete;
                 controller& operator=(const controller& other) = delete;
-                
-            protected:
-                virtual size_type _handle(events_type& events) override;
         };
     }
 }

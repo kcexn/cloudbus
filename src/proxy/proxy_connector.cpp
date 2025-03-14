@@ -187,8 +187,6 @@ namespace cloudbus{
                     }
                 }
                 if(connected){
-                    if(!buf.eof() && buf.tellg()==buf.len()->length)
-                        buf.setstate(std::ios_base::eofbit);
                     if(auto rem=buf.len()->length-buf.tellp(); nsp->eof() && rem){
                         std::vector<char> tmp(rem);
                         for(auto& c: connections()){
@@ -202,6 +200,8 @@ namespace cloudbus{
                 else if(nsp->eof()) return -1;
                 else if(!north_connect(interface, nsp, buf))
                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
+                if(!buf.eof() && buf.tellg()==buf.len()->length)
+                    buf.setstate(std::ios_base::eofbit);
             }
             if(nsp->eof()) return -1;
             return 0;

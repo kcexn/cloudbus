@@ -13,26 +13,4 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
-#include "segment_connector.hpp"
-#include "../node.hpp"
-#pragma once
-#ifndef CLOUDBUS_SEGMENT
-#define CLOUDBUS_SEGMENT
-namespace cloudbus{
-    namespace segment {
-        class segment : public basic_node<segment_connector>
-        {
-            public:
-                using Base = basic_node<segment_connector>;
-                
-                segment();
-                virtual ~segment();
-
-                segment(const segment& other) = delete;
-                segment(segment&& other) = delete;
-                segment& operator=(segment&& other) = delete;
-                segment& operator=(const segment& other) = delete;
-        };
-    }
-}
-#endif
+#include "node/node.hpp"

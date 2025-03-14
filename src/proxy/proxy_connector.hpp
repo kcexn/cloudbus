@@ -13,15 +13,14 @@
 *  You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
+#include "proxy_marshallers.hpp"
 #include "../io.hpp"
 #include "../connectors.hpp"
-#include "proxy_marshallers.hpp"
 #pragma once
 #ifndef CLOUDBUS_PROXY_CONNECTOR
 #define CLOUDBUS_PROXY_CONNECTOR
 namespace cloudbus {
     namespace proxy {
-        using handler_type = ::io::basic_handler<::io::trigger>;
         class proxy_connector: public basic_connector<proxy_marshaller, handler_type>
         {
             public:
@@ -34,7 +33,7 @@ namespace cloudbus {
                 proxy_connector(const proxy_connector& other) = delete;
                 proxy_connector(proxy_connector&& other) = delete;
                 proxy_connector& operator=(const proxy_connector& other) = delete;
-                proxy_connector& operator=(proxy_connector&& other) = delete;               
+                proxy_connector& operator=(proxy_connector&& other) = delete;
 
             protected:
                 virtual size_type _handle(events_type& events) override;

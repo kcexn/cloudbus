@@ -14,54 +14,16 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "proxy_connector.hpp"
+#include "../node.hpp"
 #pragma once
 #ifndef CLOUDBUS_PROXY
 #define CLOUDBUS_PROXY
 namespace cloudbus{
     namespace proxy {
-        class proxy_base: public handler_type
+        class proxy : public basic_node<proxy_connector>
         {
             public:
-                using Base = handler_type;
-
-                proxy_base() = default;
-                trigger_type& triggers() { return _triggers; }
-                int run() { return _run(); }
-                virtual ~proxy_base() = default;
-
-                proxy_base(proxy_base&& other) = delete;
-                proxy_base(const proxy_base& other) = delete;
-                proxy_base& operator=(proxy_base&& other) = delete;
-                proxy_base& operator=(const proxy_base& other) = delete;
-
-            protected:
-                virtual int _run();
-
-            private:
-                trigger_type _triggers;
-        };
-        template<class ConnectorT>
-        class basic_proxy: public proxy_base
-        {
-            public:
-                using Base = proxy_base;
-                using connector_type = ConnectorT;    
-
-                basic_proxy(): _connector{triggers()}{}
-                connector_type& connector() { return _connector; }
-                virtual ~basic_proxy() = default;
-
-                basic_proxy(basic_proxy&& other) = delete;
-                basic_proxy(const basic_proxy& other) = delete;
-                basic_proxy& operator=(basic_proxy&& other) = delete;
-                basic_proxy& operator=(const basic_proxy& other) = delete;
-            private:
-                connector_type _connector;
-        };
-        class proxy : public basic_proxy<proxy_connector>
-        {
-            public:
-                using Base = basic_proxy<proxy_connector>;
+                using Base = basic_node<proxy_connector>;
                 
                 proxy();
                 virtual ~proxy();
@@ -70,9 +32,6 @@ namespace cloudbus{
                 proxy(proxy&& other) = delete;
                 proxy& operator=(proxy&& other) = delete;
                 proxy& operator=(const proxy& other) = delete;
-                
-            protected:
-                virtual size_type _handle(events_type& events) override;
         };
     }
 }

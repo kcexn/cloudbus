@@ -17,21 +17,22 @@
 #include <poll.h>
 namespace io{
     poller::size_type poller::_add(native_handle_type handle, events_type& events, event_type event){
-        auto it = std::find_if(events.cbegin(), events.cend(), [&](const auto& ev){ return ev.fd == handle; });
+        auto it = std::find_if(events.cbegin(), events.cend(), [&handle](const auto& ev){ return ev.fd == handle; });
         if(it != events.cend()) return npos;
         events.push_back(event);
         return events.size();
     }
     
     poller::size_type poller::_update(native_handle_type handle, events_type& events, event_type event){
-        auto it = std::find_if(events.begin(), events.end(), [&](auto& ev) { return ev.fd == handle; });
-        if(it == events.end()) return npos;
+        auto it = std::find_if(events.begin(), events.end(), [&handle](const auto& ev) { return ev.fd == handle; });
+        if(it == events.end())
+            return npos;
         it->events = event.events;
         return events.size();
     }
     
     poller::size_type poller::_del(native_handle_type handle, events_type& events){
-        auto it = std::find_if(events.cbegin(), events.cend(), [&](const auto& ev){ return ev.fd == handle; });
+        auto it = std::find_if(events.cbegin(), events.cend(), [&handle](const auto& ev){ return ev.fd == handle; });
         if(it == events.cend()) return npos;
         events.erase(it);
         return events.size();

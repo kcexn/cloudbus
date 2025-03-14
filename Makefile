@@ -12,18 +12,12 @@ COMPONENTS= io \
 	segment \
 	registry \
 	proxy \
-	connector
+	connector \
+	node
 VPATH=$(addprefix $(SRC)/,$(COMPONENTS))
 CPPFLAGS = -Wall \
 	-Wpedantic \
-	-O3 \
-	-march=x86-64 \
-	-flto \
-	-fsched-pressure \
-	-fmodulo-sched \
-	-fmodulo-sched-allow-regmoves \
-	-fdevirtualize-speculatively \
-	-fdevirtualize-at-ltrans
+	-O3
 COMMON = poller \
 	sockbuf \
 	xmsg \
@@ -31,7 +25,8 @@ COMMON = poller \
 	sockstream \
 	interfaces \
 	registry \
-	connectors
+	connectors \
+	node
 CONTROLLER := $(COMMON) \
 	control_connector \
 	control_marshallers \

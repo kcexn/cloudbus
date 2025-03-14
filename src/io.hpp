@@ -14,3 +14,10 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "io/io.hpp"
+#pragma once
+#ifndef CLOUDBUS_IO
+#define CLOUDBUS_IO
+namespace cloudbus {
+    using handler_type = ::io::basic_handler<::io::trigger>;
+}
+#endif

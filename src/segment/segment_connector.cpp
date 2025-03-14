@@ -179,11 +179,13 @@ namespace cloudbus{
                         return 0;
                     }
                 }
-                if(!buf.eof() && buf.tellg() != pos){
+                if(!buf.eof() && buf.tellg() <= HDRLEN){
                     buf.seekg(HDRLEN);
                     if(pos > HDRLEN && !north_connect(interface, nsp, buf))
                         return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                 }
+                if(!buf.eof() && buf.tellg()==buf.len()->length)
+                    buf.setstate(std::ios_base::eofbit);
             }
             if(nsp->eof()) return -1;
             return 0;

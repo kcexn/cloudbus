@@ -63,7 +63,7 @@ namespace cloudbus{
             auto n = std::get<north_ptr>(north().back()).lock();
             auto& buf = std::get<north_format>(north().back());
             xmsg_read(buf, *n);
-            return --north().end(); 
+            return --north().end();
         }
         segment_marshaller::south_buffers::iterator segment_marshaller::_marshal(const south_type::handle_ptr& stream){
             for(auto it = south().begin(); it < south().end();){

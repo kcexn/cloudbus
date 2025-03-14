@@ -176,7 +176,7 @@ namespace cloudbus{
                                     state_update(*conn, *type, connection_type::clock_type::now());
                             }
                         } else connections().erase(conn);
-                        return 0;
+                        goto EXIT;
                     }
                 }
                 if(!buf.eof() && buf.tellg() <= HDRLEN){
@@ -184,10 +184,14 @@ namespace cloudbus{
                     if(pos > HDRLEN && !north_connect(interface, nsp, buf))
                         return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                 }
-                if(!buf.eof() && buf.tellg()==buf.len()->length)
+        EXIT:
+                if(!buf.eof() && buf.tellg()==buf.len()->length){
                     buf.setstate(std::ios_base::eofbit);
+                    return 0;
+                }
             }
-            if(nsp->eof()) return -1;
+            if(nsp->eof())
+                return -1;
             return 0;
         }
         int segment_connector::_route(marshaller_type::south_format& buf, const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){

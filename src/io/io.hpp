@@ -15,14 +15,8 @@
 */
 #include "buffers.hpp"
 #include "streams.hpp"
-#include <algorithm>
 #include <chrono>
-#include <tuple>
-#include <vector>
-#include <cstdint>
-#include <cstring>
 #include <poll.h>
-#include <signal.h>
 
 #pragma once
 #ifndef IO
@@ -128,34 +122,36 @@ namespace io {
             basic_trigger(poller_type& poller): _poller{poller}{}
             
             size_type set(native_handle_type handle, trigger_type trigger){
-                auto it = std::find_if(_list.begin(), _list.end(), [&](interest_type& i){ return std::get<native_handle_type>(i) == handle; });
-                if(it != _list.end()){
-                    trigger_type& trigger_ = std::get<trigger_type>(*it);
-                    trigger_ |= trigger;
-                    return _poller.update(handle, mkevent(handle, trigger_));
-                } else {
-                    _list.push_back({handle, trigger});
-                    return _poller.add(handle, mkevent(handle, trigger));
+                for(auto&[hnd, trig]: _list){
+                    if(hnd == handle){
+                        trig |= trigger;
+                        return _poller.update(handle, mkevent(handle, trig));
+                    }
                 }
+                _list.emplace_back(handle, trigger);
+                if(_list.capacity() > 1024 && _list.size() < _list.capacity()/2)
+                    _list.shrink_to_fit();
+                return _poller.add(handle, mkevent(handle, trigger));
             }
             
-            size_type clear(native_handle_type handle, trigger_type trigger = UINT32_MAX){
-                auto it = std::find_if(_list.begin(), _list.end(), [&](interest_type& i){ return std::get<native_handle_type>(i) == handle; });
-                if(it == _list.end()) return npos;
-                trigger_type& trigger_ = std::get<trigger_type>(*it);
-                trigger_ &= ~trigger;
-                if(trigger_) return _poller.update(handle, mkevent(handle, trigger_));
-                _list.erase(it);
-                return _poller.del(handle);
+            size_type clear(native_handle_type handle, trigger_type trigger=-1){
+                for(auto it=_list.begin(); it < _list.end(); ++it){
+                    auto&[hnd, trig] = *it;
+                    if(hnd == handle){
+                        if(!(trig &= ~trigger)){
+                            _list.erase(it);
+                            return _poller.del(handle);
+                        } else return _poller.update(handle, mkevent(handle, trig));
+                    }
+                }
+                return npos;
             }
             
             size_type wait(duration_type timeout = duration_type(0)){ return _poller(timeout); }
-            size_type size() { return _list.size(); }
+            const interest_list& list() const { return _list; }
             
-            events_type events() { 
-                events_type events(_poller.size());
-                std::memcpy(events.data(), _poller.events(), _poller.size()*sizeof(event_type));
-                return events;
+            events_type events() {
+                return events_type(_poller.events(), _poller.events()+_poller.size());
             }
                 
             virtual ~basic_trigger() = default;

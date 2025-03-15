@@ -18,8 +18,9 @@
 namespace io{
     static constexpr std::size_t SHRINK_THRESHOLD = 1024;
     poller::size_type poller::_add(native_handle_type handle, events_type& events, event_type event){
-        auto it = std::find_if(events.cbegin(), events.cend(), [&handle](const auto& ev){ return ev.fd == handle; });
-        if(it != events.cend()) return npos;
+        for(const auto& e: events)
+            if(e.fd == handle)
+                return npos;
         events.push_back(event);
         if(events.capacity() > SHRINK_THRESHOLD
                 && events.size() < events.capacity()/2)
@@ -28,20 +29,24 @@ namespace io{
     }
     
     poller::size_type poller::_update(native_handle_type handle, events_type& events, event_type event){
-        auto it = std::find_if(events.begin(), events.end(), [&handle](const auto& ev) { return ev.fd == handle; });
-        if(it == events.end())
-            return npos;
-        it->events = event.events;
-        return events.size();
+        for(auto& e: events){
+            if(e.fd == handle){
+                e.events = event.events;
+                return events.size();
+            }
+        }
+        return npos;
     }
     
     poller::size_type poller::_del(native_handle_type handle, events_type& events){
-        auto it = std::find_if(events.cbegin(), events.cend(), [&handle](const auto& ev){ return ev.fd == handle; });
-        if(it == events.cend()) return npos;
-        events.erase(it);
-        return events.size();
+        for(auto cit=events.cbegin(); cit < events.cend(); ++cit){
+            if(cit->fd == handle){
+                events.erase(cit);
+                return events.size();
+            }
+        }
+        return npos;
     }
-    
     
     poller::size_type poller::_poll(duration_type timeout){
         int nfds = 0;
@@ -55,9 +60,6 @@ namespace io{
     }
     
     trigger::event_type trigger::mkevent(native_handle_type handle, trigger_type trigger){
-        event_type event = {};
-        event.fd = handle;
-        event.events = trigger;
-        return event;
+        return event_type{handle, static_cast<short>(trigger)};
     }
 }

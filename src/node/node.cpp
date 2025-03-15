@@ -14,6 +14,7 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "node.hpp"
+#include <algorithm>
 #include <csignal>
 namespace cloudbus{
     node_base::node_base(const duration_type& timeout):
@@ -25,13 +26,13 @@ namespace cloudbus{
             signal = sig;
         }
     }
-    static node_base::events_type filter_events(const node_base::events_type& events, const node_base::event_mask& mask=-1){
-        auto e_ = node_base::events_type();
-        e_.reserve(events.size());
+    static node_base::size_type filter_events(node_base::events_type& events, const node_base::event_mask& mask=-1){
+        auto put = events.begin();
         for(const auto& e: events)
             if(e.revents & mask)
-                e_.push_back(e);
-        return e_;
+                *(put++) = e;
+        events.resize(put - events.begin());
+        return events.size();
     }
     int node_base::_run() {
         constexpr size_type FAIRNESS = 16;
@@ -40,22 +41,26 @@ namespace cloudbus{
         std::signal(SIGHUP, sighandler);
         while((n = triggers().wait(_timeout)) != trigger_type::npos){
             auto events = triggers().events();
-            for(size_type i = 0, handled = handle(events); n && i++ < FAIRNESS && handled; handled = handle(events)){
+            for(size_type i = 0, handled = handle(events); n && handled; handled = handle(events)){
                 if(handled == trigger_type::npos)
                     return signal;
-                if(i == FAIRNESS){
+                if(++i == FAIRNESS){
+                    filter_events(events);
                     if((i = triggers().wait()) != trigger_type::npos){
-                        events = filter_events(events);
-                        auto events_ = triggers().events();
-                        for(auto e = events_.cbegin(); i && e < events_.cend(); ++e){
-                            if(e->revents && i--){
-                                auto it = std::find_if(events.begin(), events.end(), [&](const auto& ev){ return e->fd == ev.fd; });
-                                if(it != events.end())
-                                    it->revents |= e->revents;
-                                else events.push_back(*it);
+                        for(const auto& e: triggers().events()){
+                            if(e.revents && i--){
+                                auto it = std::find_if(events.begin(), events.end(), [&](auto& ev){
+                                    if(e.fd==ev.fd)
+                                        ev.revents |= e.revents;
+                                    return e.fd==ev.fd;
+                                });
+                                if(it == events.end())
+                                    events.push_back(e);
                             }
+                            if(!i) break;
                         }
                     } else return signal;
+                    n = events.size();
                     if(auto status = signal_handler(signal))
                         return status;
                 }

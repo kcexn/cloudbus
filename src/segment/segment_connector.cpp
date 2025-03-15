@@ -22,7 +22,7 @@
 #endif
 namespace cloudbus{
     namespace segment {
-        static constexpr std::streamsize MAX_BUFSIZE = 65536 * 512; /* 32MiB */
+        static constexpr std::streamsize MAX_BUFSIZE = 65536 * 4096; /* 256MiB */
         static int set_flags(int fd){
             int flags = 0;
             if(fcntl(fd, F_SETFD, FD_CLOEXEC))

@@ -25,11 +25,6 @@ namespace cloudbus{
             signal = sig;
         }
     }
-    static int clean_exit(){
-        if(signal)
-            return signal;
-        return 0;
-    }
     static node_base::events_type filter_events(const node_base::events_type& events, const node_base::event_mask& mask=-1){
         auto e_ = node_base::events_type();
         e_.reserve(events.size());
@@ -42,13 +37,12 @@ namespace cloudbus{
         constexpr size_type FAIRNESS = 16;
         size_type n = 0;
         std::signal(SIGTERM, sighandler);
-        std::signal(SIGINT, sighandler);
         std::signal(SIGHUP, sighandler);
         while((n = triggers().wait(_timeout)) != trigger_type::npos){
             auto events = triggers().events();
             for(size_type i = 0, handled = handle(events); n && i++ < FAIRNESS && handled; handled = handle(events)){
                 if(handled == trigger_type::npos)
-                    return clean_exit();
+                    return signal;
                 if(i == FAIRNESS){
                     if((i = triggers().wait()) != trigger_type::npos){
                         events = filter_events(events);
@@ -61,7 +55,7 @@ namespace cloudbus{
                                 else events.push_back(*it);
                             }
                         }
-                    } else return clean_exit();
+                    } else return signal;
                     if(auto status = signal_handler(signal))
                         return status;
                 }
@@ -69,6 +63,6 @@ namespace cloudbus{
             if(auto status = signal_handler(signal))
                 return status;
         }
-        return clean_exit();
+        return signal;
     }
 }

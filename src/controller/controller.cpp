@@ -54,9 +54,9 @@ namespace cloudbus{
                         unlink(reinterpret_cast<const struct sockaddr_un*>(&addr)->sun_path);
         }
         int controller::_signal_handler(std::uint64_t signal){
-            if(signal & (SIGTERM | SIGHUP | SIGINT)){
+            if(signal & (SIGTERM | SIGHUP)){
                 if(connector().connections().empty())
-                    return signal;
+                    return signal & (SIGTERM | SIGHUP);
                 timeout() = duration_type(50);
                 connector().drain() = 1;
             }

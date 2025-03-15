@@ -44,20 +44,13 @@ namespace cloudbus{
         std::signal(SIGTERM, sighandler);
         std::signal(SIGINT, sighandler);
         std::signal(SIGHUP, sighandler);
-        while((n = triggers().wait(_timeout)) >= 0){
-            if(n == 0 || n == trigger_type::npos){
-                if(auto status = signal_handler(signal))
-                    return status;
-                else continue;
-            }
+        while((n = triggers().wait(_timeout)) != trigger_type::npos){
             auto events = triggers().events();
-            for(size_type i = 0, handled = handle(events); i++ < FAIRNESS && handled; handled = handle(events)){
+            for(size_type i = 0, handled = handle(events); n && i++ < FAIRNESS && handled; handled = handle(events)){
                 if(handled == trigger_type::npos)
                     return clean_exit();
                 if(i == FAIRNESS){
-                    if((i = triggers().wait(std::chrono::milliseconds(0)))){
-                        if(i == trigger_type::npos)
-                            return clean_exit();
+                    if((i = triggers().wait()) != trigger_type::npos){
                         events = filter_events(events);
                         auto events_ = triggers().events();
                         for(auto e = events_.cbegin(); i && e < events_.cend(); ++e){
@@ -68,7 +61,7 @@ namespace cloudbus{
                                 else events.push_back(*it);
                             }
                         }
-                    }
+                    } else return clean_exit();
                     if(auto status = signal_handler(signal))
                         return status;
                 }

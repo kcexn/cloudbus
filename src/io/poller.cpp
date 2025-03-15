@@ -41,7 +41,12 @@ namespace io{
     
     poller::size_type poller::_poll(duration_type timeout){
         int nfds = 0;
-        if((nfds = poll(Base::events(), Base::size(), timeout.count())) < 0) return npos;
+        if((nfds = poll(Base::events(), Base::size(), timeout.count())) < 0) {
+            switch(errno){
+                case EINTR: return 0;
+                default: return npos;
+            }
+        }
         return nfds;
     }
     

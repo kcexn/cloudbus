@@ -17,7 +17,7 @@ COMPONENTS= io \
 VPATH=$(addprefix $(SRC)/,$(COMPONENTS))
 CPPFLAGS = -Wall \
 	-Wpedantic \
-	-g
+	-O3
 COMMON = poller \
 	sockbuf \
 	xmsg \

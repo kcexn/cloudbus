@@ -22,21 +22,30 @@ namespace cloudbus{
     {
         public:
             using Base = handler_type;
+            using duration_type = trigger_type::duration_type;
             
-            node_base() = default;
+            
+            node_base():
+                node_base(duration_type{-1}){}
+            node_base(const duration_type& timeout);
             trigger_type& triggers() { return _triggers; }
+            duration_type& timeout() { return _timeout; }
             int run() { return _run(); }
+            int signal_handler(std::uint64_t signal){ return _signal_handler(signal); }
             virtual ~node_base() = default;
 
             node_base(node_base&& other) = delete;
             node_base(const node_base& other) = delete;
             node_base& operator=(node_base&& other) = delete;
-            node_base& operator=(const node_base& other) = delete;                
+            node_base& operator=(const node_base& other) = delete;    
+
         protected:
             virtual int _run();
+            virtual int _signal_handler(std::uint64_t signal){ return 0; }
 
         private:
             trigger_type _triggers;
+            duration_type _timeout;
     };
     template<class ConnectorT>
     class basic_node: public node_base

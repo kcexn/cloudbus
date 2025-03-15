@@ -32,6 +32,9 @@ namespace cloudbus{
                 segment(segment&& other) = delete;
                 segment& operator=(segment&& other) = delete;
                 segment& operator=(const segment& other) = delete;
+            
+            protected:
+                virtual int _signal_handler(std::uint64_t signal) override;
         };
     }
 }

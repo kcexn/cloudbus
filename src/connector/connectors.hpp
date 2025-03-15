@@ -69,6 +69,7 @@ namespace cloudbus {
             interfaces& south() { return _south; }
             connections_type& connections() { return _connections; }
             int& mode() { return _mode; }
+            int& drain() { return _drain; }
 
             virtual ~connector_base() = default;
 
@@ -80,7 +81,7 @@ namespace cloudbus {
         private:
             interfaces _north, _south;
             connections_type _connections;
-            int _mode;
+            int _mode, _drain;
     };
 
     template<class HandlerT>

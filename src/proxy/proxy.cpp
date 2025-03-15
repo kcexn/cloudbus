@@ -51,5 +51,14 @@ namespace cloudbus{
                     if(addr.ss_family == AF_UNIX)
                         unlink(reinterpret_cast<const struct sockaddr_un*>(&addr)->sun_path);
         }
+        int proxy::_signal_handler(std::uint64_t signal){
+            if(signal & (SIGTERM | SIGHUP | SIGINT)){
+                if(connector().connections().empty())
+                    return signal;
+                timeout() = duration_type(50);
+                connector().drain() = 1;
+            }
+            return 0;
+        }
     }
 }

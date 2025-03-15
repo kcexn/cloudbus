@@ -332,7 +332,7 @@ namespace cloudbus {
                     } else conn = --connections().erase(conn);
                 }
             }            
-            revents = 0;          
+            revents = 0;
             triggers().clear(nfd);
             interface->erase(stream);
         }
@@ -343,8 +343,9 @@ namespace cloudbus {
             return route(std::get<marshaller_type::north_format>(*it), interface, stream, revents);
         }
         int control_connector::_north_accept_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
-            int sockfd = 0;
-            const auto listenfd = std::get<north_type::native_handle_type>(*stream);
+            if(drain())
+                return -1;
+            int sockfd = 0, listenfd = std::get<north_type::native_handle_type>(*stream);
             while((sockfd = _accept(listenfd, nullptr, nullptr)) >= 0){
                 interface->make(sockfd, true);
                 triggers().set(sockfd, POLLIN);

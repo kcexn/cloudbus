@@ -27,8 +27,9 @@ namespace cloudbus {
         return fd;
     }    
     connector_base::connector_base(int mode):
-        _north{}, _south{}, _connections{}, _mode{mode}{}
-
+        _north{}, _south{}, _connections{}, 
+        _mode{mode}, _drain{0}
+    {}
     interface_base::native_handle_type connector_base::make_north(const registry::address_type& address){
         if(address.index() != registry::SOCKADDR)
             return -1;

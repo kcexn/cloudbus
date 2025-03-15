@@ -16,6 +16,9 @@
 #include "node.hpp"
 #include <csignal>
 namespace cloudbus{
+    node_base::node_base(const duration_type& timeout):
+        _triggers{}, _timeout{timeout}{}
+
     volatile static std::sig_atomic_t signal = 0;
     extern "C" {
         static void sighandler(int sig){
@@ -37,11 +40,16 @@ namespace cloudbus{
     }
     int node_base::_run() {
         constexpr size_type FAIRNESS = 16;
-        const auto pause = std::chrono::milliseconds(-1);
+        size_type n = 0;
         std::signal(SIGTERM, sighandler);
         std::signal(SIGINT, sighandler);
         std::signal(SIGHUP, sighandler);
-        while(triggers().wait(pause) != trigger_type::npos){
+        while((n = triggers().wait(_timeout)) >= 0){
+            if(n == 0 || n == trigger_type::npos){
+                if(auto status = signal_handler(signal))
+                    return status;
+                else continue;
+            }
             auto events = triggers().events();
             for(size_type i = 0, handled = handle(events); i++ < FAIRNESS && handled; handled = handle(events)){
                 if(handled == trigger_type::npos)
@@ -61,10 +69,12 @@ namespace cloudbus{
                             }
                         }
                     }
-                    if(signal) return signal;
+                    if(auto status = signal_handler(signal))
+                        return status;
                 }
             }
-            if(signal) return signal;
+            if(auto status = signal_handler(signal))
+                return status;
         }
         return clean_exit();
     }

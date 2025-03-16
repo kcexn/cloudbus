@@ -16,6 +16,7 @@
 #include "node.hpp"
 #include <algorithm>
 #include <csignal>
+#include <unistd.h>
 namespace cloudbus{
     node_base::node_base(const duration_type& timeout):
         _triggers{}, _timeout{timeout}{}
@@ -26,6 +27,31 @@ namespace cloudbus{
             signal = sig;
         }
     }
+    static ssize_t read_notice(const int& notify_pipe, int& notice){
+        int len = 0, notice_ = 0;
+        if((len = read(notify_pipe, &notice_, sizeof(notice_))) < 0){
+            switch(errno){
+                case EINTR: return read_notice(notify_pipe, notice);
+                default: break;
+            }
+        }
+        notice |= notice_;
+        return len;
+    }
+    static int check_for_signal(
+        const node_base::events_type& events,
+        node_base::size_type& n,
+        const int& notify_pipe,
+        int& notice
+    ){
+        ssize_t len = 0;
+        auto cit = std::find_if(events.cbegin(), events.cend(), [&notify_pipe](const auto& ev){ return ev.fd == notify_pipe; });
+        if(cit != events.cend() && cit->revents && n--)
+            if(cit->revents & (POLLERR | POLLNVAL)
+                    || (len = read_notice(notify_pipe, notice)) <= 0)
+                return -1;
+        return 0;
+    }
     static node_base::size_type filter_events(node_base::events_type& events, const node_base::event_mask& mask=-1){
         auto put = events.begin();
         for(const auto& e: events)
@@ -34,16 +60,21 @@ namespace cloudbus{
         events.resize(put - events.begin());
         return events.size();
     }
-    int node_base::_run() {
+    int node_base::_run(int notify_pipe) {
         constexpr size_type FAIRNESS = 16;
         size_type n = 0;
-        std::signal(SIGTERM, sighandler);
-        std::signal(SIGHUP, sighandler);
+        int notice = 0;
+        if(!notify_pipe){
+            std::signal(SIGTERM, sighandler);
+            std::signal(SIGHUP, sighandler);
+        } else triggers().set(notify_pipe, POLLIN);
         while((n = triggers().wait(_timeout)) != trigger_type::npos){
             auto events = triggers().events();
+            if(notify_pipe && check_for_signal(events, n, notify_pipe, notice))
+                return notice;
             for(size_type i = 0, handled = handle(events); n && handled; handled = handle(events)){
                 if(handled == trigger_type::npos)
-                    return signal;
+                    return notify_pipe ? notice : signal;
                 if(++i == FAIRNESS){
                     filter_events(events);
                     if((i = triggers().wait()) != trigger_type::npos){
@@ -59,15 +90,17 @@ namespace cloudbus{
                             }
                             if(!i) break;
                         }
-                    } else return signal;
+                    } else return notify_pipe ? notice : signal;
                     n = events.size();
-                    if(auto status = signal_handler(signal))
+                    if(notify_pipe && check_for_signal(events, n, notify_pipe, notice))
+                        return notice;
+                    if(auto status = notify_pipe ? signal_handler(notice) : signal_handler(signal))
                         return status;
                 }
             }
-            if(auto status = signal_handler(signal))
+            if(auto status = notify_pipe ? signal_handler(notice) : signal_handler(signal))
                 return status;
         }
-        return signal;
+        return notify_pipe ? notice : signal;
     }
 }

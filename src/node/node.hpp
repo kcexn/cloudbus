@@ -32,7 +32,7 @@ namespace cloudbus{
             node_base(const duration_type& timeout);
             trigger_type& triggers() { return _triggers; }
             duration_type& timeout() { return _timeout; }
-            int run() { return _run(); }
+            int run(int notify_pipe=0) { return _run(notify_pipe); }
             int signal_handler(std::uint64_t signal){ return _signal_handler(signal); }
             virtual ~node_base() = default;
 
@@ -42,7 +42,7 @@ namespace cloudbus{
             node_base& operator=(const node_base& other) = delete;    
 
         protected:
-            virtual int _run();
+            virtual int _run(int notify_pipe);
             virtual int _signal_handler(std::uint64_t signal){ return 0; }
 
         private:

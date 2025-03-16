@@ -45,15 +45,15 @@ namespace cloudbus{
             return 0;
         }    
         static void state_update(
-            proxy_connector::connection_type& conn,
+            connector::connection_type& conn,
             const messages::msgtype& type,
-            const proxy_connector::connection_type::time_point time
+            const connector::connection_type::time_point time
         ){
             switch(conn.state){
-                case proxy_connector::connection_type::HALF_OPEN:
+                case connector::connection_type::HALF_OPEN:
                     conn.timestamps[++conn.state] = time;
-                case proxy_connector::connection_type::OPEN:
-                case proxy_connector::connection_type::HALF_CLOSED:
+                case connector::connection_type::OPEN:
+                case connector::connection_type::HALF_CLOSED:
                     if(type.op != messages::STOP) return;
                     conn.timestamps[++conn.state] = time;
                 default: return;
@@ -77,8 +77,8 @@ namespace cloudbus{
                 return count;
             } else return 0;
         }
-        static proxy_connector::connections_type::iterator write_prepare(
-            proxy_connector::connections_type& connections,
+        static connector::connections_type::iterator write_prepare(
+            connector::connections_type& connections,
             const messages::uuid& uuid,
             const std::streamsize& len
         ){
@@ -100,31 +100,31 @@ namespace cloudbus{
         }
         static int clear_triggers(
             int sockfd,
-            proxy_connector::trigger_type& triggers,
-            proxy_connector::event_mask& revents,
-            const proxy_connector::event_mask& mask
+            connector::trigger_type& triggers,
+            connector::event_mask& revents,
+            const connector::event_mask& mask
         ){
             revents &= ~mask;
             triggers.clear(sockfd, mask);
             return 0;
         }
-        static proxy_connector::events_type::iterator read_restart(
+        static connector::events_type::iterator read_restart(
             const int& sockfd,
-            proxy_connector::trigger_type& triggers,
-            proxy_connector::events_type& events,
-            const proxy_connector::events_type::iterator& ev
+            connector::trigger_type& triggers,
+            connector::events_type& events,
+            const connector::events_type::iterator& ev
         ){
             triggers.set(sockfd, POLLIN);
             auto it = std::find_if(events.begin(), events.end(), [&](auto& e){ return e.fd == sockfd; });
             if(it == events.end()){
                 auto off = ev - events.begin();
-                events.push_back(proxy_connector::event_type{sockfd, POLLIN, POLLIN});
+                events.push_back(connector::event_type{sockfd, POLLIN, POLLIN});
                 return events.begin() + off;
             } else it->revents |= POLLIN;
             return ev;
         }
 
-        proxy_connector::size_type proxy_connector::_handle(events_type& events){
+        connector::size_type connector::_handle(events_type& events){
             size_type handled = 0;
             for(auto ev=events.begin(); ev < events.end(); ++ev){
                 if(ev->revents){
@@ -167,17 +167,17 @@ namespace cloudbus{
             }
             return handled;
         }
-        int proxy_connector::_route(marshaller_type::north_format& buf, const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
+        int connector::_route(marshaller_type::north_format& buf, const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
             auto&[nfd, nsp] = *stream;
             const auto *eid = buf.eid();
             if(const auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
                 const auto seekpos = buf.tellg();
                 if(write_prepare(connections(), *eid, buf.tellp()-seekpos) != connections().end())
                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
-                const auto time = proxy_connector::connection_type::clock_type::now();
+                const auto time = connector::connection_type::clock_type::now();
                 std::size_t connected = 0;
                 for(auto& c: connections()){
-                    if(auto s = c.south.lock(); !messages::uuid_cmpnode(&c.uuid, eid) && s && c.state < proxy_connector::connection_type::CLOSED){
+                    if(auto s = c.south.lock(); !messages::uuid_cmpnode(&c.uuid, eid) && s && c.state < connector::connection_type::CLOSED){
                         if(seekpos == 0) state_update(c, *type, time);
                         ++connected;
                         *buf.eid() = c.uuid;
@@ -205,7 +205,7 @@ namespace cloudbus{
             if(nsp->eof()) return -1;
             return 0;
         }
-        int proxy_connector::_route(marshaller_type::south_format& buf, const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){
+        int connector::_route(marshaller_type::south_format& buf, const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){
             auto&[sfd, ssp] = *stream;
             const auto *eid = buf.eid();
             if(auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
@@ -263,7 +263,7 @@ namespace cloudbus{
             if(ssp->eof()) return -1;
             return 0;
         }
-        std::streamsize proxy_connector::_north_connect(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
+        std::streamsize connector::_north_connect(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
             constexpr std::size_t SHRINK_THRESHOLD = 1024;
             const auto n = connection_type::clock_type::now();
             connections_type connect;
@@ -308,7 +308,7 @@ namespace cloudbus{
             }
             return 0;
         }        
-        void proxy_connector::_north_err_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
+        void connector::_north_err_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
             messages::msgheader head = {
                 {}, {1, sizeof(head)},
                 {0,0}, {messages::STOP, 0}
@@ -333,13 +333,13 @@ namespace cloudbus{
             triggers().clear(nfd);
             interface->erase(stream);
         }
-        int proxy_connector::_north_pollin_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
+        int connector::_north_pollin_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
             auto it = marshaller().unmarshal(stream);
             if(std::get<north_type::stream_ptr>(*stream)->gcount() == 0)
                 revents &= ~(POLLIN | POLLHUP);
             return route(std::get<marshaller_type::north_format>(*it), interface, stream, revents);
         }
-        int proxy_connector::_north_accept_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
+        int connector::_north_accept_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
             if(drain())
                 return -1;
             int sockfd = 0, listenfd = std::get<north_type::native_handle_type>(*stream);
@@ -350,7 +350,7 @@ namespace cloudbus{
             revents &= ~(POLLIN | POLLHUP);
             return 0;
         }
-        void proxy_connector::_north_state_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
+        void connector::_north_state_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
             const auto& nsp = std::get<north_type::stream_ptr>(*stream);
             connections_type states;
             for(auto& c: connections()){
@@ -394,7 +394,7 @@ namespace cloudbus{
                 }
             }
         }
-        int proxy_connector::_north_pollout_handler(const north_type::handle_ptr& stream, event_mask& revents){
+        int connector::_north_pollout_handler(const north_type::handle_ptr& stream, event_mask& revents){
             const auto&[nfd, nsp] = *stream;
             nsp->flush();
             if(nsp->fail() || revents & (POLLERR | POLLNVAL))
@@ -404,7 +404,7 @@ namespace cloudbus{
             revents &= ~(POLLOUT | POLLERR | POLLNVAL);
             return 0;
         }
-        proxy_connector::size_type proxy_connector::_handle(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
+        connector::size_type connector::_handle(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
             size_type handled = 0;
             if(revents & (POLLOUT | POLLERR | POLLNVAL)){
                 ++handled;
@@ -423,7 +423,7 @@ namespace cloudbus{
             return handled;
         }
 
-        void proxy_connector::_south_err_handler(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){
+        void connector::_south_err_handler(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){
             messages::msgheader head = {
                 {}, {1, sizeof(head)},
                 {0,0}, {messages::STOP, 0}
@@ -447,13 +447,13 @@ namespace cloudbus{
             triggers().clear(sfd);
             interface->erase(stream);
         }
-        int proxy_connector::_south_pollin_handler(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){       
+        int connector::_south_pollin_handler(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){       
             auto it = marshaller().marshal(stream);
             if(std::get<south_type::stream_ptr>(*stream)->gcount() == 0)
                 revents &= ~(POLLIN | POLLHUP);
             return route(std::get<marshaller_type::south_format>(*it), interface, stream, revents);
         }
-        int proxy_connector::_south_state_handler(const south_type::handle_ptr& stream){
+        int connector::_south_state_handler(const south_type::handle_ptr& stream){
             std::size_t count = 0;
             const auto& ssp = std::get<south_type::stream_ptr>(*stream);
             for(auto conn = connections().begin(); conn < connections().end(); ++conn){
@@ -466,7 +466,7 @@ namespace cloudbus{
             if(count == 0) return -1;
             return 0;
         }
-        int proxy_connector::_south_pollout_handler(const south_type::handle_ptr& stream, event_mask& revents){
+        int connector::_south_pollout_handler(const south_type::handle_ptr& stream, event_mask& revents){
             auto&[sfd, ssp] = *stream;
             ssp->flush();
             if(ssp->fail() || revents & (POLLERR | POLLNVAL))
@@ -476,7 +476,7 @@ namespace cloudbus{
             revents &= ~(POLLOUT | POLLERR | POLLNVAL);
             return 0;
         }
-        proxy_connector::size_type proxy_connector::_handle(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){
+        connector::size_type connector::_handle(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){
           size_type handled = 0;
           if(revents & (POLLOUT | POLLERR | POLLNVAL)){
             ++handled;

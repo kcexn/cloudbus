@@ -20,7 +20,7 @@
 #define CLOUDBUS_PROXY_MARSHALLERS
 namespace cloudbus{
     namespace proxy {
-        class proxy_marshaller : public basic_marshaller<cs_north, cs_south>
+        class marshaller : public basic_marshaller<cs_north, cs_south>
         {
             public:
                 using Base = basic_marshaller<cs_north, cs_south>;

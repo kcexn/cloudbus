@@ -2,20 +2,20 @@
 *   Copyright 2025 Kevin Exton
 *   This file is part of Cloudbus.
 *
-* Cloudbus is free software: you can redistribute it and/or modify it under the 
+*   Cloudbus is free software: you can redistribute it and/or modify it under the 
 *   terms of the GNU Affero General Public License as published by the Free Software 
 *   Foundation, either version 3 of the License, or any later version.
 *
-* Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
+*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
 *   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
 *   See the GNU Affero General Public License for more details.
 *
-* You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
+*   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
-#include "segment_marshallers.hpp"
+#include "controller_marshaller.hpp"
 namespace cloudbus{
-    namespace segment {
+    namespace controller {
         static std::array<char, 256> _buf = {};
         static bool xmsg_read(messages::xmsgstream& buf, std::istream& is){
             constexpr std::streamsize hdr_size = sizeof(messages::msgheader);
@@ -48,12 +48,15 @@ namespace cloudbus{
             return is.eof();
         }
 
-        segment_marshaller::north_buffers::iterator segment_marshaller::_unmarshal(const north_type::handle_ptr& stream){
+        marshaller::north_buffers::iterator marshaller::_unmarshal(const north_type::handle_ptr& stream){
             for(auto it = north().begin(); it < north().end();){
                 if(auto n = std::get<north_ptr>(*it).lock()){
                     if(n == std::get<north_type::stream_ptr>(*stream)){
                         auto& buf = std::get<north_format>(*it);
-                        xmsg_read(buf, *n);
+                        if(buf.tellg() == buf.tellp()){
+                            buf.seekg(0);
+                            stream_copy(buf.seekp(0), *n);
+                        }
                         return it;
                     }
                     ++it;
@@ -62,27 +65,25 @@ namespace cloudbus{
             std::get<north_ptr>(north().emplace_back()) = std::get<north_type::stream_ptr>(*stream);
             auto n = std::get<north_ptr>(north().back()).lock();
             auto& buf = std::get<north_format>(north().back());
-            xmsg_read(buf, *n);
-            return --north().end();
+            stream_copy(buf, *n);
+            return --north().end(); 
         }
-        segment_marshaller::south_buffers::iterator segment_marshaller::_marshal(const south_type::handle_ptr& stream){
+        marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_ptr& stream){
             for(auto it = south().begin(); it < south().end();){
-                if(auto s = std::get<south_ptr>(*it).lock()){
-                        if(s == std::get<south_type::stream_ptr>(*stream)){
-                            auto& buf = std::get<south_format>(*it);
-                            if(buf.tellg() == buf.tellp()){
-                                buf.seekg(0);
-                                stream_copy(buf.seekp(0), *s);
-                            }
-                            return it;
-                        }
-                        ++it;
+                south_buffer& buffer = *it;
+                if(auto s = std::get<south_ptr>(buffer).lock()){
+                    if(s == std::get<south_type::stream_ptr>(*stream)){
+                        auto& format = std::get<south_format>(buffer);
+                        xmsg_read(format, *s);
+                        return it;
+                    }
+                    ++it;
                 } else it = south().erase(it);
             }
             std::get<south_ptr>(south().emplace_back()) = std::get<south_type::stream_ptr>(*stream);
             auto s = std::get<south_ptr>(south().back()).lock();
-            auto& buf = std::get<south_format>(south().back());
-            stream_copy(buf, *s);
+            auto& format = std::get<south_format>(south().back());
+            xmsg_read(format, *s);
             return --south().end();
         }
     }

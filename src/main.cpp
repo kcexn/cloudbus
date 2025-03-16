@@ -14,16 +14,17 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "config.hpp"
+#include "node.hpp"
 #include <algorithm>
 #include <fstream>
 #ifdef COMPILE_CONTROLLER
-    #include "controller/controller.hpp"
+    #include "controller/controller_connector.hpp"
 #endif
 #ifdef COMPILE_SEGMENT
-    #include "segment/segment.hpp"
+    #include "segment/segment_connector.hpp"
 #endif
 #ifdef COMPILE_PROXY
-    #include "proxy/proxy.hpp"
+    #include "proxy/proxy_connector.hpp"
 #endif
 
 int main(int argc, char* argv[]) {
@@ -45,13 +46,16 @@ int main(int argc, char* argv[]) {
         std::transform(heading.begin(), heading.end(), heading.begin(), [](const unsigned char c){ return std::toupper(c); });
         if(heading != "CLOUDBUS"){
             #ifdef COMPILE_CONTROLLER
-                return cloudbus::controller::controller(section).run();
+                using controller = cloudbus::basic_node<cloudbus::controller::connector>;
+                return controller(section).run();
             #endif
             #ifdef COMPILE_SEGMENT
-                return cloudbus::segment::segment(section).run();
+                using segment = cloudbus::basic_node<cloudbus::segment::connector>;
+                return segment(section).run();
             #endif
             #ifdef COMPILE_PROXY
-                return cloudbus::proxy::proxy(section).run();
+                using proxy = cloudbus::basic_node<cloudbus::proxy::connector>;
+                return proxy(section).run();
             #endif
         }
     }

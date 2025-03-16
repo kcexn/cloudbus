@@ -13,7 +13,7 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
-#include "control_marshallers.hpp"
+#include "controller_marshaller.hpp"
 #include "../connectors.hpp"
 #include "../io.hpp"
 
@@ -22,23 +22,23 @@
 #define CLOUDBUS_CONTROLLER_CONNECTOR
 namespace cloudbus {
     namespace controller {
-        class control_connector: public basic_connector<control_marshaller, handler_type>
+        class connector: public basic_connector<controller::marshaller, handler_type>
         {
             public:
-                using Base = basic_connector<control_marshaller, handler_type>;
+                using Base = basic_connector<controller::marshaller, handler_type>;
 
-                control_connector(
+                connector(
                     trigger_type& triggers,
                     const config::configuration::section& section
                 ):
                     Base(triggers, section){}
-                ~control_connector() = default;
+                ~connector() = default;
 
-                control_connector() = delete;
-                control_connector(const control_connector& other) = delete;
-                control_connector(control_connector&& other) = delete;
-                control_connector& operator=(const control_connector& other) = delete;
-                control_connector& operator=(control_connector&& other) = delete;
+                connector() = delete;
+                connector(const connector& other) = delete;
+                connector(connector&& other) = delete;
+                connector& operator=(const connector& other) = delete;
+                connector& operator=(connector&& other) = delete;
 
             protected:
                 virtual size_type _handle(events_type& events) override;

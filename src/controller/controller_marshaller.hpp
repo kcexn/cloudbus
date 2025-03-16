@@ -13,23 +13,23 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
+#include "controller_interfaces.hpp"
 #include "../marshallers.hpp"
-#include "segment_interfaces.hpp"
+
 #pragma once
-#ifndef CLOUDBUS_SEGMENT_MARSHALLERS
-#define CLOUDBUS_SEGMENT_MARSHALLERS
+#ifndef CLOUDBUS_CONTROLLER_MARSHALLERS
+#define CLOUDBUS_CONTROLLER_MARSHALLERS
 namespace cloudbus{
-    namespace segment {
-        class segment_marshaller : public basic_marshaller<cbus_interface, service_interface>
+    namespace controller {
+        class marshaller : public basic_marshaller<cs_north, cs_south>
         {
             public:
-                using Base = basic_marshaller<cbus_interface, service_interface>;
+                using Base = basic_marshaller<cs_north, cs_south>;
                 using north_type = Base::north_type;
                 using north_ptr = Base::north_ptr;
                 using north_format = Base::north_format;
                 using north_buffer = Base::north_buffer;
                 using north_buffers = Base::north_buffers;
-                
                 using south_type = Base::south_type;
                 using south_ptr = Base::south_ptr;
                 using south_format = Base::south_format;
@@ -38,8 +38,8 @@ namespace cloudbus{
 
             protected:
                 virtual north_buffers::iterator _unmarshal(const north_type::handle_ptr& stream) override;
-                virtual south_buffers::iterator _marshal(const south_type::handle_ptr& stream) override;
-        };      
+                virtual south_buffers::iterator _marshal(const north_type::handle_ptr& stream) override;
+        };
     }
 }
 #endif

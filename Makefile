@@ -5,15 +5,15 @@ OBJECT_DIR=$(BUILD_DIR)/objects
 BIN_DIR=$(BUILD_DIR)/bin
 SRC=$(ROOT)/src
 COMPONENTS= io \
-	controller \
 	formats \
 	messages \
 	interfaces \
-	segment \
-	proxy \
 	connector \
 	node \
-	config
+	config \
+	controller \
+	segment \
+	proxy
 VPATH=$(addprefix $(SRC)/,$(COMPONENTS))
 CPPFLAGS = -Wall \
 	-Wpedantic \
@@ -29,17 +29,14 @@ COMMON = poller \
 	node \
 	config
 CONTROLLER := $(COMMON) \
-	control_connector \
-	control_marshallers \
-	controller
+	controller_connector \
+	controller_marshaller
 SEGMENT := $(COMMON) \
 	segment_connector \
-	segment_marshallers \
-	segment
+	segment_marshaller
 PROXY := $(COMMON) \
 	proxy_connector \
-	proxy_marshallers \
-	proxy
+	proxy_marshaller 
 EXECUTABLES := controller \
 	segment \
 	proxy
@@ -56,7 +53,7 @@ $(BIN_DIR)/segment: $(addsuffix .o,$(addprefix $(OBJECT_DIR)/, $(SEGMENT)))
 	mkdir -p $(BIN_DIR) && $(CXX) $(CPPFLAGS) -D COMPILE_SEGMENT $(SRC)/main.cpp -o $@ $^
 
 $(BIN_DIR)/proxy: $(addsuffix .o,$(addprefix $(OBJECT_DIR)/, $(PROXY)))
-	mkdir -p $(BIN_DIR) && $(CXX) $(CPPFLAGS) -D COMPILE_PROXY $(SRC)/main.cpp -o $@ $^	
+	mkdir -p $(BIN_DIR) && $(CXX) $(CPPFLAGS) -D COMPILE_PROXY $(SRC)/main.cpp -o $@ $^
 
 $(OBJECT_DIR)/%.o: %.cpp
 	mkdir -p $(OBJECT_DIR) && $(CXX) -c $(CPPFLAGS) $< -o $@

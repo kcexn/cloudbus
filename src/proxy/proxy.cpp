@@ -14,17 +14,7 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "proxy.hpp"
-#include <csignal>
 namespace cloudbus{
     namespace proxy{
-        int proxy::_signal_handler(std::uint64_t signal){
-            if(signal & (SIGTERM | SIGHUP)){
-                if(connector().connections().empty())
-                    return signal & (SIGTERM | SIGHUP);
-                timeout() = duration_type(50);
-                connector().drain() = 1;
-            }
-            return 0;
-        }
     }
 }

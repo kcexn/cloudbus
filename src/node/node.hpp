@@ -15,6 +15,7 @@
 */
 #include "../io.hpp"
 #include "../config.hpp"
+#include <csignal>
 #include <sys/un.h>
 #include <unistd.h>
 #pragma once
@@ -33,7 +34,7 @@ namespace cloudbus{
             trigger_type& triggers() { return _triggers; }
             duration_type& timeout() { return _timeout; }
             int run(int notify_pipe=0) { return _run(notify_pipe); }
-            int signal_handler(std::uint64_t signal){ return _signal_handler(signal); }
+            int signal_handler(int signal){ return _signal_handler(signal); }
             virtual ~node_base() = default;
 
             node_base(node_base&& other) = delete;
@@ -43,7 +44,7 @@ namespace cloudbus{
 
         protected:
             virtual int _run(int notify_pipe);
-            virtual int _signal_handler(std::uint64_t signal){ return 0; }
+            virtual int _signal_handler(int signal){ return 0; }
 
         private:
             trigger_type _triggers;
@@ -75,7 +76,18 @@ namespace cloudbus{
             basic_node& operator=(const basic_node& other) = delete;
         
         protected:
-            virtual size_type _handle(events_type& events) override { return _connector.handle(events); }
+            virtual size_type _handle(events_type& events) override { 
+                return _connector.handle(events);
+            }
+            virtual int _signal_handler(int signal) override {
+                if(signal & (SIGTERM | SIGHUP)){
+                    if(connector().connections().empty())
+                        return signal & (SIGTERM | SIGHUP);
+                    timeout() = duration_type(50);
+                    connector().drain() = 1;
+                }
+                return Base::_signal_handler(signal);
+            }
 
         private:
             connector_type _connector;

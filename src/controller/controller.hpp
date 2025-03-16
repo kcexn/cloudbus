@@ -34,9 +34,6 @@ namespace cloudbus{
                 controller(controller&& other) = delete;
                 controller& operator=(controller&& other) = delete;
                 controller& operator=(const controller& other) = delete;
-
-            protected:
-                virtual int _signal_handler(std::uint64_t signal) override;
         };
     }
 }

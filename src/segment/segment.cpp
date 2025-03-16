@@ -14,17 +14,7 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "segment.hpp"
-#include <csignal>
 namespace cloudbus{
     namespace segment{
-        int segment::_signal_handler(std::uint64_t signal){
-            if(signal & (SIGTERM | SIGHUP)){
-                if(connector().connections().empty())
-                    return signal & (SIGTERM | SIGHUP);
-                timeout() = duration_type(50);
-                connector().drain() = 1;
-            }
-            return 0;
-        }
     }
 }

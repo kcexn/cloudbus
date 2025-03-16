@@ -34,9 +34,6 @@ namespace cloudbus{
                 proxy(proxy&& other) = delete;
                 proxy& operator=(proxy&& other) = delete;
                 proxy& operator=(const proxy& other) = delete;
-
-            protected:
-                int _signal_handler(std::uint64_t signal) override;
         };
     }
 }

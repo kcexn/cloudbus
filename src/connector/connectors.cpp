@@ -25,15 +25,38 @@ namespace cloudbus {
         if(fcntl(fd, F_SETFL, flags | O_NONBLOCK))
             throw std::runtime_error("Unable to set the socket to nonblocking mode.");
         return fd;
-    }    
-    connector_base::connector_base(int mode):
+    }
+    connector_base::connector_base(int mode, const config::configuration::section& section):
         _north{}, _south{}, _connections{}, 
         _mode{mode}, _drain{0}
-    {}
-    interface_base::native_handle_type connector_base::make_north(const registry::address_type& address){
-        if(address.index() != registry::SOCKADDR)
+    {
+        std::string heading = section.heading;
+        std::transform(heading.begin(), heading.end(), heading.begin(), [](const unsigned char c){ return std::toupper(c); });
+        if(heading != "CLOUDBUS"){
+            for(const auto&[key, value]: section.config){
+                std::string k = key;
+                std::transform(k.begin(), k.end(), k.begin(), [](const unsigned char c){ return std::toupper(c); });
+                if(k == "BIND"){
+                    if(auto nfd = make_north(config::make_address(value)); nfd < 0)
+                        throw std::invalid_argument("Invalid bind address.");
+                } else if(k == "SERVER"){
+                    if(make_south(config::make_address(value)))
+                        throw std::invalid_argument("Invalid server address.");
+                } else if(k == "MODE"){
+                    std::string v = value;
+                    std::transform(v.begin(), v.end(), v.begin(), [](const unsigned char c){ return std::toupper(c); });
+                    if(v == "FULL DUPLEX")
+                        _mode = FULL_DUPLEX;
+                }
+            }
+            if(_mode == FULL_DUPLEX && south().size() > messages::CLOCK_SEQ_MAX)
+                throw std::invalid_argument("The service fanout ratio will overflow the UUID clock_seq.");
+        } else throw std::invalid_argument("A connector must be initialized with a service configuration.");
+    }
+    interface_base::native_handle_type connector_base::make_north(const config::address_type& address){
+        if(address.index() != config::SOCKADDR)
             return -1;
-        auto&[protocol, addr, addrlen] = std::get<registry::SOCKADDR>(address);
+        auto&[protocol, addr, addrlen] = std::get<config::SOCKADDR>(address);
         _north.push_back(std::make_shared<interface_base>(reinterpret_cast<const struct sockaddr*>(&addr), addrlen, protocol));
         if(protocol == "TCP" || protocol == "UNIX"){
             auto& hnd = _north.back()->make(addr.ss_family, SOCK_STREAM, 0);
@@ -50,22 +73,22 @@ namespace cloudbus {
         return -1;
     }
 
-    int connector_base::make_south(const registry::address_type& address){
+    int connector_base::make_south(const config::address_type& address){
         switch(address.index()){
-            case registry::SOCKADDR:
+            case config::SOCKADDR:
             {
-                auto&[protocol, addr, addrlen] = std::get<registry::SOCKADDR>(address);
+                auto&[protocol, addr, addrlen] = std::get<config::SOCKADDR>(address);
                 _south.push_back(std::make_shared<interface_base>(reinterpret_cast<const struct sockaddr*>(&addr), addrlen, protocol));
                 return 0;
             }
-            case registry::URL:
+            case config::URL:
             {
-                auto&[host, protocol] = std::get<registry::URL>(address);
+                auto&[host, protocol] = std::get<config::URL>(address);
                 _south.push_back(std::make_shared<interface_base>(host, protocol));
                 return 0;
             }
-            case registry::URN:
-                if(auto& urn = std::get<registry::URN>(address); !urn.empty()){
+            case config::URN:
+                if(auto& urn = std::get<config::URN>(address); !urn.empty()){
                     _south.push_back(std::make_shared<interface_base>(urn));
                     return 0;
                 }

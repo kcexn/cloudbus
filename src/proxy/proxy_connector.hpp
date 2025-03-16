@@ -26,7 +26,11 @@ namespace cloudbus {
             public:
                 using Base = basic_connector<proxy_marshaller, handler_type>;
 
-                proxy_connector(trigger_type& triggers);
+                proxy_connector(
+                    trigger_type& triggers,
+                    const config::configuration::section& section
+                ):
+                    Base(triggers, section){}
                 ~proxy_connector() = default;
 
                 proxy_connector() = delete;

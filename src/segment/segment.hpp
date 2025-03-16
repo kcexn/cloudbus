@@ -25,9 +25,11 @@ namespace cloudbus{
             public:
                 using Base = basic_node<segment_connector>;
                 
-                segment();
+                segment(const config::configuration::section& section):
+                    Base(section){}
                 virtual ~segment();
 
+                segment() = delete;
                 segment(const segment& other) = delete;
                 segment(segment&& other) = delete;
                 segment& operator=(segment&& other) = delete;

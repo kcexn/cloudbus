@@ -14,28 +14,12 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "segment.hpp"
-#include "../registry.hpp"
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
-#include <fstream>
 #include <csignal>
 namespace cloudbus{
     namespace segment{
-        segment::segment(): Base(){
-            std::string filename{"segment.ini"};
-            std::fstream f(filename, f.in);
-            if(!f.is_open()) throw std::runtime_error("Unable to open segment.ini");
-            std::string line{};
-            std::getline(f, line);
-            if(auto nfd = connector().make_north(registry::make_address(line)); nfd >= 0)
-                triggers().set(nfd, POLLIN);
-            else throw std::invalid_argument("Invalid configuration.");
-            line.clear();
-            std::getline(f,line);
-            if(connector().make_south(registry::make_address(line)))
-                throw std::invalid_argument("Invalid configuration.");
-        }
         segment::~segment() {
             for(auto& n: connector().north())
                 for(const auto&[addr, addrlen]: n->addresses())

@@ -13,22 +13,47 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
+#include <iostream>
 #include <string>
 #include <tuple>
 #include <variant>
+#include <vector>
 #include <sys/socket.h>
 #pragma once
-#ifndef CLOUDBUS_REGISTRY
-#define CLOUDBUS_REGISTRY
+#ifndef CLOUDBUS_CONFIG
+#define CLOUDBUS_CONFIG
 namespace cloudbus{
-    namespace registry {
+    namespace config {
         enum types { URN, URL, SOCKADDR };
         using socket_address = std::tuple<std::string, struct sockaddr_storage, socklen_t>;
         using url = std::tuple<std::string, std::string>;
         using address_type = std::variant<std::string, url, socket_address>;
         /* unix:///<PATH> */
         /* tcp://<IP>:<PORT> */
-        address_type make_address(const std::string& line);
+        address_type make_address(const std::string& line);        
+
+        class configuration {
+            public:
+                struct section {
+                    using kvp = std::tuple<std::string, std::string>;
+                    std::string heading;
+                    std::vector<kvp> config;
+                };
+                configuration();
+                configuration(const configuration& other);
+                configuration(configuration&& other);
+
+                const std::vector<section>& sections() const { return _sections; }
+
+                virtual ~configuration() = default;
+
+            private:
+                std::vector<section> _sections;
+
+                friend std::istream& operator>>(std::istream& is, configuration& config);
+                friend std::ostream& operator<<(std::ostream& os, const configuration& config);
+        };
+
     }
 }
 #endif

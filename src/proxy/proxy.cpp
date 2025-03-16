@@ -14,7 +14,6 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "proxy.hpp"
-#include "../registry.hpp"
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -22,31 +21,6 @@
 #include <csignal>
 namespace cloudbus{
     namespace proxy{
-        proxy::proxy(): Base(){
-            std::string filename{"proxy.ini"};
-            std::fstream f(filename, f.in);
-            if(!f.is_open()) throw std::runtime_error("Unable to open proxy.ini");
-            std::string line{};
-            std::getline(f, line);
-            if(auto nfd = connector().make_north(registry::make_address(line)); nfd >= 0)
-                triggers().set(nfd, POLLIN);
-            else throw std::invalid_argument("Invalid configuration.");
-            line.clear();
-            while(std::getline(f, line)){
-                if(connector().make_south(registry::make_address(line)))
-                    throw std::invalid_argument("Invalid configuration.");
-                line.clear();
-            }
-            std::string mode{};
-            if(auto *m = std::getenv("CLOUDBUS_SERVICE_MODE"); m != nullptr)
-                mode=std::string(m);
-            std::transform(mode.begin(), mode.end(), mode.begin(), [](const unsigned char c){ return std::toupper(c); });
-            if(!mode.empty() && mode=="FULL_DUPLEX"){
-                if(connector().south().size() > messages::CLOCK_SEQ_MAX)
-                    throw std::runtime_error("The service fanout ratio will overflow the UUID clock_seq.");
-                connector().mode() = connector_type::FULL_DUPLEX;
-            } else connector().mode() = connector_type::HALF_DUPLEX;
-        }
         proxy::~proxy() {
             for(auto& n: connector().north())
                 for(const auto&[addr, addrlen]: n->addresses())

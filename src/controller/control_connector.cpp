@@ -127,7 +127,6 @@ namespace cloudbus {
             } else it->revents |= POLLIN;
             return ev;
         }
-        control_connector::control_connector(trigger_type& triggers): Base(triggers){}
         control_connector::size_type control_connector::_handle(events_type& events){
             size_type handled = 0;
             for(auto ev = events.begin(); ev < events.end(); ++ev){

@@ -124,7 +124,6 @@ namespace cloudbus{
             return ev;
         }
 
-        proxy_connector::proxy_connector(trigger_type& triggers): Base(triggers){}
         proxy_connector::size_type proxy_connector::_handle(events_type& events){
             size_type handled = 0;
             for(auto ev=events.begin(); ev < events.end(); ++ev){

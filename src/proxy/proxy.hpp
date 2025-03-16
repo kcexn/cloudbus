@@ -25,9 +25,11 @@ namespace cloudbus{
             public:
                 using Base = basic_node<proxy_connector>;
                 
-                proxy();
+                proxy(const config::configuration::section& section):
+                    Base(section){}
                 virtual ~proxy();
 
+                proxy() = delete;
                 proxy(const proxy& other) = delete;
                 proxy(proxy&& other) = delete;
                 proxy& operator=(proxy&& other) = delete;

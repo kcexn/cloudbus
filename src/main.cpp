@@ -13,6 +13,9 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
+#include "config.hpp"
+#include <algorithm>
+#include <fstream>
 #ifdef COMPILE_CONTROLLER
     #include "controller/controller.hpp"
 #endif
@@ -24,14 +27,33 @@
 #endif
 
 int main(int argc, char* argv[]) {
+    std::string path;
     #ifdef COMPILE_CONTROLLER
-        return cloudbus::controller::controller().run();
+        path = "controller.ini";
     #endif
     #ifdef COMPILE_SEGMENT
-        return cloudbus::segment::segment().run();
+        path = "segment.ini";
     #endif
     #ifdef COMPILE_PROXY
-        return cloudbus::proxy::proxy().run();
+        path = "proxy.ini";
     #endif
+    std::fstream f{path, f.in};
+    cloudbus::config::configuration config;
+    f >> config;
+    for(const auto& section: config.sections()){
+        std::string heading = section.heading;
+        std::transform(heading.begin(), heading.end(), heading.begin(), [](const unsigned char c){ return std::toupper(c); });
+        if(heading != "CLOUDBUS"){
+            #ifdef COMPILE_CONTROLLER
+                return cloudbus::controller::controller(section).run();
+            #endif
+            #ifdef COMPILE_SEGMENT
+                return cloudbus::segment::segment(section).run();
+            #endif
+            #ifdef COMPILE_PROXY
+                return cloudbus::proxy::proxy(section).run();
+            #endif
+        }
+    }
     return 0;
 }

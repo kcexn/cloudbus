@@ -13,7 +13,7 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
-#include "registry.hpp"
+#include "config.hpp"
 #include <algorithm>
 #include <string_view>
 #include <charconv>
@@ -25,7 +25,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 namespace cloudbus{
-    namespace registry {
+    namespace config {
         enum hostname_types { HOSTNAME_ERROR, IPV4, IPV6, HOSTNAME };
         static std::string_view _path(const char *c, std::size_t len){
             if(c == nullptr) return std::string_view();
@@ -185,19 +185,69 @@ namespace cloudbus{
             } else return address_type();
         }
         static address_type make_urn(const std::string& line){
-            if(line.empty())
-                return address_type();
             auto it = std::find_if(line.cbegin(), line.cend(), [](const unsigned char c){ return std::isspace(c); });
             return address_type(std::string(line.cbegin(), it));
         }
         address_type make_address(const std::string& line){
             std::string protocol{_protocol(line.data(), line.size())};
             if(protocol.empty())
-                return make_urn(line);
+                return address_type();
             std::transform(protocol.begin(), protocol.end(), protocol.begin(), [](const unsigned char c){ return std::toupper(c); });
             if(protocol == "UNIX" || protocol=="TCP" || protocol=="UDP" || protocol == "SCTP")
                 return make_address(line, std::move(protocol));
-            else return make_urn(line);
+            else if(protocol == "URN")
+                return make_urn(line);
+            else return address_type();
+        }
+
+        configuration::configuration():
+            _sections{}{}
+        configuration::configuration(const configuration& other):
+            _sections{other._sections}{}
+        configuration::configuration(configuration&& other):
+            _sections(std::move(other._sections)){}
+
+        std::istream& operator>>(std::istream& is, configuration& config){
+            auto& sections = config._sections;
+            sections.clear();
+            std::string line;
+            while(std::getline(is, line)){
+                auto start = std::find_if(line.begin(), line.end(), [](const unsigned char c){ return !std::isspace(c); });
+                std::string_view entry(&*start, line.end()-start);
+                if(entry.size() == 0)
+                    continue;
+                if(entry.front() == '['){
+                    auto end = std::find(entry.cbegin()+1, entry.cend(), ']');
+                    if(end == entry.cend())
+                        continue;
+                    while(std::isspace(*(--end)));
+                    auto& section = sections.emplace_back();
+                    section.heading = std::string(entry.cbegin()+1, ++end);
+                } else if(!sections.empty()){
+                    auto& section = sections.back();
+                    auto& config = section.config;
+                    auto delim = std::find(entry.cbegin(), entry.cend(), '=');
+                    if(delim == entry.cend())
+                        continue;
+                    auto sval = std::find_if(delim+1, entry.cend(), [](const unsigned char c){ return !std::isspace(c); });
+                    if(sval == entry.cend())
+                        continue;
+                    auto end = entry.cend();
+                    while(std::isspace(*(--end)));
+                    while(std::isspace(*(--delim)));
+                    config.emplace_back(std::string(entry.cbegin(), ++delim), std::string(sval, ++end));
+                }
+            }
+            return is;
+        }
+        std::ostream& operator<<(std::ostream& os, const configuration& config){
+            for(auto& section: config._sections){
+                os << '[' << section.heading << "]\n";
+                for(auto&[key, value]: section.config)
+                    os << key << '=' << value << '\n';
+                os << '\n';
+            }
+            return os;
         }
     }
 }

@@ -25,9 +25,11 @@ namespace cloudbus{
             public:
                 using Base = basic_node<control_connector>;
                 
-                controller();
+                controller(const config::configuration::section& section):
+                    Base(section){}
                 virtual ~controller();
 
+                controller() = delete;
                 controller(const controller& other) = delete;
                 controller(controller&& other) = delete;
                 controller& operator=(controller&& other) = delete;

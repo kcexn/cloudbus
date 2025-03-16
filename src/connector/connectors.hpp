@@ -13,7 +13,7 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
-#include "../registry.hpp"
+#include "../config.hpp"
 #include "../interfaces.hpp"
 #include "../messages.hpp"
 #include <memory>
@@ -58,12 +58,12 @@ namespace cloudbus {
             using connections_type = std::vector<connection_type>;
             enum modes {HALF_DUPLEX, FULL_DUPLEX};
            
-            connector_base():
-                connector_base(0){}
-            explicit connector_base(int mode);
+            connector_base(const config::configuration::section& section):
+                connector_base(HALF_DUPLEX, section){}
+            explicit connector_base(int mode, const config::configuration::section& section);
 
-            interface_base::native_handle_type make_north(const registry::address_type& address);
-            int make_south(const registry::address_type& address);
+            interface_base::native_handle_type make_north(const config::address_type& address);
+            int make_south(const config::address_type& address);
 
             interfaces& north() { return _north; }
             interfaces& south() { return _south; }
@@ -73,6 +73,7 @@ namespace cloudbus {
 
             virtual ~connector_base() = default;
 
+            connector_base() = delete;
             connector_base(const connector_base& other) = delete;
             connector_base(connector_base&& other) = delete;
             connector_base& operator=(const connector_base& other) = delete;
@@ -93,8 +94,13 @@ namespace cloudbus {
 
             using trigger_type = typename handler_type::trigger_type;
 
-            connector_handler(trigger_type& triggers):
-                _triggers{triggers}{}
+            connector_handler(trigger_type& triggers, const config::configuration::section& section):
+                ConnectorBase(section), _triggers{triggers}
+            {
+                const auto& hnd = north().front()->streams().front();
+                auto sockfd = std::get<interface_base::native_handle_type>(*hnd);
+                triggers.set(sockfd, POLLIN);
+            }
 
             trigger_type& triggers() { return _triggers; }
 
@@ -147,8 +153,11 @@ namespace cloudbus {
             using south_type = typename MarshallerBase::south_type;
             using shared_south = typename MarshallerBase::shared_south;
 
-            basic_connector(trigger_type& triggers):
-                HandlerBase(triggers){}
+            basic_connector(
+                trigger_type& triggers,
+                const config::configuration::section& section
+            ):
+                HandlerBase(triggers, section){}
 
             int route(
                 typename marshaller_type::north_format& buf,

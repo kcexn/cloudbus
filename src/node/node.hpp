@@ -14,6 +14,7 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "../io.hpp"
+#include "../config.hpp"
 #pragma once
 #ifndef CLOUDBUS_NODE
 #define CLOUDBUS_NODE
@@ -23,7 +24,6 @@ namespace cloudbus{
         public:
             using Base = handler_type;
             using duration_type = trigger_type::duration_type;
-            
             
             node_base():
                 node_base(duration_type{-1}){}
@@ -54,12 +54,14 @@ namespace cloudbus{
             using Base = node_base;
             using connector_type = ConnectorT;
 
-            basic_node(): _connector{triggers()}{}
+            basic_node(const config::configuration::section& section):
+                _connector(triggers(), section){}
 
             connector_type& connector() { return _connector; }
 
             virtual ~basic_node() = default;
 
+            basic_node() = delete;
             basic_node(basic_node&& other) = delete;
             basic_node(const basic_node& other) = delete;
             basic_node& operator=(basic_node&& other) = delete;

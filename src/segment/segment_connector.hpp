@@ -26,7 +26,11 @@ namespace cloudbus {
             public:
                 using Base = basic_connector<segment_marshaller, handler_type>;
 
-                segment_connector(trigger_type& triggers);
+                segment_connector(
+                    trigger_type& triggers,
+                    const config::configuration::section& section
+                ):
+                    Base(triggers, section){}
                 ~segment_connector() = default;
 
                 segment_connector() = delete;

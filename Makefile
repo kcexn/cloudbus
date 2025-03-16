@@ -10,10 +10,10 @@ COMPONENTS= io \
 	messages \
 	interfaces \
 	segment \
-	registry \
 	proxy \
 	connector \
-	node
+	node \
+	config
 VPATH=$(addprefix $(SRC)/,$(COMPONENTS))
 CPPFLAGS = -Wall \
 	-Wpedantic \
@@ -25,9 +25,9 @@ COMMON = poller \
 	messages \
 	sockstream \
 	interfaces \
-	registry \
 	connectors \
-	node
+	node \
+	config
 CONTROLLER := $(COMMON) \
 	control_connector \
 	control_marshallers \

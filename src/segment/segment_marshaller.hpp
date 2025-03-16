@@ -24,17 +24,6 @@ namespace cloudbus{
         {
             public:
                 using Base = basic_marshaller<cbus_interface, service_interface>;
-                using north_type = Base::north_type;
-                using north_ptr = Base::north_ptr;
-                using north_format = Base::north_format;
-                using north_buffer = Base::north_buffer;
-                using north_buffers = Base::north_buffers;
-                
-                using south_type = Base::south_type;
-                using south_ptr = Base::south_ptr;
-                using south_format = Base::south_format;
-                using south_buffer = Base::south_buffer;
-                using south_buffers = Base::south_buffers;
 
             protected:
                 virtual north_buffers::iterator _unmarshal(const north_type::handle_ptr& stream) override;

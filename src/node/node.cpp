@@ -76,7 +76,7 @@ namespace cloudbus{
                 if(handled == trigger_type::npos)
                     return notify_pipe ? notice : signal;
                 if(++i == FAIRNESS){
-                    filter_events(events);
+                    n = filter_events(events);
                     if((i = triggers().wait()) != trigger_type::npos){
                         for(const auto& e: triggers().events()){
                             if(e.revents && i--){
@@ -85,13 +85,12 @@ namespace cloudbus{
                                         ev.revents |= e.revents;
                                     return e.fd==ev.fd;
                                 });
-                                if(it == events.end())
+                                if(it == events.end() && ++n)
                                     events.push_back(e);
                             }
                             if(!i) break;
                         }
                     } else return notify_pipe ? notice : signal;
-                    n = events.size();
                     if(notify_pipe && check_for_signal(events, n, notify_pipe, notice))
                         return notice;
                     if(auto status = notify_pipe ? signal_handler(notice) : signal_handler(signal))

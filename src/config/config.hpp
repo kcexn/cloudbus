@@ -43,6 +43,9 @@ namespace cloudbus{
                 configuration(const configuration& other);
                 configuration(configuration&& other);
 
+                configuration& operator=(const configuration& other);
+                configuration& operator=(configuration&& other);
+
                 const std::vector<section>& sections() const { return _sections; }
 
                 virtual ~configuration() = default;

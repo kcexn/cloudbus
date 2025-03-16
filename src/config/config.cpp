@@ -206,6 +206,14 @@ namespace cloudbus{
             _sections{other._sections}{}
         configuration::configuration(configuration&& other):
             _sections(std::move(other._sections)){}
+        configuration& configuration::operator=(const configuration& other){
+            _sections = other._sections;
+            return *this;
+        }
+        configuration& configuration::operator=(configuration&& other){
+            _sections = std::move(other._sections);
+            return *this;
+        }
 
         std::istream& operator>>(std::istream& is, configuration& config){
             auto& sections = config._sections;
@@ -221,8 +229,7 @@ namespace cloudbus{
                     if(end == entry.cend())
                         continue;
                     while(std::isspace(*(--end)));
-                    auto& section = sections.emplace_back();
-                    section.heading = std::string(entry.cbegin()+1, ++end);
+                    sections.emplace_back().heading = std::string(entry.cbegin()+1, ++end);
                 } else if(!sections.empty()){
                     auto& section = sections.back();
                     auto& config = section.config;

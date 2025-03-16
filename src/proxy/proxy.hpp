@@ -27,7 +27,7 @@ namespace cloudbus{
                 
                 proxy(const config::configuration::section& section):
                     Base(section){}
-                virtual ~proxy();
+                virtual ~proxy() = default;
 
                 proxy() = delete;
                 proxy(const proxy& other) = delete;

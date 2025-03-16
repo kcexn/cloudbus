@@ -27,7 +27,7 @@ namespace cloudbus{
                 
                 segment(const config::configuration::section& section):
                     Base(section){}
-                virtual ~segment();
+                virtual ~segment() = default;
 
                 segment() = delete;
                 segment(const segment& other) = delete;

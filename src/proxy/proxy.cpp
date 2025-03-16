@@ -14,19 +14,9 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "proxy.hpp"
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <unistd.h>
-#include <fstream>
 #include <csignal>
 namespace cloudbus{
     namespace proxy{
-        proxy::~proxy() {
-            for(auto& n: connector().north())
-                for(const auto&[addr, addrlen]: n->addresses())
-                    if(addr.ss_family == AF_UNIX)
-                        unlink(reinterpret_cast<const struct sockaddr_un*>(&addr)->sun_path);
-        }
         int proxy::_signal_handler(std::uint64_t signal){
             if(signal & (SIGTERM | SIGHUP)){
                 if(connector().connections().empty())

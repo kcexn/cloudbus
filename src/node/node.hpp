@@ -15,6 +15,8 @@
 */
 #include "../io.hpp"
 #include "../config.hpp"
+#include <sys/un.h>
+#include <unistd.h>
 #pragma once
 #ifndef CLOUDBUS_NODE
 #define CLOUDBUS_NODE
@@ -59,7 +61,12 @@ namespace cloudbus{
 
             connector_type& connector() { return _connector; }
 
-            virtual ~basic_node() = default;
+            virtual ~basic_node() {
+                for(auto& n: _connector.north())
+                    for(const auto&[addr, addrlen]: n->addresses())
+                        if(addr.ss_family == AF_UNIX)
+                            unlink(reinterpret_cast<const struct sockaddr_un*>(&addr)->sun_path);
+            }
 
             basic_node() = delete;
             basic_node(basic_node&& other) = delete;

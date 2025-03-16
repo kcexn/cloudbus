@@ -15,18 +15,9 @@
 */
 #include "controller.hpp"
 #include "../config.hpp"
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <unistd.h>
 #include <csignal>
 namespace cloudbus{
     namespace controller{
-        controller::~controller(){
-            for(auto& n: connector().north())
-                for(const auto&[addr, addrlen]: n->addresses())
-                    if(addr.ss_family == AF_UNIX)
-                        unlink(reinterpret_cast<const struct sockaddr_un*>(&addr)->sun_path);
-        }
         int controller::_signal_handler(std::uint64_t signal){
             if(signal & (SIGTERM | SIGHUP)){
                 if(connector().connections().empty())

@@ -14,18 +14,9 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "segment.hpp"
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <unistd.h>
 #include <csignal>
 namespace cloudbus{
     namespace segment{
-        segment::~segment() {
-            for(auto& n: connector().north())
-                for(const auto&[addr, addrlen]: n->addresses())
-                    if(addr.ss_family == AF_UNIX)
-                        unlink(reinterpret_cast<const struct sockaddr_un*>(&addr)->sun_path);
-        }
         int segment::_signal_handler(std::uint64_t signal){
             if(signal & (SIGTERM | SIGHUP)){
                 if(connector().connections().empty())

@@ -27,7 +27,7 @@ namespace cloudbus{
                 
                 controller(const config::configuration::section& section):
                     Base(section){}
-                virtual ~controller();
+                virtual ~controller() = default;
 
                 controller() = delete;
                 controller(const controller& other) = delete;

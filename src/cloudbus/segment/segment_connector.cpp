@@ -151,6 +151,7 @@ namespace cloudbus{
         int connector::_route(marshaller_type::north_format& buf, const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
             constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
             const auto&[nfd, nsp] = *stream;
+            const auto eof = nsp->eof();
             const auto *eid = buf.eid();
             if(const auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
                 const std::streamsize seekpos = 
@@ -158,6 +159,7 @@ namespace cloudbus{
                         ? HDRLEN 
                         : static_cast<std::streamsize>(buf.tellg());
                 const std::streamsize pos = buf.tellp();
+                const auto rem = buf.len()->length - pos;
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                     if(auto n = conn->north.lock(); conn->uuid == *eid && n && n == nsp){
                         if(auto s = conn->south.lock()){
@@ -167,27 +169,27 @@ namespace cloudbus{
                                 if(pos > seekpos && !_north_write(s, buf))
                                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                             }
-                        } 
-                        if(pos == buf.len()->length){
+                        }
+                        if(!rem){
                             state_update(*conn, *type, connection_type::clock_type::now());
                             buf.setstate(std::ios_base::eofbit);
                         }
                         if(conn->state == connection_type::CLOSED)
                             conn = connections().erase(conn);
-                        if(nsp->eof())
+                        if(eof)
                             return -1;
                         return 0;
                     }
                 }
-                if(!buf.eof() && buf.tellg() <= HDRLEN){
+                if(!eof && !buf.eof() && seekpos==HDRLEN){
                     buf.seekg(HDRLEN);
                     if(pos > HDRLEN && !north_connect(interface, nsp, buf))
                         return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                 }
-                if(pos == buf.len()->length)
+                if(!rem)
                     buf.setstate(std::ios_base::eofbit);
             }
-            if(nsp->eof())
+            if(eof)
                 return -1;
             return 0;
         }

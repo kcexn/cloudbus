@@ -228,15 +228,12 @@ namespace cloudbus {
                             triggers().set(n->native_handle(), POLLOUT);
                             if(pos > seekpos && !_south_write(n, buf))
                                 return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
-                            if(!buf.eof() && buf.tellg()==buf.len()->length)
-                                buf.setstate(std::ios_base::eofbit);
-                            if(seekpos == HDRLEN){
-                                state_update(*conn, *type, time);
+                            if(mode() == HALF_DUPLEX && conn->state==connection_type::HALF_OPEN && seekpos == HDRLEN && pos > seekpos){
                                 messages::msgheader stop = {
                                     *eid, {1, sizeof(stop)},
                                     {0,0},{messages::STOP, 0}
                                 };
-                                for(auto c=connections().begin(); c < connections().end() && c->state < connection_type::HALF_CLOSED && Base::mode() == Base::HALF_DUPLEX; ++c){
+                                for(auto c=connections().begin(); c < connections().end() && c->state < connection_type::HALF_CLOSED; ++c){
                                     // This is a very awkward way to do this, but I have implemented it like this to keep 
                                     // open the option of implementing UDP transport. With unreliable transports, it is 
                                     // necessary to retry control messages until after the remote end sends back an ACK.
@@ -248,11 +245,17 @@ namespace cloudbus {
                                     }
                                 }
                             }
-                            break;
+                            if(pos == buf.len()->length){
+                                state_update(*conn, *type, time);
+                                buf.setstate(std::ios_base::eofbit);
+                            }
+                            if(ssp->eof())
+                                return -1;
+                            return 0;
                         } else conn = connections().erase(conn);
                     } else ++conn;
                 }
-                if(!buf.eof() && pos==buf.len()->length)
+                if(pos==buf.len()->length)
                     buf.setstate(std::ios_base::eofbit);
             }
             if(ssp->eof()) return -1;

@@ -161,21 +161,22 @@ namespace cloudbus{
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                     if(auto n = conn->north.lock(); conn->uuid == *eid && n && n == nsp){
                         if(auto s = conn->south.lock()){
-                            if(conn->state==connection_type::HALF_CLOSED && !s->eof()){
-                                if(!buf.eof() && pos==buf.len()->length)
-                                    buf.setstate(std::ios_base::eofbit);
-                            } else {
+                            if(conn->state <= connection_type::HALF_CLOSED){
                                 buf.seekg(seekpos);
                                 triggers().set(s->native_handle(), POLLOUT);
                                 if(pos > seekpos && !_north_write(s, buf))
                                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
-                                if(!buf.eof() && buf.tellg() == buf.len()->length)
-                                    buf.setstate(std::ios_base::eofbit);
-                                if(seekpos == HDRLEN)
-                                    state_update(*conn, *type, connection_type::clock_type::now());
                             }
-                        } else connections().erase(conn);
-                        goto EXIT;
+                        } 
+                        if(pos == buf.len()->length){
+                            state_update(*conn, *type, connection_type::clock_type::now());
+                            buf.setstate(std::ios_base::eofbit);
+                        }
+                        if(conn->state == connection_type::CLOSED)
+                            conn = connections().erase(conn);
+                        if(nsp->eof())
+                            return -1;
+                        return 0;
                     }
                 }
                 if(!buf.eof() && buf.tellg() <= HDRLEN){
@@ -183,11 +184,8 @@ namespace cloudbus{
                     if(pos > HDRLEN && !north_connect(interface, nsp, buf))
                         return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                 }
-        EXIT:
-                if(!buf.eof() && buf.tellg()==buf.len()->length){
+                if(pos == buf.len()->length)
                     buf.setstate(std::ios_base::eofbit);
-                    return 0;
-                }
             }
             if(nsp->eof())
                 return -1;
@@ -325,15 +323,15 @@ namespace cloudbus{
             for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto s = conn->south.lock(); s && s == ssp){
                     if(auto n = conn->north.lock()){
-                        const messages::msgheader head = {
-                            conn->uuid, {1, sizeof(head)},
-                            {0,0},{messages::STOP, 0}
-                        };
                         if(conn->state < connection_type::HALF_CLOSED || (!s->eof() && conn->state == connection_type::HALF_CLOSED)){
+                            const messages::msgheader head = {
+                                conn->uuid, {1, sizeof(head)},
+                                {0,0},{messages::STOP, 0}
+                            };
                             n->write(reinterpret_cast<const char*>(&head), sizeof(head));
                             triggers().set(n->native_handle(), POLLOUT);
+                            state_update(*conn, head.type, connection_type::clock_type::now());
                         }
-                        state_update(*conn, head.type, connection_type::clock_type::now());
                         if(conn->state == connection_type::CLOSED)
                             conn = --connections().erase(conn);
                         break;

@@ -18,13 +18,13 @@
 #include <algorithm>
 #include <fstream>
 #ifdef COMPILE_CONTROLLER
-    #include "controller/controller_connector.hpp"
+    #include "cloudbus/controller/controller_connector.hpp"
 #endif
 #ifdef COMPILE_SEGMENT
-    #include "segment/segment_connector.hpp"
+    #include "cloudbus/segment/segment_connector.hpp"
 #endif
 #ifdef COMPILE_PROXY
-    #include "proxy/proxy_connector.hpp"
+    #include "cloudbus/proxy/proxy_connector.hpp"
 #endif
 
 int main(int argc, char* argv[]) {

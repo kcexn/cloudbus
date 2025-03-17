@@ -2,29 +2,29 @@
 *   Copyright 2025 Kevin Exton
 *   This file is part of Cloudbus.
 *
-*  Cloudbus is free software: you can redistribute it and/or modify it under the 
+*   Cloudbus is free software: you can redistribute it and/or modify it under the 
 *   terms of the GNU Affero General Public License as published by the Free Software 
 *   Foundation, either version 3 of the License, or any later version.
 *
-*  Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
+*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
 *   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
 *   See the GNU Affero General Public License for more details.
 *
-*  You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
+*   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
-#include "proxy_marshaller.hpp"
-#include "../io.hpp"
-#include "../connectors.hpp"
+#include "segment_marshaller.hpp"
+#include "../../io.hpp"
+#include "../../connectors.hpp"
 #pragma once
-#ifndef CLOUDBUS_PROXY_CONNECTOR
-#define CLOUDBUS_PROXY_CONNECTOR
+#ifndef CLOUDBUS_SEGMENT_CONNECTOR
+#define CLOUDBUS_SEGMENT_CONNECTOR
 namespace cloudbus {
-    namespace proxy {
-        class connector: public basic_connector<proxy::marshaller, handler_type>
+    namespace segment {
+        class connector: public basic_connector<segment::marshaller, handler_type>
         {
             public:
-                using Base = basic_connector<proxy::marshaller, handler_type>;
+                using Base = basic_connector<segment::marshaller, handler_type>;
 
                 connector(
                     trigger_type& triggers,
@@ -47,15 +47,16 @@ namespace cloudbus {
 
             private:
                 void _north_err_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents);
+                std::streamsize _north_write(const south_type::stream_ptr& s, marshaller_type::north_format& buf);
                 int _north_pollin_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents);
                 int _north_accept_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents);
-                void _north_state_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents);
                 int _north_pollout_handler(const north_type::handle_ptr& stream, event_mask& revents);
                 size_type _handle(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents);
 
                 void _south_err_handler(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents);
+                std::streamsize _south_write(const north_type::stream_ptr& n, const connection_type& conn, marshaller_type::south_format& buf);
                 int _south_pollin_handler(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents);
-                int _south_state_handler(const south_type::handle_ptr& stream);
+                void _south_state_handler(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents);
                 int _south_pollout_handler(const south_type::handle_ptr& stream, event_mask& revents);
                 size_type _handle(const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents);
         };

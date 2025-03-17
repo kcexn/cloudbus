@@ -14,8 +14,8 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "controller_marshaller.hpp"
-#include "../connectors.hpp"
-#include "../io.hpp"
+#include "../../connectors.hpp"
+#include "../../io.hpp"
 
 #pragma once
 #ifndef CLOUDBUS_CONTROLLER_CONNECTOR

@@ -23,18 +23,18 @@ namespace cloudbus{
         static constexpr std::uint16_t VARIANT = 0x8000;
         uuid make_uuid_v4(){
             std::ifstream urandom("/dev/urandom", std::ios::in|std::ios::binary);
-            constexpr std::uint16_t VERSION = 0x4000;
+            constexpr std::uint16_t UUID_VERSION = 0x4000;
             uuid tmp;
             urandom.read(reinterpret_cast<char*>(&tmp), sizeof(uuid));
             tmp.time_high_version &= TIME_HIGH_MAX;
-            tmp.time_high_version |= VERSION;
+            tmp.time_high_version |= UUID_VERSION;
             tmp.clock_seq_reserved &= CLOCK_SEQ_MAX;
             tmp.clock_seq_reserved |= VARIANT;
             return tmp;
         }
         uuid make_uuid_v7(){
             std::ifstream urandom("/dev/urandom", std::ios::in|std::ios::binary);
-            constexpr std::uint16_t VERSION = 0x7000;
+            constexpr std::uint16_t UUID_VERSION = 0x7000;
             constexpr std::uint64_t TIME_LOW_MASK = UINT32_MAX, TIME_MID_MASK = UINT16_MAX;
             uuid tmp;
             auto timepoint = std::chrono::system_clock::now().time_since_epoch();
@@ -44,7 +44,7 @@ namespace cloudbus{
             char *start = reinterpret_cast<char*>(&tmp) + offsetof(uuid, time_high_version);
             urandom.read(start, sizeof(uuid) - offsetof(uuid, time_high_version));
             tmp.time_high_version &= TIME_HIGH_MAX;
-            tmp.time_high_version |= VERSION;
+            tmp.time_high_version |= UUID_VERSION;
             tmp.clock_seq_reserved &= CLOCK_SEQ_MAX;
             tmp.clock_seq_reserved |= VARIANT;
             return tmp;

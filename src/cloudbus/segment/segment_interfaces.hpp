@@ -1,5 +1,5 @@
-/*     
-*   Copyright 2025 Kevin Exton
+/* 
+*   Copyright 2025 Kevin ExtonGNU Affero General Public License
 *   This file is part of Cloudbus.
 *
 *   Cloudbus is free software: you can redistribute it and/or modify it under the 
@@ -13,88 +13,87 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
-#include "../interfaces.hpp"
+#include "../../interfaces.hpp"
 #pragma once
-#ifndef CLOUDBUS_PROXY_INTERFACES
-#define CLOUDBUS_PROXY_INTERFACES
+#ifndef CLOUDBUS_SEGMENT_INTERFACES
+#define CLOUDBUS_SEGMENT_INTERFACES
 namespace cloudbus{
-    namespace proxy {
-        class cs_north : public cs_interface {
+    namespace segment {
+        class cbus_interface : public cs_interface {
             public:
                 using Base = cs_interface;
-
-                cs_north():
-                    cs_north(addresses_type()){}
-                cs_north(const std::string& urn):
-                    cs_north(addresses_type(), urn){}
-                cs_north(const std::string& url, const std::string& protocol):
-                    cs_north(addresses_type(), url, protocol){}
-                explicit cs_north(
+                cbus_interface():
+                    cbus_interface(addresses_type()){}
+                cbus_interface(const std::string& urn):
+                    cbus_interface(addresses_type(), urn){}
+                cbus_interface(const std::string& url, const std::string& protocol):
+                    cbus_interface(addresses_type(), url, protocol){}
+                explicit cbus_interface(
                     const struct sockaddr *addr,
                     socklen_t addrlen,
                     const std::string& protocol,
                     const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
                 ): Base(addr, addrlen, protocol, uri, ttl){}
-                explicit cs_north(
+                explicit cbus_interface(
                     const addresses_type& addresses,
                     const std::string& protocol=std::string(),
                     const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
                 ): Base(addresses, protocol, uri, ttl){}
-                explicit cs_north(
+                explicit cbus_interface(
                     addresses_type&& addresses,
                     const std::string& protocol=std::string(),
                     const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
                 ): Base(std::move(addresses), protocol, uri, ttl){}
-                cs_north& operator=(cs_north&& other){
+                cbus_interface& operator=(cbus_interface&& other){
                     Base::operator=(std::move(other));
                     return *this;
                 }
 
-                ~cs_north() = default;
+                ~cbus_interface() = default;
 
-                cs_north(const cs_north& other) = delete;
-                cs_north& operator=(const cs_north& other) = delete;                        
+                cbus_interface(const cbus_interface& other) = delete;
+                cbus_interface& operator=(const cbus_interface& other) = delete;                        
         };
-        class cs_south : public cs_interface {
+        class service_interface : public ss_interface {
             public:
-                using Base = cs_interface;
-                cs_south():
-                    cs_south(addresses_type()){}
-                cs_south(const std::string& urn):
-                    cs_south(addresses_type(), urn){}
-                cs_south(const std::string& url, const std::string& protocol):
-                    cs_south(addresses_type(), url, protocol){}
-                explicit cs_south(
+                using Base = ss_interface;
+                service_interface():
+                    service_interface(addresses_type()){}
+                service_interface(const std::string& urn):
+                    service_interface(addresses_type(), urn){}
+                service_interface(const std::string& url, const std::string& protocol):
+                    service_interface(addresses_type(), url, protocol){}
+                explicit service_interface(
                     const struct sockaddr *addr,
                     socklen_t addrlen,
                     const std::string& protocol,
                     const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
                 ): Base(addr, addrlen, protocol, uri, ttl){}
-                explicit cs_south(
+                explicit service_interface(
                     const addresses_type& addresses,
                     const std::string& protocol=std::string(),
                     const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
                 ): Base(addresses, protocol, uri, ttl){}
-                explicit cs_south(
+                explicit service_interface(
                     addresses_type&& addresses,
                     const std::string& protocol=std::string(),
                     const std::string& uri=std::string(),
                     const duration_type& ttl=duration_type(-1)
                 ): Base(std::move(addresses), protocol, uri, ttl){}
-                cs_south& operator=(cs_south&& other){
+                service_interface& operator=(service_interface&& other){
                     Base::operator=(std::move(other));
                     return *this;
                 }
 
-                ~cs_south() = default;
+                ~service_interface() = default;
 
-                cs_south(const cs_south& other) = delete;
-                cs_south& operator=(const cs_south& other) = delete;                    
+                service_interface(const service_interface& other) = delete;
+                service_interface& operator=(const service_interface& other) = delete;                    
         };
     }
 }

@@ -1,6 +1,8 @@
+sysconf_DATA = controller.ini segment.ini
 SOURCEDIR = src
+AM_CXXFLAGS = -DSYSCONFDIR=\"@sysconfdir@\"
 SUBDIRS = $(SOURCEDIR)
-bin_PROGRAMS = controller segment proxy
+bin_PROGRAMS = controller segment
 
 LDADD = $(SOURCEDIR)/libcbutils.a
 CONTROLLER_CPPSOURCES = $(SOURCEDIR)/cloudbus/controller/controller_connector.cpp \
@@ -19,17 +21,7 @@ SEGMENT_CPPHEADERS = $(SOURCEDIR)/cloudbus/segment/segment_connector.hpp \
     $(SOURCEDIR)/cloudbus/segment/segment_marshaller.hpp \
     $(SOURCEDIR)/cloudbus/segment/segment_interfaces.hpp
 
-PROXY_CPPSOURCES = $(SOURCEDIR)/cloudbus/proxy/proxy_connector.cpp \
-    $(SOURCEDIR)/cloudbus/proxy/proxy_marshaller.cpp \
-    $(SOURCEDIR)/main.cpp
-    
-PROXY_CPPHEADERS = $(SOURCEDIR)/cloudbus/proxy/proxy_connector.hpp \
-    $(SOURCEDIR)/cloudbus/proxy/proxy_marshaller.hpp \
-    $(SOURCEDIR)/cloudbus/proxy/proxy_interfaces.hpp
-
 controller_SOURCES = $(CONTROLLER_CPPSOURCES) $(CONTROLLER_CPPHEADERS)
-controller_CXXFLAGS = -D COMPILE_CONTROLLER
+controller_CXXFLAGS = -D COMPILE_CONTROLLER $(AM_CXXFLAGS)
 segment_SOURCES = $(SEGMENT_CPPSOURCES) $(SEGMENT_CPPHEADERS)
-segment_CXXFLAGS = -D COMPILE_SEGMENT
-proxy_SOURCES = $(PROXY_CPPSOURCES) $(PROXY_CPPHEADERS)
-proxy_CXXFLAGS = -D COMPILE_PROXY
+segment_CXXFLAGS = -D COMPILE_SEGMENT $(AM_CXXFLAGS)

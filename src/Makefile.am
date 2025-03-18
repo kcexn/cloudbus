@@ -1,4 +1,5 @@
 
+ARFLAGS = cr
 noinst_LIBRARIES = libcbutils.a
 
 COMMON_CPPSOURCES = config/config.cpp \

@@ -44,8 +44,8 @@ namespace cloudbus{
             std::uint16_t length; // number of bytes in this envelope.
         } msglen; // 4 bytes.
         typedef struct {
-            std::uint8_t no; // 8 bit version number.
-            std::uint8_t flags; // 8 bits of flags for variations.
+            std::uint8_t major;
+            std::uint8_t minor;
         } msgversion;
         enum types : std::uint8_t {
             DATA,

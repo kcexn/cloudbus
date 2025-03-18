@@ -29,14 +29,19 @@
 
 int main(int argc, char* argv[]) {
     std::string path;
+    #ifdef SYSCONFDIR
+        path = SYSCONFDIR;
+    #else
+        path = ".";
+    #endif
     #ifdef COMPILE_CONTROLLER
-        path = "controller.ini";
+        path += "/controller.ini";
     #endif
     #ifdef COMPILE_SEGMENT
-        path = "segment.ini";
+        path += "/segment.ini";
     #endif
     #ifdef COMPILE_PROXY
-        path = "proxy.ini";
+        path += "/proxy.ini";
     #endif
     std::fstream f{path, f.in};
     cloudbus::config::configuration config;

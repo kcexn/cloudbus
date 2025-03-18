@@ -1,0 +1,5 @@
+[Cloudbus]
+
+[Service0]
+bind=unix:///home/kcexton01/cloudbus/build/ssh
+server=tcp://127.0.0.1:22

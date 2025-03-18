@@ -29,8 +29,8 @@
 
 int main(int argc, char* argv[]) {
     std::string path;
-    #ifdef SYSCONFDIR
-        path = SYSCONFDIR;
+    #ifdef CONFDIR
+        path = CONFDIR;
     #else
         path = ".";
     #endif

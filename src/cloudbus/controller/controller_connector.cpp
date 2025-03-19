@@ -235,7 +235,7 @@ namespace cloudbus {
                             triggers().set(n->native_handle(), POLLOUT);
                             if(pos > seekpos && !_south_write(n, buf))
                                 return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
-                            auto diff = conn->state;
+                            auto prev = conn->state;
                             if(!rem){
                                 state_update(*conn, *type, time);
                                 if(type->op == messages::STOP &&
@@ -244,9 +244,9 @@ namespace cloudbus {
                                     state_update(*conn, *type, time);
                                 }
                             }
-                            diff = conn->state-diff;
                             if(mode() == HALF_DUPLEX &&
-                                    diff==connection_type::OPEN &&
+                                    prev == connection_type::HALF_OPEN &&
+                                    conn->state == connection_type::OPEN &&
                                     seekpos == HDRLEN && pos > seekpos
                             ){
                                 messages::msgheader stop = {

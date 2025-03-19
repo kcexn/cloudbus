@@ -234,7 +234,7 @@ namespace cloudbus{
                                 triggers().set(n->native_handle(), POLLOUT);
                                 if(!stream_write(*n, buf.seekg(seekpos), len))
                                     return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
-                                auto diff = conn->state;
+                                auto prev = conn->state;
                                 if(!rem){
                                     state_update(*conn, *type, time);
                                     if(type->op == messages::STOP &&
@@ -247,9 +247,9 @@ namespace cloudbus{
                                     n->write(padding.data(), padding.size());
                                     triggers().set(n->native_handle(), POLLOUT);
                                 }
-                                diff = conn->state - diff;
-                                if(mode() == HALF_DUPLEX && 
-                                    diff==connection_type::OPEN &&
+                                if(mode() == HALF_DUPLEX &&
+                                    prev == connection_type::HALF_OPEN &&
+                                    conn->state == connection_type::OPEN &&
                                     seekpos==0
                                 ){
                                     const messages::msgheader stop = {

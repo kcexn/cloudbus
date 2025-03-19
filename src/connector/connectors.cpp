@@ -62,8 +62,6 @@ namespace cloudbus {
             auto& hnd = _north.back()->make(addr.ss_family, SOCK_STREAM, 0);
             auto& sockfd = std::get<interface_base::native_handle_type>(*hnd);
             set_flags(sockfd);
-            int reuse = 1;
-            setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
             if(bind(sockfd, reinterpret_cast<const struct sockaddr*>(&addr), addrlen))
                 throw std::runtime_error("bind()");
             if(listen(sockfd, 128))

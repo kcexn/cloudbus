@@ -179,22 +179,34 @@ namespace cloudbus{
                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                 const auto time = connector::connection_type::clock_type::now();
                 std::size_t connected = 0;
-                for(auto& c: connections()){
-                    if(auto s = c.south.lock(); !messages::uuid_cmpnode(&c.uuid, eid) && s && c.state < connector::connection_type::CLOSED){
-                        ++connected;
-                        *buf.eid() = c.uuid;
+                for(auto c=connections().begin(); c < connections().end(); ++c){
+                    if(auto s = c->south.lock();
+                            !messages::uuid_cmpnode(&c->uuid, eid) && 
+                            s && ++connected &&
+                            c->state < connector::connection_type::CLOSED
+                    ){
+                        *buf.eid() = c->uuid;
                         stream_write(*s, buf.seekg(seekpos), pos-seekpos);
                         triggers().set(s->native_handle(), POLLOUT);
                         if(!rem) {
-                            state_update(c, *type, time);
+                            state_update(*c, *type, time);
+                            if(type->op == messages::STOP &&
+                                (type->flags & messages::ABORT)
+                            ){
+                                state_update(*c, *type, time);
+                            }
                         } else if(eof) {
                             padding.resize(rem);
                             s->write(padding.data(), padding.size());
                         }
                     }
                 }
-                if(!eof && !connected && !north_connect(interface, nsp, buf))
+                if(!eof && !connected && 
+                        (type->op & messages::INIT) &&
+                        !north_connect(interface, nsp, buf)
+                ){
                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
+                }
                 if(!rem)
                     buf.setstate(std::ios_base::eofbit);
             }
@@ -222,7 +234,24 @@ namespace cloudbus{
                                 triggers().set(n->native_handle(), POLLOUT);
                                 if(!stream_write(*n, buf.seekg(seekpos), len))
                                     return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
-                                if(mode() == HALF_DUPLEX && conn->state==connection_type::HALF_OPEN && seekpos == 0) {
+                                auto diff = conn->state;
+                                if(!rem){
+                                    state_update(*conn, *type, time);
+                                    if(type->op == messages::STOP &&
+                                            (type->flags & messages::ABORT)
+                                    ){
+                                        state_update(*conn, *type, time);
+                                    }
+                                } else if(eof){
+                                    padding.resize(rem);
+                                    n->write(padding.data(), padding.size());
+                                    triggers().set(n->native_handle(), POLLOUT);
+                                }
+                                diff = conn->state - diff;
+                                if(mode() == HALF_DUPLEX && 
+                                    diff==connection_type::OPEN &&
+                                    seekpos==0
+                                ){
                                     const messages::msgheader stop = {
                                         *eid, {1, sizeof(stop)},
                                         {0,0},{messages::STOP, 0}
@@ -239,13 +268,6 @@ namespace cloudbus{
                                         }
                                     }
                                 }
-                            }
-                            if(!rem){
-                                state_update(*conn, *type, time);
-                            } else if(eof){
-                                padding.resize(rem);
-                                n->write(padding.data(), padding.size());
-                                triggers().set(n->native_handle(), POLLOUT);
                             }
                             break;
                         } else conn = --connections().erase(conn);
@@ -387,8 +409,9 @@ namespace cloudbus{
         }
         int connector::_north_pollout_handler(const north_type::handle_ptr& stream, event_mask& revents){
             const auto&[nfd, nsp] = *stream;
-            nsp->flush();
-            if(nsp->fail() || revents & (POLLERR | POLLNVAL))
+            if(revents & (POLLERR | POLLNVAL))
+                nsp->setstate(std::ios_base::badbit);
+            if(nsp->flush().bad())
                 return -1;
             if(nsp->tellp() == 0)
                 triggers().clear(nfd, POLLOUT);
@@ -456,8 +479,9 @@ namespace cloudbus{
         }
         int connector::_south_pollout_handler(const south_type::handle_ptr& stream, event_mask& revents){
             auto&[sfd, ssp] = *stream;
-            ssp->flush();
-            if(ssp->fail() || revents & (POLLERR | POLLNVAL))
+            if(revents & (POLLERR | POLLNVAL))
+                ssp->setstate(std::ios_base::eofbit);
+            if(ssp->flush().bad())
                 return -1;
             if(ssp->tellp() == 0)
                 triggers().clear(sfd, POLLOUT);

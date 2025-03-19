@@ -25,13 +25,13 @@ namespace cloudbus{
             std::uint32_t time_low;
             std::uint16_t time_mid;
             std::uint16_t time_high_version;
-            std::uint16_t clock_seq_reserved;
+            std::uint8_t clock_seq_reserved;
             std::uint8_t clock_seq_low;
             char node[6];
         } uuid;
         // UUID utils.
         constexpr std::uint16_t TIME_HIGH_MAX = 0x0FFF;
-        constexpr std::uint16_t CLOCK_SEQ_MAX = 0x3FFF;
+        constexpr std::uint16_t CLOCK_SEQ_MAX = 0x3F;
         uuid make_uuid_v4();
         uuid make_uuid_v7();
         int uuid_cmpnode(const uuid *lhs, const uuid *rhs);
@@ -47,10 +47,13 @@ namespace cloudbus{
             std::uint8_t major;
             std::uint8_t minor;
         } msgversion;
-        enum types : std::uint8_t {
+        enum opcodes : std::uint8_t {
             DATA,
-            STOP,
-            CONTROL
+            STOP
+        };
+        enum session_flags : std::uint8_t {
+            INIT = 1 << 7,
+            ABORT = 1 << 6
         };
         typedef struct {
             std::uint8_t op; // 8 bit msg op code.

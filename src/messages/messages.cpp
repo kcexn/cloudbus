@@ -20,7 +20,7 @@
 #include <cstdint>
 namespace cloudbus{
     namespace messages {
-        static constexpr std::uint16_t VARIANT = 0x8000;
+        static constexpr std::uint16_t VARIANT = 0x80;
         uuid make_uuid_v4(){
             std::ifstream urandom("/dev/urandom", std::ios::in|std::ios::binary);
             constexpr std::uint16_t UUID_VERSION = 0x4000;

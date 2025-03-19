@@ -2,7 +2,7 @@ cloudbusconfdir = @sysconfdir@/cloudbus
 dist_cloudbusconf_DATA = controller.ini.orig segment.ini.orig
 cloudbusconf_DATA = controller.ini.orig segment.ini.orig
 SOURCEDIR = src
-AM_CXXFLAGS = -DCONFDIR=\"$(cloudbusconfdir)\"
+AM_CXXFLAGS = -DCONFDIR=\"$(cloudbusconfdir)\" -O3
 SUBDIRS = $(SOURCEDIR)
 bin_PROGRAMS = controller segment
 

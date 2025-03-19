@@ -1,5 +1,6 @@
 
 ARFLAGS = cr
+AM_CXXFLAGS = -O3
 noinst_LIBRARIES = libcbutils.a
 
 COMMON_CPPSOURCES = config/config.cpp \

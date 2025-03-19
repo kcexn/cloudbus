@@ -228,7 +228,7 @@ namespace cloudbus {
                             }
                             if(conn->state == connection_type::CLOSED){
                                 if(type->op == messages::STOP)
-                                    conn = connections().erase(conn);
+                                    conn = --connections().erase(conn);
                                 break;
                             }
                             buf.seekg(seekpos);

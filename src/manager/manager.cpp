@@ -19,7 +19,7 @@
 namespace cloudbus {
     static void set_flags(int handle){
         if(fcntl(handle, F_SETFD, FD_CLOEXEC))
-        throw std::runtime_error("Unable to set CLOEXEC flag.");
+            throw std::runtime_error("Unable to set CLOEXEC flag.");
     }
     volatile std::sig_atomic_t manager_base::signal = 0;
     extern "C" {

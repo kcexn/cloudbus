@@ -51,7 +51,6 @@ namespace cloudbus {
         private:
             config_type _config;
             threads_type _threads;
-
     };
 
     template<class NodeT>

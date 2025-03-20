@@ -10,7 +10,8 @@ COMMON_CPPSOURCES = config/config.cpp \
     io/sockbuf.cpp \
     io/poller.cpp \
     messages/messages.cpp \
-    node/node.cpp
+    node/node.cpp \
+		manager/manager.cpp
 
 COMMON_CPPHEADERS = config/config.hpp \
     connector/connectors.hpp \
@@ -29,6 +30,7 @@ COMMON_CPPHEADERS = config/config.hpp \
     io.hpp \
     marshallers.hpp \
     messages.hpp \
-    node.hpp
+    node.hpp \
+		manager/manager.hpp
     
 libcbutils_a_SOURCES = $(COMMON_CPPSOURCES) $(COMMON_CPPHEADERS)

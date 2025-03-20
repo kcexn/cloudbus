@@ -13,20 +13,8 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
-#include "config.hpp"
-#include "node.hpp"
-#include <algorithm>
+#include "manager.hpp"
 #include <fstream>
-#ifdef COMPILE_CONTROLLER
-    #include "cloudbus/controller/controller_connector.hpp"
-#endif
-#ifdef COMPILE_SEGMENT
-    #include "cloudbus/segment/segment_connector.hpp"
-#endif
-#ifdef COMPILE_PROXY
-    #include "cloudbus/proxy/proxy_connector.hpp"
-#endif
-
 int main(int argc, char* argv[]) {
     std::string path;
     #ifdef CONFDIR
@@ -46,23 +34,14 @@ int main(int argc, char* argv[]) {
     std::fstream f{path, f.in};
     cloudbus::config::configuration config;
     f >> config;
-    for(const auto& section: config.sections()){
-        std::string heading = section.heading;
-        std::transform(heading.begin(), heading.end(), heading.begin(), [](const unsigned char c){ return std::toupper(c); });
-        if(heading != "CLOUDBUS"){
-            #ifdef COMPILE_CONTROLLER
-                using controller = cloudbus::basic_node<cloudbus::controller::connector>;
-                return controller(section).run();
-            #endif
-            #ifdef COMPILE_SEGMENT
-                using segment = cloudbus::basic_node<cloudbus::segment::connector>;
-                return segment(section).run();
-            #endif
-            #ifdef COMPILE_PROXY
-                using proxy = cloudbus::basic_node<cloudbus::proxy::connector>;
-                return proxy(section).run();
-            #endif
-        }
-    }
+    #ifdef COMPILE_CONTROLLER
+        return cloudbus::basic_manager<cloudbus::controller_type>(config).run();
+    #endif
+    #ifdef COMPILE_SEGMENT
+        return cloudbus::basic_manager<cloudbus::segment_type>(config).run();
+    #endif
+    #ifdef COMPILE_PROXY
+        return cloudbus::basic_manager<cloudbus::proxy_type>(config).run();
+    #endif
     return 0;
 }

@@ -27,7 +27,7 @@ namespace cloudbus{
             signal = sig;
         }
     }
-    static ssize_t read_notice(const int& notify_pipe, int& notice){
+    static int read_notice(const int& notify_pipe, int& notice){
         int notice_=0, off=0;
         char *buf = reinterpret_cast<char*>(&notice_);
         while(int len = read(notify_pipe, buf+off, sizeof(notice_)-off)){
@@ -41,7 +41,7 @@ namespace cloudbus{
                 break;
         }
         notice |= notice_;
-        return sizeof(notice_);
+        return 0;
     }
     static int check_for_signal(
         node_base::events_type& events,
@@ -57,7 +57,7 @@ namespace cloudbus{
                 if(event.revents & (POLLERR | POLLNVAL))
                     return -1;
                 event.revents = 0;
-                return (read_notice(notify_pipe, notice) < 0) ? -1 : 0;
+                return read_notice(notify_pipe, notice);
             }
         }
         return 0;

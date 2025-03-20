@@ -16,8 +16,8 @@
 #include "segment_marshaller.hpp"
 namespace cloudbus{
     namespace segment {
-        static std::array<char, 256> _buf = {};
         static bool xmsg_read(messages::xmsgstream& buf, std::istream& is){
+            std::array<char, 256> _buf = {};
             constexpr std::streamsize hdr_size = sizeof(messages::msgheader);
             std::streamsize gcount = 0, p = 0;
             if(buf.eof()){
@@ -39,6 +39,7 @@ namespace cloudbus{
             return is.eof();
         }
         static bool stream_copy(std::ostream& os, std::istream& is){
+            std::array<char, 256> _buf = {};
             constexpr std::streamsize hdrlen = sizeof(messages::msgheader);
             std::streamsize maxlen = UINT16_MAX - hdrlen;
             while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.max_size())))){

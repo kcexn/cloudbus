@@ -16,8 +16,8 @@
 #include "proxy_marshaller.hpp"
 namespace cloudbus{
     namespace proxy {
-        static std::array<char, 256> _buf = {};
         static bool xmsg_read(messages::xmsgstream& buf, std::istream& is){
+            std::array<char, 256> _buf = {};
             constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
             std::streamsize gcount = 0, p = 0;
             if(buf.eof()){

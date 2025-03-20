@@ -49,14 +49,19 @@ namespace io{
     }
     
     poller::size_type poller::_poll(duration_type timeout){
-        int nfds = 0;
-        if((nfds = poll(Base::events(), Base::size(), timeout.count())) < 0) {
-            switch(errno){
-                case EINTR: return 0;
-                default: return npos;
+        while(int nfds = poll(Base::events(), Base::size(), timeout.count())){
+            if(nfds < 0){
+                switch(errno){
+                    case EAGAIN:
+                    case EINTR:
+                        continue;
+                    default:
+                        return npos;
+                }
             }
+            return nfds;
         }
-        return nfds;
+        return 0;
     }
     
     trigger::event_type trigger::mkevent(native_handle_type handle, trigger_type trigger){

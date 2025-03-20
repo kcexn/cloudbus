@@ -257,7 +257,7 @@ namespace cloudbus{
             );
             if(connections().capacity() > SHRINK_THRESHOLD 
                 && connections().size() < connections().capacity()/2)
-                connections().shrink_to_fit();
+                connections().shrink_to_fit();           
             return _north_write(ssp, buf);
         }
         void connector::_north_err_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){

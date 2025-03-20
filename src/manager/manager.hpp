@@ -98,7 +98,7 @@ namespace cloudbus {
                 int sig = signal;
                 if(sig){
                     for(const auto& service: services()){
-                        int wr = std::get<pipe_type>(service)[1], off=0;
+                        int wr=std::get<pipe_type>(service)[1], off = 0;
                         char *buf = reinterpret_cast<char*>(&sig);
                         while(auto len = write(wr, buf+off, sizeof(sig)-off)){
                             if(len < 0){
@@ -108,17 +108,12 @@ namespace cloudbus {
                                         throw std::runtime_error("Couldn't notify thread of signal.");
                                 }
                             }
-                            if(len+off == sizeof(sig))
+                            if((off+=len) == sizeof(sig))
                                 break;
-                            else off += len;
                         }
                     }
-                    if(sig & (SIGTERM | SIGHUP)){
+                    if(sig & (SIGTERM | SIGHUP))
                         join();
-                    } else {
-                        sig = 0;
-                        signal = 0;
-                    }
                 }
                 return sig;
             }

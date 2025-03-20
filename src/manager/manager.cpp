@@ -56,7 +56,8 @@ namespace cloudbus {
 
     void manager_base::join(std::size_t start, std::size_t size){
         auto it = _threads.begin();
-        while(start-- && it++ != _threads.end())
+        while(start-- && it != _threads.end())
+            ++it;
         while(size-- && it != _threads.end()){
             it->join();
             it = _threads.erase(it);

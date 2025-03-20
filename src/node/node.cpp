@@ -28,28 +28,38 @@ namespace cloudbus{
         }
     }
     static ssize_t read_notice(const int& notify_pipe, int& notice){
-        int len = 0, notice_ = 0;
-        if((len = read(notify_pipe, &notice_, sizeof(notice_))) < 0){
-            switch(errno){
-                case EINTR: return read_notice(notify_pipe, notice);
-                default: break;
+        int notice_=0, off=0;
+        char *buf = reinterpret_cast<char*>(&notice_);
+        while(int len = read(notify_pipe, buf+off, sizeof(notice_)-off)){
+            if(len < 0){
+                switch(errno){
+                    case EINTR: continue;
+                    default: return len;
+                }
             }
+            if((off+=len) == sizeof(notice_))
+                break;
         }
         notice |= notice_;
-        return len;
+        return sizeof(notice_);
     }
     static int check_for_signal(
-        const node_base::events_type& events,
+        node_base::events_type& events,
         node_base::size_type& n,
         const int& notify_pipe,
         int& notice
     ){
-        ssize_t len = 0;
-        auto cit = std::find_if(events.cbegin(), events.cend(), [&notify_pipe](const auto& ev){ return ev.fd == notify_pipe; });
-        if(cit != events.cend() && cit->revents && n--)
-            if(cit->revents & (POLLERR | POLLNVAL)
-                    || (len = read_notice(notify_pipe, notice)) <= 0)
-                return -1;
+        for(auto& event: events){
+            if(event.fd==notify_pipe &&
+                    event.revents &&
+                    n--
+            ){
+                if(event.revents & (POLLERR | POLLNVAL))
+                    return -1;
+                event.revents = 0;
+                return (read_notice(notify_pipe, notice) < 0) ? -1 : 0;
+            }
+        }
         return 0;
     }
     static node_base::size_type filter_events(node_base::events_type& events, const node_base::event_mask& mask=-1){

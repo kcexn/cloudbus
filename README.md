@@ -1,4 +1,4 @@
-# Cloudbus: Session-layer Control for Open Network Services
+# Cloudbus: Session-layer Control for Network Services
 Cloudbus is a framework of distributed network proxies that support application developers and system administrators to 
 transition from simple client-server deployments to highly-available application clusters. In addition to one-to-one client-server communication 
 Cloudbus also supports the slightly novel one-to-N client-servers communication mode in both half and full-duplex modes. 

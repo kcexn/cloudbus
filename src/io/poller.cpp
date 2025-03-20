@@ -54,7 +54,7 @@ namespace io{
                 switch(errno){
                     case EAGAIN:
                     case EINTR:
-                        continue;
+                        return 0;
                     default:
                         return npos;
                 }

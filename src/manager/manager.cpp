@@ -54,8 +54,12 @@ namespace cloudbus {
         return p;
     }
 
-    void manager_base::join(){
-        for(auto& t: _threads)
-            t.join();
+    void manager_base::join(std::size_t start, std::size_t size){
+        auto it = _threads.begin();
+        while(start-- && it++ != _threads.end())
+        while(size-- && it != _threads.end()){
+            it->join();
+            it = _threads.erase(it);
+        }
     }
 }

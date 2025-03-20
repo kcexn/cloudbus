@@ -35,7 +35,7 @@ namespace cloudbus {
             const config_type& config() const { return _config; }
             pipe_type start(node_type& node);
             int handle_signal(){ return _handle_signal(); }
-            void join();
+            void join(std::size_t start=0, std::size_t size=-1);
 
             virtual ~manager_base() = default;
 

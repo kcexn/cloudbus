@@ -20,7 +20,7 @@
 #include <mutex>
 namespace cloudbus{
     node_base::node_base(const duration_type& timeout):
-        _triggers{}, _timeout{timeout}{}
+        Base(_triggers), _triggers{}, _timeout{timeout}{}
 
     volatile static std::sig_atomic_t signal = 0;
     extern "C" {
@@ -50,16 +50,19 @@ namespace cloudbus{
         const int& notify_pipe,
         int& notice
     ){
-        for(auto& event: events){
-            if(event.fd==notify_pipe &&
-                    event.revents &&
-                    n--
-            ){
-                if(event.revents & (POLLERR | POLLNVAL))
-                    return -1;
-                event.revents = 0;
-                return read_notice(notify_pipe, notice);
-            }
+        auto it = std::find_if(events.begin(), events.end(),
+                [&notify_pipe](auto& event){
+                    return event.fd==notify_pipe;
+                }
+            );
+        if(it != events.end() &&
+                it->revents &&
+                n--
+        ){
+            if(it->revents & (POLLERR | POLLNVAL))
+                return -1;
+            it->revents = 0;
+            return read_notice(notify_pipe, notice);
         }
         return 0;
     }

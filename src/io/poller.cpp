@@ -49,7 +49,7 @@ namespace io{
     }
     
     poller::size_type poller::_poll(duration_type timeout){
-        while(int nfds = poll(Base::events(), Base::size(), timeout.count())){
+        while(int nfds = poll(events().data(), events().size(), timeout.count())){
             if(nfds < 0){
                 switch(errno){
                     case EAGAIN:
@@ -62,9 +62,5 @@ namespace io{
             return nfds;
         }
         return 0;
-    }
-    
-    trigger::event_type trigger::mkevent(native_handle_type handle, trigger_type trigger){
-        return event_type{handle, static_cast<short>(trigger)};
     }
 }

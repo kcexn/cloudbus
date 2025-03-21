@@ -89,20 +89,17 @@ namespace cloudbus {
     class connector_handler : public HandlerT, public connector_base
     {
         public:
-            using handler_type = HandlerT;
+            using HandlerBase = HandlerT;
             using ConnectorBase = connector_base;
-
-            using trigger_type = typename handler_type::trigger_type;
-
+            using trigger_type = typename HandlerBase::trigger_type;
+            
             connector_handler(trigger_type& triggers, const config::configuration::section& section):
-                ConnectorBase(section), _triggers{triggers}
+                HandlerBase(triggers), ConnectorBase(section)
             {
                 const auto& hnd = north().front()->streams().front();
                 auto sockfd = std::get<interface_base::native_handle_type>(*hnd);
                 triggers.set(sockfd, POLLIN);
             }
-
-            trigger_type& triggers() { return _triggers; }
 
             virtual ~connector_handler() = default;
 
@@ -111,9 +108,6 @@ namespace cloudbus {
             connector_handler(connector_handler&& other) = delete;
             connector_handler& operator=(const connector_handler& other) = delete;
             connector_handler& operator=(connector_handler&& other) = delete;
-
-        private:
-            trigger_type& _triggers;
     };
 
     template<class MarshallerT>

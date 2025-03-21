@@ -1,5 +1,9 @@
 [Cloudbus]
 
 [Service0]
-bind=unix:///home/kcexton01/cloudbus/build/ssh
+bind=unix:///var/run/cloudbus/ssh
 server=tcp://127.0.0.1:22
+
+[Service1]
+bind=unix:///var/run/cloudbus/other
+server=tcp://127.0.0.1:8080

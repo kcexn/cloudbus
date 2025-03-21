@@ -16,13 +16,11 @@
 #include "node/node.hpp"
 #include "cloudbus/controller/controller_connector.hpp"
 #include "cloudbus/segment/segment_connector.hpp"
-#include "cloudbus/proxy/proxy_connector.hpp"
 #pragma once
 #ifndef CLOUDBUS_NODES
 #define CLOUDBUS_NODES
 namespace cloudbus {
     using controller_type = basic_node<controller::connector>;
     using segment_type = basic_node<segment::connector>;
-    using proxy_type = basic_node<proxy::connector>;
 }
 #endif

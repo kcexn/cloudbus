@@ -2,4 +2,4 @@
 
 [Service0]
 bind=tcp://0.0.0.0:10022
-server=unix:///home/kcexton01/cloudbus/build/ssh
+server=unix:///var/run/cloudbus/ssh

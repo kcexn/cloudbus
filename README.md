@@ -27,8 +27,33 @@ Cloudbus currently does not support:
 - DNS
 - Abstract sockets, UDP, and SCTP transports.
 
-Additionally:
-
-- Each segment process can currently only bind to one socket at a time. This means that segments can not support multiple back-end services.
-
 Adding these features and addressing these limitations is currently WIP.
+
+## Configuring Cloudbus
+
+Configuration files for the cloudbus controller and segment will be installed into `${prefix}/etc/cloudbus` and are called `controller.ini` and `segment.ini` respectively.
+Controllers and segments use the same configuration format:
+```
+[Cloudbus]
+
+[ServiceName]
+bind=<ADDRESS>
+server=<ADDRESS>
+server=<ADDRESS>
+mode=(half duplex | full duplex)
+
+[ServiceName]
+bind=<ADDRESS>
+server=<ADDRESS>
+...
+
+```
+
+Each service on a cloudbus segment can currently only be assigned one backend server. For more granular load balancing on a segment, you will need to use an L4 load-balancer.
+
+Each service on a cloudbus controller supports more than one assigned backend server. By default, controllers will simultaneously connect to every backend server in the list in half-duplex mode.
+For full duplex mode, the service mode should be set to the string "full duplex" (no quotation marks, case insensitive).
+
+Services with only one backend server defined default to one-to-one full duplex communication. Servers that send data back to the client on a half-duplex one-to-N connection will latch the session 
+into one-to-one full-duplex mode (i.e., client sends data to N servers in half duplex mode -> server N sends data back to client (perhaps an error) -> bus closes remaining N-1 half-duplex connections -> session 
+is now in one-to-one full duplex mode).

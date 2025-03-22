@@ -74,7 +74,7 @@ namespace io{
         struct socket_message {
             using address_type = std::tuple<struct sockaddr_storage, socklen_t>;
             using ancillary_buffer = std::vector<char>;
-            using data_buffer = std::tuple<struct iovec, std::vector<char> >;
+            using data_buffer = struct iovec;
 
             struct msghdr header;
             address_type addr;
@@ -131,7 +131,7 @@ namespace io{
                 
                 void _init_buf_ptrs();
                 int _send(const buffer_type& buf);
-                void _resizewbuf(const buffer_type& buf);
+                void _resizewbuf(const buffer_type& buf, void *iov_base=nullptr, std::size_t buflen=0);
                 void _memmoverbuf();
                 int _recv();
         };

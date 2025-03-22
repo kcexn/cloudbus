@@ -57,7 +57,9 @@ namespace io {
             using events_type = typename Traits::events_type;
             using event_mask = typename Traits::event_mask;
             static const size_type npos = Traits::npos;
-            
+
+            basic_poller() = default;
+
             size_type operator()(duration_type timeout = duration_type(0)){ return _poll(timeout); }
             
             size_type add(native_handle_type handle, event_type event){ return _add(handle, _events, event); }
@@ -68,8 +70,13 @@ namespace io {
             const events_type& events() const { return _events; }
             
             virtual ~basic_poller() = default;
+
+            basic_poller(const basic_poller& other) = delete;
+            basic_poller(basic_poller&& other) = delete;
+            basic_poller& operator=(const basic_poller& other) = delete;
+            basic_poller& operator=(basic_poller&& other) = delete;
+
         protected:
-            basic_poller(){}
             virtual size_type _add(native_handle_type handle, events_type& events, event_type event) { return npos; }
             virtual size_type _update(native_handle_type handle, events_type& events, event_type event) { return npos; }
             virtual size_type _del(native_handle_type handle, events_type& events ) { return npos; }
@@ -89,7 +96,12 @@ namespace io {
             using event_mask = Base::event_mask;
             
             poller(): Base(){}
-            ~poller() = default;
+            virtual ~poller() = default;
+
+            poller(const poller& other) = delete;
+            poller(poller&& other) = delete;
+            poller& operator=(const poller& other) = delete;
+            poller& operator=(poller&& other) = delete;
         
         protected:
             size_type _add(native_handle_type handle, events_type& events, event_type event) override;
@@ -151,10 +163,16 @@ namespace io {
             }
                 
             virtual ~basic_trigger() = default;
+
+            basic_trigger() = delete;
+            basic_trigger(const basic_trigger& other) = delete;
+            basic_trigger(basic_trigger&& other) = delete;
+            basic_trigger& operator=(const basic_trigger& other) = delete;
+            basic_trigger& operator=(const basic_trigger&& other) = delete;
             
         private:
-            interest_list _list{};
             poller_type& _poller;
+            interest_list _list{};
     };
     
     class trigger: public basic_trigger<poll_t> {   
@@ -168,7 +186,12 @@ namespace io {
             using size_type = Base::size_type;
             
             trigger(): Base(_poller){}
-            ~trigger() = default;
+            virtual ~trigger() = default;
+
+            trigger(const trigger& other) = delete;
+            trigger(trigger&& other) = delete;
+            trigger& operator=(const trigger& other) = delete;
+            trigger& operator=(const trigger&& other) = delete;            
             
         private:
             poller _poller;

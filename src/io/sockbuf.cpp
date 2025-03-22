@@ -338,15 +338,14 @@ namespace io{
                     _errno = errno;
                     switch(_errno){
                         case EINTR: continue;
-                        /* case EAGAIN: */
-                        case EWOULDBLOCK:
-                            recvbuf.iov_base = data;
-                            recvbuf.iov_len = iov_len;
-                            return 0;
                         default:
                             recvbuf.iov_base = data;
                             recvbuf.iov_len = iov_len;
-                            return -1;
+                            switch(_errno){
+                                /* case EAGAIN: */
+                                case EWOULDBLOCK: return 0;
+                                default: return -1;
+                            }
                     }
                 }
                 setg(eback(), gptr(), egptr()+len);
@@ -354,6 +353,8 @@ namespace io{
                 recvbuf.iov_len = iov_len;
                 return 0;
             }
+            recvbuf.iov_base = data;
+            recvbuf.iov_len = iov_len;
             if(header.msg_control != nullptr)
                 return 0;
             return -1;

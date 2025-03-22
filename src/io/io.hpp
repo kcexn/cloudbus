@@ -191,7 +191,7 @@ namespace io {
             trigger(const trigger& other) = delete;
             trigger(trigger&& other) = delete;
             trigger& operator=(const trigger& other) = delete;
-            trigger& operator=(const trigger&& other) = delete;            
+            trigger& operator=(trigger&& other) = delete;
             
         private:
             poller _poller;

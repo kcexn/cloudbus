@@ -37,23 +37,6 @@ namespace cloudbus {
             using south_buffers = std::vector<south_buffer>;
 
             basic_marshaller() = default;
-            basic_marshaller(const north_buffers& north, const south_buffers& south)
-            :   _north{north}, _south{south} {}
-            basic_marshaller(const basic_marshaller& other)
-            :   _north{other._north}, _south{other._south}{}
-            basic_marshaller(basic_marshaller&& other)
-            :   _north{std::move(other._north)}, _south{std::move(other._south)}{}
-
-            basic_marshaller& operator=(const basic_marshaller& other){
-                _north = other._north;
-                _south = other._south;
-                return *this;
-            }
-            basic_marshaller& operator=(basic_marshaller&& other){
-                _north = std::move(other._north);
-                _south = std::move(other._south);
-                return *this;
-            }
 
             typename north_buffers::iterator unmarshal(const typename north_type::handle_ptr& n){ return _unmarshal(n); }
             typename south_buffers::iterator marshal(const typename south_type::handle_ptr& s){ return _marshal(s); }
@@ -61,6 +44,12 @@ namespace cloudbus {
             south_buffers& south() { return _south; }
 
             virtual ~basic_marshaller() = default;
+
+            basic_marshaller(const basic_marshaller& other) = delete;
+            basic_marshaller(basic_marshaller&& other) = delete;
+            basic_marshaller& operator=(const basic_marshaller& other) = delete;
+            basic_marshaller& operator=(basic_marshaller&& other) = delete;
+
         protected:
             virtual typename north_buffers::iterator _unmarshal(const typename north_type::handle_ptr& n) { return _north.end(); }
             virtual typename south_buffers::iterator _marshal(const typename south_type::handle_ptr& s) { return _south.end(); }

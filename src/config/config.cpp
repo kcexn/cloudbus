@@ -204,13 +204,14 @@ namespace cloudbus{
             _sections{}{}
         configuration::configuration(const configuration& other):
             _sections{other._sections}{}
-        configuration::configuration(configuration&& other):
+        configuration::configuration(configuration&& other) noexcept:
             _sections(std::move(other._sections)){}
         configuration& configuration::operator=(const configuration& other){
             _sections = other._sections;
             return *this;
         }
-        configuration& configuration::operator=(configuration&& other){
+        configuration& configuration::operator=(configuration&& other) noexcept
+        {
             _sections = std::move(other._sections);
             return *this;
         }

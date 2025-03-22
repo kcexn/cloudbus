@@ -53,15 +53,10 @@ namespace cloudbus {
             static address_type make_address(const struct sockaddr *addr, socklen_t addrlen);
             static handle_ptr make_handle();
             static handle_ptr make_handle(int domain, int type, int protocol);
-            static handle_ptr make_handle(native_handle_type sockfd);
-            static handle_ptr make_handle(native_handle_type sockfd, bool connected);
+            static handle_ptr make_handle(native_handle_type sockfd, bool connected=false);
 
-            interface_base():
-                interface_base(addresses_type()){}
-            interface_base(const std::string& urn):
-                interface_base(addresses_type(), urn){}
-            interface_base(const std::string& url, const std::string& protocol):
-                interface_base(addresses_type(), url, protocol){}
+            interface_base(const std::string& protocol=std::string(), const std::string& url=std::string()):
+                interface_base(addresses_type(), protocol, url){}
             explicit interface_base(
                 const struct sockaddr *addr,
                 socklen_t addrlen,
@@ -81,9 +76,6 @@ namespace cloudbus {
                 const std::string& uri=std::string(),
                 const duration_type& ttl=duration_type(-1)
             );
-            explicit interface_base(interface_base&& other);
-
-            interface_base& operator=(interface_base&& other);
 
             std::string& uri() { return _uri; }
             std::string& protocol() { return _protocol; }
@@ -111,6 +103,8 @@ namespace cloudbus {
 
             interface_base(const interface_base& other) = delete;
             interface_base& operator=(const interface_base& other) = delete;
+            interface_base(interface_base&& other) = delete;
+            interface_base& operator=(interface_base&& other) = delete;
         private:
             using callbacks_type = std::vector<std::tuple<std::weak_ptr<handle_type>, callback_type> >;
 
@@ -133,12 +127,8 @@ namespace cloudbus {
             using traits_type = Traits;
             using format_type = typename traits_type::format_type;
 
-            interface():
-                interface(addresses_type()){}
-            interface(const std::string& urn):
-                interface(addresses_type(), urn){}
-            interface(const std::string& url, const std::string& protocol):
-                interface(addresses_type(), url, protocol){}
+            interface(const std::string& protocol=std::string(), const std::string& url=std::string()):
+                interface(addresses_type(), protocol, url){}
             explicit interface(
                 const struct sockaddr *addr,
                 socklen_t addrlen,
@@ -152,16 +142,6 @@ namespace cloudbus {
                 const std::string& uri=std::string(),
                 const duration_type& ttl=duration_type(-1)
             ): Base(addresses, protocol, uri, ttl){}
-            explicit interface(
-                addresses_type&& addresses,
-                const std::string& protocol=std::string(),
-                const std::string& uri=std::string(),
-                const duration_type& ttl=duration_type(-1)
-            ): Base(std::move(addresses), protocol, uri, ttl){}
-            interface& operator=(interface&& other){
-                Base::operator=(std::move(other));
-                return *this;
-            }
 
             virtual ~interface() = default;
 
@@ -174,12 +154,8 @@ namespace cloudbus {
         public:
             using Base = interface<cbus_service>;
 
-            cs_interface():
-                cs_interface(addresses_type()){}
-            cs_interface(const std::string& urn):
-                cs_interface(addresses_type(), urn){}
-            cs_interface(const std::string& url, const std::string& protocol):
-                cs_interface(addresses_type(), url, protocol){}
+            cs_interface(const std::string& protocol=std::string(), const std::string& url=std::string()):
+                cs_interface(addresses_type(), protocol, url){}
             explicit cs_interface(
                 const struct sockaddr *addr,
                 socklen_t addrlen,
@@ -199,15 +175,13 @@ namespace cloudbus {
                 const std::string& uri=std::string(),
                 const duration_type& ttl=duration_type(-1)
             ): Base(std::move(addresses), protocol, uri, ttl){}
-            cs_interface& operator=(cs_interface&& other){
-                Base::operator=(std::move(other));
-                return *this;
-            }
 
             virtual ~cs_interface() = default;
 
             cs_interface(const cs_interface& other) = delete;
             cs_interface& operator=(const cs_interface& other) = delete;
+            cs_interface(cs_interface&& other) = delete;
+            cs_interface& operator=(cs_interface&& other) = delete;
     };
 
     class ss_interface: public interface<stream_service>
@@ -215,12 +189,8 @@ namespace cloudbus {
         public:
             using Base = interface<stream_service>;
 
-            ss_interface():
-                ss_interface(addresses_type()){}
-            ss_interface(const std::string& urn):
-                ss_interface(addresses_type(), urn){}
-            ss_interface(const std::string& url, const std::string& protocol):
-                ss_interface(addresses_type(), url, protocol){}
+            ss_interface(const std::string& protocol=std::string(), const std::string& url=std::string()):
+                ss_interface(addresses_type(), protocol, url){}
             explicit ss_interface(
                 const struct sockaddr *addr,
                 socklen_t addrlen,
@@ -240,15 +210,13 @@ namespace cloudbus {
                 const std::string& uri=std::string(),
                 const duration_type& ttl=duration_type(-1)
             ): Base(std::move(addresses), protocol, uri, ttl){}
-            ss_interface& operator=(ss_interface&& other){
-                Base::operator=(std::move(other));
-                return *this;
-            }
 
             virtual ~ss_interface() = default;
 
             ss_interface(const ss_interface& other) = delete;
             ss_interface& operator=(const ss_interface& other) = delete;
+            ss_interface(ss_interface&& other) = delete;
+            ss_interface& operator=(ss_interface&& other) = delete;
     };  
 }
 #endif

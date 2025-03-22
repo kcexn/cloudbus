@@ -28,9 +28,7 @@ namespace cloudbus{
             using Base = handler_type;
             using duration_type = trigger_type::duration_type;
             
-            node_base():
-                node_base(duration_type{-1}){}
-            node_base(const duration_type& timeout);
+            node_base(const duration_type& timeout = duration_type(-1));
             duration_type& timeout() { return _timeout; }
             int run(int notify_pipe=0) { return _run(notify_pipe); }
             int signal_handler(int signal){ return _signal_handler(signal); }

@@ -85,38 +85,6 @@ namespace io{
                 throw std::runtime_error("Can't open socket.");
             _init_buf_ptrs();
         }
-        sockbuf::sockbuf(const sockbuf& other):
-            Base(other), _which{other._which}, 
-            _buffers{other._buffers}, _socket{other._socket}, 
-            _errno{other._errno}, _connected{other._connected}
-        {}
-        sockbuf& sockbuf::operator=(const sockbuf& other){
-            _which = other._which;
-            _buffers = other._buffers;
-            _socket = other._socket;
-            _errno = other._errno;
-            _connected = other._connected;
-            Base::operator=(other);
-            return *this;
-        }
-        void sockbuf::swap(sockbuf& other){
-            auto buf = _buffers;
-            auto which = _which;
-            auto sock = _socket;
-            auto tmperr = _errno;
-            auto conn = _connected;
-            _buffers = other._buffers;
-            _which = other._which;
-            _socket = other._socket;
-            _errno = other._errno;
-            _connected = other._connected;
-            other._buffers = buf;
-            other._which = which;
-            other._socket = sock;
-            other._errno = tmperr;
-            other._connected = conn;
-            return Base::swap(other);
-        }
         sockbuf::buffer_type sockbuf::connectto(const struct sockaddr *addr, socklen_t addrlen){
             auto& addr_ = std::get<struct sockaddr_storage>(_buffers.back()->addr);
             if(addr_.ss_family != AF_UNSPEC){
@@ -191,10 +159,8 @@ namespace io{
         }
         void sockbuf::_resizewbuf(const buffer_type& buf){
             auto&[iov, sendbuf] = buf->data;
-            auto n = iov.iov_len/MIN_BUFSIZE + 1;
-            if(sendbuf.data() != iov.iov_base)
-                std::memmove(sendbuf.data(), iov.iov_base, iov.iov_len);
-            sendbuf.resize(n*MIN_BUFSIZE);
+            std::memmove(sendbuf.data(), iov.iov_base, iov.iov_len);
+            sendbuf.resize((iov.iov_len/MIN_BUFSIZE+1)*MIN_BUFSIZE);
             sendbuf.shrink_to_fit();
             iov.iov_base = sendbuf.data();
             if(buf == _buffers.back()){
@@ -266,9 +232,9 @@ namespace io{
                     cbuf.clear();
                     cbuf.shrink_to_fit();
                 }
-                if(!(size -= len))
+                if(!(size-=len))
                     break;
-                iov.iov_base = reinterpret_cast<char *>(iov.iov_base) + len;
+                iov.iov_base = reinterpret_cast<char*>(iov.iov_base)+len;
                 iov.iov_len = std::min(size, MIN_BUFSIZE);
             }
             iov.iov_len = size;
@@ -321,8 +287,8 @@ namespace io{
         void sockbuf::_memmoverbuf(){
             auto&[iov, recvbuf] = _buffers[0]->data;
             auto len = egptr()-gptr();
-            if(len) std::memmove(eback(), gptr(), len);
-            setg(eback(), eback(), eback()+len);
+            std::memmove(recvbuf.data(), gptr(), len);
+            setg(recvbuf.data(), recvbuf.data(), recvbuf.data()+len);
             iov.iov_base = egptr();
             iov.iov_len = recvbuf.size()-len;
         }
@@ -371,9 +337,20 @@ namespace io{
             return -1;
         }
         std::streamsize sockbuf::showmanyc() {
-            if(auto len = egptr()-gptr(); !len && _recv())
+            if(!(egptr()-gptr()) && _recv())
                 return -1;
             return egptr()-gptr();
+        }
+        std::streamsize sockbuf::xsputn(const char_type *s, std::streamsize count){
+            std::streamsize len=0, n=0;
+            while((s+=n) && (len+=n) < count){
+                while( !(n=std::min(epptr()-pptr(), count-len)) )
+                    if(sync())
+                        return len;
+                std::memcpy(pptr(), s, n);
+                pbump(n);
+            }
+            return len;
         }
         sockbuf::int_type sockbuf::overflow(sockbuf::int_type ch){
             if(pbase() == nullptr || sync())
@@ -385,12 +362,25 @@ namespace io{
         sockbuf::int_type sockbuf::underflow() {
             if(eback() == nullptr || _recv())
                 return traits_type::eof();
-            if(gptr()==egptr()){
-                if(_poll(_socket, POLLIN))
-                    return traits_type::eof();
-                else return underflow();
+            if(egptr()-eback())
+                return traits_type::to_int_type(*gptr());
+            if(_poll(_socket, POLLIN))
+                return traits_type::eof();
+            return underflow();
+        }
+        std::streamsize sockbuf::xsgetn(char_type *s, std::streamsize count){
+            std::streamsize len=0, n=0;
+            while((s+=n) && (len+=n) < count){
+                while( !(n = std::min(egptr()-gptr(), count-len)) ){
+                    if(_recv() ||
+                        (!(egptr()-eback()) &&
+                            _poll(_socket,POLLIN)))
+                        return len;
+                }
+                std::memcpy(s, gptr(), n);
+                gbump(n);
             }
-            return traits_type::to_int_type(*Base::gptr());
+            return len;
         }
         sockbuf::~sockbuf(){
             if(_socket > 2) close(_socket);

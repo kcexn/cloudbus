@@ -62,15 +62,9 @@ namespace io{
                 using native_handle_type = sockbuf::native_handle_type;
                 sockstream(): 
                     Base(&_buf){}
-                sockstream(int domain, int type, int protocol):
-                    sockstream(domain, type, protocol, std::ios_base::in | std::ios_base::out){}
-                sockstream(native_handle_type sockfd):
-                    sockstream(sockfd, false, std::ios_base::in | std::ios_base::out){}
-                sockstream(native_handle_type sockfd, bool connected):
-                    sockstream(sockfd, connected, std::ios_base::in | std::ios_base::out){}
-                explicit sockstream(native_handle_type sockfd, bool connected, std::ios_base::openmode which):
+                explicit sockstream(native_handle_type sockfd, bool connected=false, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out)):
                     Base(&_buf), _buf(sockfd, connected, which) {}
-                explicit sockstream(int domain, int type, int protocol, std::ios_base::openmode which):
+                explicit sockstream(int domain, int type, int protocol, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out)):
                     Base(&_buf), _buf(domain, type, protocol, which) {}
 
                 const sockbuf::buffer_type& recvbuf() const { return _buf.recvbuf(); }
@@ -78,7 +72,13 @@ namespace io{
                 native_handle_type& native_handle() { return _buf.native_handle(); }
                 int err() { return _buf.err(); }
                 sockbuf::buffer_type connectto(const struct sockaddr* addr, socklen_t len) { return _buf.connectto(addr, len); }
-                ~sockstream(){}
+
+                virtual ~sockstream() = default;
+                
+                sockstream(const sockstream& other) = delete;
+                sockstream& operator=(const sockstream& other) = delete;
+                sockstream(sockstream&& other) = delete;
+                sockstream& operator=(sockstream&& other) = delete;
         };
     }
 }

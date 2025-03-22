@@ -96,18 +96,8 @@ namespace io{
                 static constexpr size_type MIN_BUFSIZE = 65536;
                 
                 sockbuf();
-                sockbuf(int domain, int type, int protocol):
-                    sockbuf(domain, type, protocol, std::ios_base::in | std::ios_base::out){}
-                sockbuf(native_handle_type sockfd):
-                    sockbuf(sockfd, false, std::ios_base::in | std::ios_base::out){}
-                sockbuf(native_handle_type sockfd, bool connected):
-                    sockbuf(sockfd, connected, std::ios_base::in | std::ios_base::out){}
-                explicit sockbuf(native_handle_type sockfd, bool connected, std::ios_base::openmode which);
-                explicit sockbuf(int domain, int type, int protocol, std::ios_base::openmode which);
-                explicit sockbuf(const sockbuf& other);
-                
-                sockbuf& operator=(const sockbuf& other);
-                void swap(sockbuf& other);
+                explicit sockbuf(native_handle_type sockfd, bool connected=false, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out));
+                explicit sockbuf(int domain, int type, int protocol, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out));
                 buffer_type connectto(const struct sockaddr *addr, socklen_t addrlen);
 
                 const buffer_type& recvbuf() const { return _buffers.front(); }
@@ -116,14 +106,22 @@ namespace io{
                 int err(){ return _errno; }
                 
                 ~sockbuf();
+
+                sockbuf(const sockbuf& other) = delete;
+                sockbuf& operator=(const sockbuf& other) = delete;
+                sockbuf(sockbuf&& other) = delete;
+                sockbuf& operator=(sockbuf&& other) = delete;
+
             protected:
                 virtual pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
                 virtual pos_type seekpos(pos_type pos, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
                 virtual int sync() override;
                 virtual std::streamsize showmanyc() override;
 
+                virtual std::streamsize xsputn(const char_type* s, std::streamsize count) override;
                 virtual int_type overflow(int_type ch = traits_type::eof()) override;
                 virtual int_type underflow() override;
+                virtual std::streamsize xsgetn(char_type *s, std::streamsize count) override;
             private:
                 std::ios_base::openmode _which;
                 buffers_type _buffers;

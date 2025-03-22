@@ -41,10 +41,10 @@ namespace cloudbus{
                 };
                 configuration();
                 configuration(const configuration& other);
-                configuration(configuration&& other);
+                configuration(configuration&& other) noexcept;
 
                 configuration& operator=(const configuration& other);
-                configuration& operator=(configuration&& other);
+                configuration& operator=(configuration&& other) noexcept;
 
                 const std::vector<section>& sections() const { return _sections; }
 

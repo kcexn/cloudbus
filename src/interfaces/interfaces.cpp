@@ -33,9 +33,6 @@ namespace cloudbus {
         auto s = std::make_shared<stream_type>(domain, type, protocol); 
         return std::make_shared<handle_type>(s->native_handle(), s);
     }
-    interface_base::handle_ptr interface_base::make_handle(int sockfd){
-        return std::make_shared<handle_type>(sockfd, std::make_shared<stream_type>(sockfd));
-    }
     interface_base::handle_ptr interface_base::make_handle(int sockfd, bool connected){
         return std::make_shared<handle_type>(sockfd, std::make_shared<stream_type>(sockfd, connected));
     }
@@ -82,23 +79,6 @@ namespace cloudbus {
         _streams{}, _pending{},
         _timeout{clock_type::now(), ttl}
     {}
-
-    interface_base::interface_base(interface_base&& other):
-        _uri{std::move(other._uri)}, _protocol(std::move(other._protocol)),
-        _addresses{std::move(other._addresses)}, _idx{other._idx}, 
-        _streams{std::move(other._streams)}, _pending{std::move(other._pending)},
-        _timeout{std::move(other._timeout)}
-    { other._idx = 0; }
-    interface_base& interface_base::operator=(interface_base&& other){
-        _uri = std::move(other._uri);
-        _protocol = std::move(other._protocol);
-        _addresses = std::move(other._addresses);
-        _idx = other._idx; other._idx = 0;
-        _streams = std::move(other._streams);
-        _pending = std::move(other._pending);
-        _timeout = std::move(other._timeout);
-        return *this;
-    }
     const interface_base::address_type& interface_base::address(){
         if(_addresses.empty())
             return NULLADDR;

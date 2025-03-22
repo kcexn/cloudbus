@@ -168,16 +168,15 @@ namespace io{
                     pbump(buflen);
                 }
             }
-            if(std::size_t size = MIN_BUFSIZE*(sendbuf.iov_len/MIN_BUFSIZE + 1); size != sendbuf.iov_len){
-                std::streamsize off = pptr()-pbase();
-                if( !(sendbuf.iov_base=std::realloc(sendbuf.iov_base, size)) )
-                    throw std::runtime_error("Unable to allocate space for send buffer.");
-                if(buf == _buffers.back()){
-                    char *data = reinterpret_cast<char*>(sendbuf.iov_base);
-                    setp(data, data+size);
-                    pbump(off);
-                    sendbuf.iov_len = size;
-                }
+            std::size_t size=MIN_BUFSIZE*(sendbuf.iov_len/MIN_BUFSIZE+1);
+            std::streamsize off = pptr()-pbase();
+            if( !(sendbuf.iov_base=std::realloc(sendbuf.iov_base, size)) )
+                throw std::runtime_error("Unable to allocate space for send buffer.");
+            if(buf == _buffers.back()){
+                char *data = reinterpret_cast<char*>(sendbuf.iov_base);
+                setp(data, data+size);
+                pbump(off);
+                sendbuf.iov_len = size;
             }
         }
         int sockbuf::_send(const buffer_type& buf){
@@ -233,7 +232,7 @@ namespace io{
                         default:
                             base = sendbuf.iov_base;
                             sendbuf.iov_base = data;
-                            sendbuf.iov_len = iov_len;
+                            sendbuf.iov_len = (buf==_buffers.back()) ? iov_len : buflen;
                             _resizewbuf(buf, base, buflen);
                             switch(_errno){
                                 /* case EAGAIN: */
@@ -255,7 +254,7 @@ namespace io{
             }
             base = sendbuf.iov_base;
             sendbuf.iov_base = data;
-            sendbuf.iov_len = iov_len;
+            sendbuf.iov_len = (buf==_buffers.back()) ? iov_len : buflen;
             _resizewbuf(buf, base, buflen);
             return 0;
         }
@@ -300,11 +299,9 @@ namespace io{
             return 0;
         }
         void sockbuf::_memmoverbuf(){
-            auto& recvbuf = _buffers.front()->data;
-            char *data = reinterpret_cast<char*>(recvbuf.iov_base);
             auto len = egptr()-gptr();
-            std::memmove(data, gptr(), len);
-            setg(data, data, data+len);
+            std::memmove(eback(), gptr(), len);
+            setg(eback(), eback(), eback()+len);
         }
         int sockbuf::_recv(){
             _memmoverbuf();

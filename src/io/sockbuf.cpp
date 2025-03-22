@@ -161,22 +161,26 @@ namespace io{
         }
         void sockbuf::_resizewbuf(const buffer_type& buf, void *base, std::size_t buflen){
             auto& sendbuf = buf->data;
-            if(base != nullptr){
-                std::memmove(sendbuf.iov_base, base, buflen);
+            if(base){
+                if(buflen)
+                    std::memmove(sendbuf.iov_base, base, buflen);
                 if(buf==_buffers.back()){
                     setp(pbase(), epptr());
                     pbump(buflen);
                 }
             }
-            if(buf == _buffers.back()){
-                std::size_t size=MIN_BUFSIZE*(sendbuf.iov_len/MIN_BUFSIZE+1);
-                std::streamsize off = pptr()-pbase();
-                if( !(sendbuf.iov_base=std::realloc(sendbuf.iov_base, size)) )
-                    throw std::runtime_error("Unable to allocate space for send buffer.");
-                char *data = reinterpret_cast<char*>(sendbuf.iov_base);
-                setp(data, data+size);
-                pbump(off);
-                sendbuf.iov_len = size;
+            if(buf==_buffers.back()){
+                std::streamsize putlen = pptr()-pbase();
+                if(std::size_t size=MIN_BUFSIZE*(putlen/MIN_BUFSIZE+1);
+                        sendbuf.iov_len != size)
+                {
+                    if( !(sendbuf.iov_base=std::realloc(sendbuf.iov_base, size)) )
+                        throw std::runtime_error("Unable to allocate space for send buffer.");
+                    char *data = reinterpret_cast<char*>(sendbuf.iov_base);
+                    setp(data, data+size);
+                    pbump(putlen);
+                    sendbuf.iov_len=size;
+                }
             }
         }
         int sockbuf::_send(const buffer_type& buf){
@@ -210,11 +214,11 @@ namespace io{
                 header.msg_iovlen = 0;
             }
             auto& cbuf = buf->ancillary;
-            if(!cbuf.empty()){
-                header.msg_control = cbuf.data();
-                header.msg_controllen = cbuf.size();
-            } else {
+            if(cbuf.empty()){
                 header.msg_control = nullptr;
+                header.msg_controllen = 0;
+            } else {
+                header.msg_control = cbuf.data();
                 header.msg_controllen = 0;
             }
             if(!buflen && cbuf.empty())
@@ -241,7 +245,7 @@ namespace io{
                             }
                     }
                 }
-                if(header.msg_control != nullptr){
+                if(header.msg_control){
                     header.msg_control = nullptr;
                     header.msg_controllen = 0;
                     cbuf.clear();
@@ -300,7 +304,8 @@ namespace io{
         }
         void sockbuf::_memmoverbuf(){
             auto len = egptr()-gptr();
-            std::memmove(eback(), gptr(), len);
+            if(len)
+                std::memmove(eback(), gptr(), len);
             setg(eback(), eback(), eback()+len);
         }
         int sockbuf::_recv(){
@@ -314,7 +319,7 @@ namespace io{
             void *data = recvbuf.iov_base;
             std::size_t iov_len = recvbuf.iov_len;
             std::size_t buflen = iov_len-(egptr()-eback());
-            if(buflen > 0){
+            if(buflen){
                 header.msg_iov = &recvbuf;
                 header.msg_iovlen = 1;
             } else {
@@ -322,12 +327,12 @@ namespace io{
                 header.msg_iovlen = 0;
             }
             auto& cbuf = buf->ancillary;
-            if(!cbuf.empty()){
-                header.msg_control = cbuf.data();
-                header.msg_controllen = cbuf.size();
-            } else {
+            if(cbuf.empty()){
                 header.msg_control = nullptr;
                 header.msg_controllen = 0;
+            } else {
+                header.msg_control = cbuf.data();
+                header.msg_controllen = cbuf.size();
             }
             if(!buflen && cbuf.empty())
                 return 0;
@@ -355,9 +360,7 @@ namespace io{
             }
             recvbuf.iov_base = data;
             recvbuf.iov_len = iov_len;
-            if(header.msg_control != nullptr)
-                return 0;
-            return -1;
+            return header.msg_control ? 0 : -1;
         }
         std::streamsize sockbuf::showmanyc() {
             if(!(egptr()-gptr()) && _recv())

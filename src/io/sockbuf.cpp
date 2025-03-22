@@ -168,11 +168,11 @@ namespace io{
                     pbump(buflen);
                 }
             }
-            std::size_t size=MIN_BUFSIZE*(sendbuf.iov_len/MIN_BUFSIZE+1);
-            std::streamsize off = pptr()-pbase();
-            if( !(sendbuf.iov_base=std::realloc(sendbuf.iov_base, size)) )
-                throw std::runtime_error("Unable to allocate space for send buffer.");
             if(buf == _buffers.back()){
+                std::size_t size=MIN_BUFSIZE*(sendbuf.iov_len/MIN_BUFSIZE+1);
+                std::streamsize off = pptr()-pbase();
+                if( !(sendbuf.iov_base=std::realloc(sendbuf.iov_base, size)) )
+                    throw std::runtime_error("Unable to allocate space for send buffer.");
                 char *data = reinterpret_cast<char*>(sendbuf.iov_base);
                 setp(data, data+size);
                 pbump(off);

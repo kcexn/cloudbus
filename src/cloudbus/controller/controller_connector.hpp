@@ -15,8 +15,6 @@
 */
 #include "controller_marshaller.hpp"
 #include "../../connectors.hpp"
-#include "../../io.hpp"
-
 #pragma once
 #ifndef CLOUDBUS_CONTROLLER_CONNECTOR
 #define CLOUDBUS_CONTROLLER_CONNECTOR

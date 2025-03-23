@@ -15,7 +15,6 @@
 */
 #include "node.hpp"
 #include <algorithm>
-#include <csignal>
 #include <unistd.h>
 namespace cloudbus{
     node_base::node_base(const duration_type& timeout):
@@ -49,6 +48,8 @@ namespace cloudbus{
         const int& notify_pipe,
         int& notice
     ){
+        if(!notify_pipe) notice |= signal;
+        if(!notify_pipe || !n) return 0;
         auto it = std::find_if(events.begin(), events.end(),
                 [&notify_pipe](auto& event){
                     return event.fd==notify_pipe;
@@ -79,15 +80,16 @@ namespace cloudbus{
         int notice = 0;
         if(!notify_pipe){
             std::signal(SIGTERM, sighandler);
+            std::signal(SIGINT, sighandler);
             std::signal(SIGHUP, sighandler);
         } else triggers().set(notify_pipe, POLLIN);
         while((n = triggers().wait(_timeout)) != trigger_type::npos){
             auto events = triggers().events();
-            if(notify_pipe && n && check_for_signal(events, n, notify_pipe, notice))
+            if(check_for_signal(events, n, notify_pipe, notice))
                 return notice;
-            for(size_type i = 0, handled = handle(events); n && handled; handled = handle(events)){
+            if(n) for(size_type i=0, handled=handle(events); n && handled; handled=handle(events)){
                 if(handled == trigger_type::npos)
-                    return notify_pipe ? notice : signal;
+                    return notice;
                 if(++i == FAIRNESS){
                     n = filter_events(events);
                     if((i = triggers().wait()) != trigger_type::npos){
@@ -103,16 +105,16 @@ namespace cloudbus{
                             }
                             if(!i) break;
                         }
-                    } else return notify_pipe ? notice : signal;
-                    if(notify_pipe && n && check_for_signal(events, n, notify_pipe, notice))
+                    } else return notice;
+                    if(check_for_signal(events, n, notify_pipe, notice))
                         return notice;
-                    if(auto status = notify_pipe ? signal_handler(notice) : signal_handler(signal))
-                        return status;
+                    if(auto mask=signal_handler(notice); notice & ~mask)
+                        return notice & ~mask;
                 }
             }
-            if(auto status = notify_pipe ? signal_handler(notice) : signal_handler(signal))
-                return status;
+            if(auto mask=signal_handler(notice); notice & ~mask)
+                return notice & ~mask;
         }
-        return notify_pipe ? notice : signal;
+        return notice;
     }
 }

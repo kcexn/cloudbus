@@ -25,7 +25,7 @@ namespace cloudbus{
     namespace messages {
         class xmsgbuf : public std::streambuf {
             public:
-                static constexpr std::size_t bufsize = 16384; // 16kB
+                static constexpr std::size_t bufsize = 4*1024;
                 using Base = std::streambuf;
                 using int_type = Base::int_type;
                 using char_type = Base::char_type;

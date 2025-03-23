@@ -16,11 +16,6 @@
 #include "../config.hpp"
 #include "../interfaces.hpp"
 #include "../messages.hpp"
-#include <memory>
-#include <tuple>
-#include <array>
-#include <chrono>
-#include <sys/socket.h>
 #pragma once
 #ifndef CLOUDBUS_CONNECTOR
 #define CLOUDBUS_CONNECTOR
@@ -71,7 +66,7 @@ namespace cloudbus {
             int& mode() { return _mode; }
             int& drain() { return _drain; }
 
-            virtual ~connector_base() = default;
+            virtual ~connector_base();
 
             connector_base() = delete;
             connector_base(const connector_base& other) = delete;

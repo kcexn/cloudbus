@@ -16,8 +16,6 @@
 #include "../io.hpp"
 #include "../config.hpp"
 #include <csignal>
-#include <sys/un.h>
-#include <unistd.h>
 #pragma once
 #ifndef CLOUDBUS_NODE
 #define CLOUDBUS_NODE
@@ -31,7 +29,7 @@ namespace cloudbus{
             node_base(const duration_type& timeout = duration_type(-1));
             duration_type& timeout() { return _timeout; }
             int run(int notify_pipe=0) { return _run(notify_pipe); }
-            int signal_handler(int signal){ return _signal_handler(signal); }
+            int signal_handler(int sig){ return _signal_handler(sig); }
             virtual ~node_base() = default;
 
             node_base(node_base&& other) = delete;
@@ -41,7 +39,7 @@ namespace cloudbus{
 
         protected:
             virtual int _run(int notify_pipe);
-            virtual int _signal_handler(int signal){ return 0; }
+            virtual int _signal_handler(int sig){ return sig; }
 
         private:
             trigger_type _triggers;
@@ -59,12 +57,7 @@ namespace cloudbus{
 
             connector_type& connector() { return _connector; }
 
-            virtual ~basic_node() {
-                for(auto& n: _connector.north())
-                    for(const auto&[addr, addrlen]: n->addresses())
-                        if(addr.ss_family == AF_UNIX)
-                            unlink(reinterpret_cast<const struct sockaddr_un*>(&addr)->sun_path);
-            }
+            virtual ~basic_node() = default;
 
             basic_node() = delete;
             basic_node(basic_node&& other) = delete;
@@ -76,14 +69,14 @@ namespace cloudbus{
             virtual size_type _handle(events_type& events) override { 
                 return _connector.handle(events);
             }
-            virtual int _signal_handler(int signal) override {
-                if(signal & (SIGTERM | SIGHUP)){
+            virtual int _signal_handler(int sig) override {
+                if(sig & (SIGTERM | SIGINT | SIGHUP)){
                     if(connector().connections().empty())
-                        return signal & (SIGTERM | SIGHUP);
+                        sig &= ~(SIGTERM | SIGINT | SIGHUP);
                     timeout() = duration_type(50);
                     connector().drain() = 1;
                 }
-                return Base::_signal_handler(signal);
+                return Base::_signal_handler(sig);
             }
 
         private:

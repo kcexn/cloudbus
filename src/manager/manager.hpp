@@ -17,7 +17,6 @@
 #include "../config.hpp"
 #include <thread>
 #include <list>
-#include <csignal>
 #pragma once
 #ifndef CLOUDBUS_MANAGER
 #define CLOUDBUS_MANAGER
@@ -27,14 +26,16 @@ namespace cloudbus {
             using config_type = config::configuration;
             using node_type = node_base;
             using pipe_type = std::array<int, 2>;
-            using threads_type = std::list<std::thread>;
+            using thread_type = std::tuple<pipe_type, std::thread>;
+            using threads_type = std::list<thread_type>;
             static volatile std::sig_atomic_t signal;
 
             manager_base(const config::configuration& config);
 
             const config_type& config() const { return _config; }
-            pipe_type start(node_type& node);
-            int handle_signal(){ return _handle_signal(); }
+            void start(node_type& node);
+            int run() { return _run(); }
+            int handle_signal(int sig);
             void join(std::size_t start=0, std::size_t size=-1);
 
             virtual ~manager_base() = default;
@@ -46,7 +47,8 @@ namespace cloudbus {
             manager_base& operator=(manager_base&& other) = delete;
         
         protected:
-            virtual int _handle_signal() { return signal; }
+            virtual int _handle_signal(int sig);
+            virtual int _run();
 
         private:
             config_type _config;
@@ -59,7 +61,7 @@ namespace cloudbus {
         public:
             using Base = manager_base;
             using node_type = NodeT;
-            using service_type = std::tuple<std::string, node_type, pipe_type>;
+            using service_type = std::tuple<std::string, node_type>;
             using services_type = std::list<service_type>;
 
             basic_manager(const config_type& config):
@@ -69,13 +71,12 @@ namespace cloudbus {
                     std::string heading = section.heading;
                     std::transform(heading.begin(), heading.end(), heading.begin(), [](unsigned char c){ return std::toupper(c); });
                     if(heading != "CLOUDBUS")
-                        _services.emplace_back(section.heading, section, pipe_type());
+                        _services.emplace_back(section.heading, section);
                 }
             }
 
             services_type& services() { return _services; }
             const services_type& services() const { return _services; }
-            int run() { return _run(); }
 
             virtual ~basic_manager() = default;
 
@@ -86,36 +87,10 @@ namespace cloudbus {
             basic_manager& operator=(basic_manager&& other) = delete;
 
         protected:
-            virtual int _run() {
-                for(auto&[name, node, pipe]: services())
-                    pipe = start(node);
-                while(pause())
-                    if(int sig = handle_signal())
-                        return sig;
-                return 0;
-            }
-            virtual int _handle_signal() override {
-                int sig = signal;
-                if(sig){
-                    for(const auto& service: services()){
-                        int wr=std::get<pipe_type>(service)[1], off = 0;
-                        char *buf = reinterpret_cast<char*>(&sig);
-                        while(auto len = write(wr, buf+off, sizeof(sig)-off)){
-                            if(len < 0){
-                                switch(errno){
-                                    case EINTR: continue;
-                                    default: 
-                                        throw std::runtime_error("Couldn't notify thread of signal.");
-                                }
-                            }
-                            if((off+=len) == sizeof(sig))
-                                break;
-                        }
-                    }
-                    if(sig & (SIGTERM | SIGHUP))
-                        join();
-                }
-                return sig;
+            virtual int _run() override {
+                for(auto&[name, node]: services())
+                    start(node);
+                return Base::_run();
             }
 
         private:

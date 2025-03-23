@@ -14,7 +14,6 @@
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
 #include "segment_marshaller.hpp"
-#include "../../io.hpp"
 #include "../../connectors.hpp"
 #pragma once
 #ifndef CLOUDBUS_SEGMENT_CONNECTOR

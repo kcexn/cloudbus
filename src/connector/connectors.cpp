@@ -15,6 +15,8 @@
 */
 #include "connectors.hpp"
 #include <fcntl.h>
+#include <unistd.h>
+#include <sys/un.h>
 namespace cloudbus {
     static int set_flags(interface_base::native_handle_type fd){
         int flags = 0;
@@ -94,5 +96,12 @@ namespace cloudbus {
                 return -1;
         }
         return -1;
+    }
+
+    connector_base::~connector_base(){
+        for(auto& n: north())
+            for(const auto&[addr, addrlen]: n->addresses())
+                if(addr.ss_family == AF_UNIX)
+                    unlink(reinterpret_cast<const struct sockaddr_un*>(&addr)->sun_path);
     }
 }

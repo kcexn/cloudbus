@@ -13,13 +13,11 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
 *   If not, see <https://www.gnu.org/licenses/>. 
 */
-#include <ios>
 #include <streambuf>
 #include <memory>
 #include <array>
 #include <vector>
 #include <tuple>
-#include <sys/types.h>
 #include <sys/socket.h>
 
 #pragma once
@@ -93,7 +91,7 @@ namespace io{
                 using buffer_type = std::shared_ptr<socket_message>;
                 using buffers_type = std::vector<buffer_type>;
                 using native_handle_type = int;
-                static constexpr size_type MIN_BUFSIZE = 65536;
+                static constexpr size_type MIN_BUFSIZE = 32*1024;
                 
                 sockbuf();
                 explicit sockbuf(native_handle_type sockfd, bool connected=false, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out));

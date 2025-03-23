@@ -30,28 +30,29 @@ namespace cloudbus {
     static void unmask_handlers(){
         std::signal(SIGTERM, sighandler);
         std::signal(SIGHUP, sighandler);
+        std::signal(SIGINT, sighandler);
     }
     static void mask_handlers(){
         std::signal(SIGTERM, SIG_IGN);
         std::signal(SIGHUP, SIG_IGN);
+        std::signal(SIGINT, SIG_IGN);
     }
 
     manager_base::manager_base(const config_type& config):
         _config{config}
     { unmask_handlers(); }
 
-    manager_base::pipe_type manager_base::start(node_type& node){
+    void manager_base::start(node_type& node){
         pipe_type p;
         if(pipe(p.data()))
             throw std::runtime_error("Unable to open pipe.");
         for(auto& hnd: p)
             set_flags(hnd);
         mask_handlers();
-        _threads.emplace_back([](node_type& n, int noticefd){
+        _threads.emplace_back(p, std::thread([](node_type& n, int noticefd){
             return n.run(noticefd);
-        }, std::ref(node), p[0]);
+        }, std::ref(node), p[0]));
         unmask_handlers();
-        return p;
     }
 
     void manager_base::join(std::size_t start, std::size_t size){
@@ -59,8 +60,47 @@ namespace cloudbus {
         while(start-- && it != _threads.end())
             ++it;
         while(size-- && it != _threads.end()){
-            it->join();
+            auto&[p, t] = *it;
+            t.join();
+            for(auto hnd: p)
+                close(hnd);
             it = _threads.erase(it);
         }
+    }
+
+    int manager_base::handle_signal(int sig) {
+        if(sig){
+            for(auto&[p, t]: _threads){
+                int wr=p[1], off=0;
+                char *buf = reinterpret_cast<char*>(&sig);
+                while(auto len = write(wr, buf+off, sizeof(sig)-off)){
+                    if(len < 0){
+                        switch(errno){
+                            case EINTR: continue;
+                            default:
+                                throw std::runtime_error("Couldn't notify thread of signal.");
+                        }
+                    }
+                    if((off+=len) == sizeof(sig))
+                        break;
+                }
+            }
+        }
+        return _handle_signal(sig);
+    }
+
+    int manager_base::_handle_signal(int sig) {
+        if(sig & (SIGTERM | SIGINT | SIGHUP)){
+            join();
+            sig &= ~(SIGTERM | SIGINT | SIGHUP);
+        }
+        return sig;
+    }
+
+    int manager_base::_run(){
+        while(pause())
+            if(auto mask=handle_signal(signal); signal & ~mask)
+                return signal & ~mask;
+        return 0;
     }
 }

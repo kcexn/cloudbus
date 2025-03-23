@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <csignal>
 #include <unistd.h>
-#include <mutex>
 namespace cloudbus{
     node_base::node_base(const duration_type& timeout):
         Base(_triggers), _triggers{}, _timeout{timeout}{}

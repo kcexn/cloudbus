@@ -281,7 +281,7 @@ namespace cloudbus {
             return 0;
         }
         std::streamsize connector::_north_connect(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
-            constexpr std::size_t SHRINK_THRESHOLD = 1024;
+            constexpr std::size_t SHRINK_THRESHOLD = 4096;
             const auto n = connection_type::clock_type::now();
             auto eid = messages::make_uuid_v7();
             connections_type connect;
@@ -312,8 +312,7 @@ namespace cloudbus {
                 );
             }
             connections().insert(connections().cend(), connect.cbegin(), connect.cend());
-            if(connections().capacity() > SHRINK_THRESHOLD 
-                && connections().size() < connections().capacity()/2)
+            if(connections().capacity() > SHRINK_THRESHOLD)
                 connections().shrink_to_fit();
             const std::streamsize pos = buf.tellp();
             messages::msgheader head;

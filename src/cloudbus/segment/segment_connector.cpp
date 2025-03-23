@@ -232,7 +232,7 @@ namespace cloudbus{
             return -1;
         }
         std::streamsize connector::_north_connect(const shared_north& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
-            constexpr std::size_t SHRINK_THRESHOLD = 1024;
+            constexpr std::size_t SHRINK_THRESHOLD = 4096;
             auto posit = std::find(north().cbegin(), north().cend(), interface);
             auto& sbd = south()[posit - north().cbegin()];
             auto& hnd = sbd->make();
@@ -255,8 +255,7 @@ namespace cloudbus{
                 ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
                 : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
             );
-            if(connections().capacity() > SHRINK_THRESHOLD 
-                && connections().size() < connections().capacity()/2)
+            if(connections().capacity() > SHRINK_THRESHOLD)
                 connections().shrink_to_fit();           
             return _north_write(ssp, buf);
         }

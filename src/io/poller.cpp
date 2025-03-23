@@ -16,14 +16,13 @@
 #include "io.hpp"
 #include <poll.h>
 namespace io{
-    static constexpr std::size_t SHRINK_THRESHOLD = 1024;
+    static constexpr std::size_t SHRINK_THRESHOLD = 4096;
     poller::size_type poller::_add(native_handle_type handle, events_type& events, event_type event){
         for(const auto& e: events)
             if(e.fd == handle)
                 return npos;
         events.push_back(event);
-        if(events.capacity() > SHRINK_THRESHOLD
-                && events.size() < events.capacity()/2)
+        if(events.capacity() > SHRINK_THRESHOLD)
             events.shrink_to_fit();
         return events.size();
     }

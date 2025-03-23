@@ -16,7 +16,7 @@
 #include "interfaces.hpp"
 #include <cstring>
 namespace cloudbus {
-    static constexpr std::size_t SHRINK_THRESHOLD = 1024;
+    static constexpr std::size_t SHRINK_THRESHOLD = 4096;
     const interface_base::address_type interface_base::NULLADDR = interface_base::address_type{};
     interface_base::address_type interface_base::make_address(const struct sockaddr *addr, socklen_t addrlen){
         auto address = address_type();
@@ -101,29 +101,25 @@ namespace cloudbus {
     }
     interface_base::handle_ptr& interface_base::make(){
         _streams.push_back(make_handle());
-        if(_streams.capacity() > SHRINK_THRESHOLD
-            && _streams.size() < _streams.capacity()/2)
+        if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();
     }
     interface_base::handle_ptr& interface_base::make(int domain, int type, int protocol){
         _streams.push_back(make_handle(domain, type, protocol));
-        if(_streams.capacity() > SHRINK_THRESHOLD
-            && _streams.size() < _streams.capacity()/2)
+        if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();
     }
     interface_base::handle_ptr& interface_base::make(native_handle_type sockfd){
         _streams.push_back(make_handle(sockfd));
-        if(_streams.capacity() > SHRINK_THRESHOLD
-            &&_streams.size() < _streams.capacity()/2)
+        if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();
     }
     interface_base::handle_ptr& interface_base::make(native_handle_type sockfd, bool connected){
         _streams.push_back(make_handle(sockfd, connected));
-        if(_streams.capacity() > SHRINK_THRESHOLD 
-            && _streams.size() < _streams.capacity()/2)
+        if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();
     }
@@ -143,15 +139,13 @@ namespace cloudbus {
     }
     void interface_base::register_connect(std::weak_ptr<handle_type> wp, const callback_type& connect_callback){
         _pending.emplace_back(wp, connect_callback);
-        if(_pending.capacity() > SHRINK_THRESHOLD
-            && _pending.size() < _pending.capacity()/2)
+        if(_pending.capacity() > SHRINK_THRESHOLD)
             _pending.shrink_to_fit();
         return _resolve_callbacks();
     }
     void interface_base::register_connect(std::weak_ptr<handle_type> wp, callback_type&& connect_callback){
         _pending.emplace_back(wp, std::move(connect_callback));
-        if(_pending.capacity() > SHRINK_THRESHOLD
-            && _pending.size() < _pending.capacity()/2)
+        if(_pending.capacity() > SHRINK_THRESHOLD)
             _pending.shrink_to_fit();
         return _resolve_callbacks();
     }

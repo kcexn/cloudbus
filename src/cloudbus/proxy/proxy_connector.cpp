@@ -229,6 +229,8 @@ namespace cloudbus{
                                 conn = connections().erase(conn);
                             break;
                         } else if(auto n = conn->north.lock()){
+                            if(mode()==FULL_DUPLEX && rem && !eof)
+                                break;
                             const auto time = connection_type::clock_type::now();
                             if(auto len = pos-seekpos){
                                 triggers().set(n->native_handle(), POLLOUT);

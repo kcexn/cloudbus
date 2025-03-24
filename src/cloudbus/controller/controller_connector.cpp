@@ -231,6 +231,8 @@ namespace cloudbus {
                                     conn = --connections().erase(conn);
                                 break;
                             }
+                            if(mode()==FULL_DUPLEX && rem && !eof)
+                                break;
                             buf.seekg(seekpos);
                             triggers().set(n->native_handle(), POLLOUT);
                             if(pos > seekpos && !_south_write(n, buf))

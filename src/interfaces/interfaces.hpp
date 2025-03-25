@@ -52,7 +52,7 @@ namespace cloudbus {
             static const address_type NULLADDR;
             static address_type make_address(const struct sockaddr *addr, socklen_t addrlen);
             static handle_ptr make_handle();
-            static handle_ptr make_handle(int domain, int type, int protocol);
+            static handle_ptr make_handle(int domain, int type, int protocol, std::ios_base::openmode which);
             static handle_ptr make_handle(native_handle_type sockfd, bool connected=false);
 
             interface_base(const std::string& protocol=std::string(), const std::string& url=std::string()):
@@ -87,7 +87,7 @@ namespace cloudbus {
 
             const handles_type& streams() const { return _streams; }
             handle_ptr& make();
-            handle_ptr& make(int domain, int type, int protocol);
+            handle_ptr& make(int domain, int type, int protocol, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out));
             handle_ptr& make(native_handle_type sockfd);
             handle_ptr& make(native_handle_type sockfd, bool connected);
 

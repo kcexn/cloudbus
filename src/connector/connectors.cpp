@@ -58,13 +58,14 @@ namespace cloudbus {
     interface_base::native_handle_type connector_base::make_north(const config::address_type& address){
         if(address.index() != config::SOCKADDR)
             return -1;
-        auto&[protocol, addr, addrlen] = std::get<config::SOCKADDR>(address);
-        _north.push_back(std::make_shared<interface_base>(reinterpret_cast<const struct sockaddr*>(&addr), addrlen, protocol));
+        auto&[protocol, s_addr, addrlen] = std::get<config::SOCKADDR>(address);
+        const auto *addr = reinterpret_cast<const struct sockaddr*>(&s_addr);
+        _north.push_back(std::make_shared<interface_base>(addr, addrlen, protocol));
         if(protocol == "TCP" || protocol == "UNIX"){
-            auto& hnd = _north.back()->make(addr.ss_family, SOCK_STREAM, 0);
+            auto& hnd = _north.back()->make(addr->sa_family, SOCK_STREAM, 0, std::ios_base::openmode());
             auto& sockfd = std::get<interface_base::native_handle_type>(*hnd);
             set_flags(sockfd);
-            if(bind(sockfd, reinterpret_cast<const struct sockaddr*>(&addr), addrlen))
+            if(bind(sockfd, addr, addrlen))
                 throw std::runtime_error("bind()");
             if(listen(sockfd, 128))
                 throw std::runtime_error("listen()");

@@ -29,8 +29,8 @@ namespace cloudbus {
     interface_base::handle_ptr interface_base::make_handle(){
         return std::make_shared<handle_type>(0, std::make_shared<stream_type>());
     }
-    interface_base::handle_ptr interface_base::make_handle(int domain, int type, int protocol){
-        auto s = std::make_shared<stream_type>(domain, type, protocol); 
+    interface_base::handle_ptr interface_base::make_handle(int domain, int type, int protocol, std::ios_base::openmode which){
+        auto s = std::make_shared<stream_type>(domain, type, protocol, which); 
         return std::make_shared<handle_type>(s->native_handle(), s);
     }
     interface_base::handle_ptr interface_base::make_handle(int sockfd, bool connected){
@@ -105,8 +105,8 @@ namespace cloudbus {
             _streams.shrink_to_fit();
         return _streams.back();
     }
-    interface_base::handle_ptr& interface_base::make(int domain, int type, int protocol){
-        _streams.push_back(make_handle(domain, type, protocol));
+    interface_base::handle_ptr& interface_base::make(int domain, int type, int protocol, std::ios_base::openmode which){
+        _streams.push_back(make_handle(domain, type, protocol, which));
         if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();

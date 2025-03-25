@@ -63,10 +63,10 @@ namespace cloudbus{
                     ++it;
                 } else it = north().erase(it);
             }
-            std::get<north_ptr>(north().emplace_back()) = std::get<north_type::stream_ptr>(*stream);
-            auto n = std::get<north_ptr>(north().back()).lock();
-            auto& buf = std::get<north_format>(north().back());
-            stream_copy(buf, *n);
+            auto&[nptr, buf] = north().emplace_back();
+            auto& nsp = std::get<north_type::stream_ptr>(*stream);
+            nptr = nsp;
+            stream_copy(buf, *nsp);
             return --north().end(); 
         }
         marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_ptr& stream){

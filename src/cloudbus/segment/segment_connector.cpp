@@ -64,12 +64,12 @@ namespace cloudbus{
             }
         }       
         static std::ostream& stream_write(std::ostream& os, std::istream& is){
-            std::array<char, 256> _buf = {};
+            std::array<char, 256> _buf;
             while(auto gcount = is.readsome(_buf.data(), _buf.max_size()))
                 if(os.write(_buf.data(), gcount).bad())
                     return os;
             return os;
-        }
+        }    
         static std::ostream& stream_write(std::ostream& os, std::istream& is, std::streamsize maxlen){
             std::array<char, 256> _buf = {};
             while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.max_size())))){
@@ -256,7 +256,7 @@ namespace cloudbus{
                 : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
             );
             if(connections().capacity() > SHRINK_THRESHOLD)
-                connections().shrink_to_fit();           
+                connections().shrink_to_fit();
             return _north_write(ssp, buf);
         }
         void connector::_north_err_handler(const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){

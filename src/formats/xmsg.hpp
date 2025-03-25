@@ -16,8 +16,6 @@
 #include "../messages.hpp"
 #include <streambuf>
 #include <iostream>
-#include <array>
-#include <vector>
 #pragma once
 #ifndef CLOUDBUS_XMSG
 #define CLOUDBUS_XMSG
@@ -25,78 +23,57 @@ namespace cloudbus{
     namespace messages {
         class xmsgbuf : public std::streambuf {
             public:
-                static constexpr std::size_t bufsize = 4*1024;
+                static constexpr std::size_t BUFINC = 4*1024;
                 using Base = std::streambuf;
-                using int_type = Base::int_type;
-                using char_type = Base::char_type;
-                using traits = Base::traits_type;
-                using buffer = std::array<char, bufsize>;
-                using size_type = std::size_t;
                 
-                xmsgbuf()
-                    : xmsgbuf( std::ios_base::in | std::ios_base::out ) {}                
-                xmsgbuf(xmsgbuf&& other);
-                explicit xmsgbuf( std::ios_base::openmode which );
-                
-                xmsgbuf& operator=(xmsgbuf&& other);
-                
-                uuid *eid();
-                const uuid *eid() const;
-                
-                msglen *len();
-                const msglen *len() const;
-                
-                msgversion *version();
-                const msgversion *version() const;
-                
-                msgtype *type();
-                const msgtype *type() const;
+                xmsgbuf();
+                xmsgbuf(xmsgbuf&& other) noexcept;
+                xmsgbuf& operator=(xmsgbuf&& other) noexcept;
 
-                bool complete() const;
+                void swap(xmsgbuf& other) noexcept;
+                                
+                uuid *eid() noexcept;
+                msglen *len() noexcept;
+                msgversion *version() noexcept;
+                msgtype *type() noexcept;
                 
-                ~xmsgbuf() = default;
+                ~xmsgbuf();
+
+                xmsgbuf(const xmsgbuf& other) = delete;
+                xmsgbuf& operator=(const xmsgbuf& other) = delete;
                 
             protected:
-                std::streamsize xsputn(const char_type *s, std::streamsize count) override;
-                std::streamsize showmanyc() override;
-                int_type underflow() override;  
-                int_type overflow(int_type ch = traits::eof()) override;
-                Base::pos_type seekoff( Base::off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out ) override;
-                Base::pos_type seekpos( Base::pos_type pos, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out ) override;
+                virtual std::streamsize xsputn(const char *s, std::streamsize count) override;
+                virtual std::streamsize showmanyc() override;
+                virtual int_type underflow() override;
+                virtual int_type overflow(int_type ch) override;
+                virtual pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override;
+                virtual pos_type seekpos(pos_type pos, std::ios_base::openmode which) override;
                 
             private:
-                std::ios_base::openmode _which;
-                std::vector<buffer> _buffers;
+                void *bufptr;
+                std::size_t bufsize;
         };
         
         class xmsgstream : public std::iostream {
             public:
                 using Base = std::iostream;
-                using size_type = xmsgbuf::size_type;
-                using char_type = xmsgbuf::char_type;
                 
-                xmsgstream()
-                    : xmsgstream(std::ios_base::in | std::ios_base::out) {}
-                xmsgstream(xmsgstream&& other);
-                explicit xmsgstream( std::ios_base::openmode mode );
-                
-                xmsgstream& operator=(xmsgstream&& other);
-                                
-                uuid* eid(){ return _buf.eid(); }
-                const uuid* eid() const { return _buf.eid(); }
+                xmsgstream();
+                xmsgstream(xmsgstream&& other) noexcept;               
+                xmsgstream& operator=(xmsgstream&& other) noexcept;
 
-                msglen* len() { return _buf.len(); }
-                const msglen* len() const { return _buf.len(); }
-                
-                msgversion* version() { return _buf.version(); }
-                const msgversion* version() const { return _buf.version(); }
-                
-                msgtype* type() { return _buf.type(); }
-                const msgtype* type() const { return _buf.type(); }
-                
-                bool complete() const { return _buf.complete(); }
+                void swap(xmsgstream& other) noexcept;
+
+                uuid* eid() noexcept { return _buf.eid(); }
+                msglen* len() noexcept { return _buf.len(); }                
+                msgversion* version() noexcept { return _buf.version(); }                
+                msgtype* type() noexcept { return _buf.type(); }
                 
                 ~xmsgstream() = default;
+
+                xmsgstream(const xmsgstream& other) = delete;
+                xmsgstream& operator=(const xmsgstream& other) = delete;
             private:
                 xmsgbuf _buf;
         };

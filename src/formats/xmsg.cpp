@@ -144,8 +144,7 @@ namespace cloudbus{
             if(which & std::ios_base::in){
                 if(pos > pptr()-pbase())
                     return Base::seekpos(pos, which);
-                char *gp = eback()+pos, *eg = std::max(gp, egptr());
-                setg(eback(), gp, eg);
+                setg(eback(), eback()+pos, pptr());
             } else if (which & std::ios_base::out){
                 if(pos > epptr()-pbase())
                     return Base::seekpos(pos, which);

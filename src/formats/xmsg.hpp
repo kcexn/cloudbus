@@ -26,7 +26,7 @@ namespace cloudbus{
                 static constexpr std::size_t BUFINC = 4*1024;
                 using Base = std::streambuf;
                 
-                xmsgbuf();
+                xmsgbuf(const std::size_t& buflen=BUFINC);
                 xmsgbuf(xmsgbuf&& other) noexcept;
                 xmsgbuf& operator=(xmsgbuf&& other) noexcept;
 
@@ -37,7 +37,7 @@ namespace cloudbus{
                 msgversion *version() noexcept;
                 msgtype *type() noexcept;
                 
-                virtual ~xmsgbuf();
+                ~xmsgbuf();
 
                 xmsgbuf(const xmsgbuf& other) = delete;
                 xmsgbuf& operator=(const xmsgbuf& other) = delete;
@@ -63,14 +63,14 @@ namespace cloudbus{
                 xmsgstream(xmsgstream&& other) noexcept;               
                 xmsgstream& operator=(xmsgstream&& other) noexcept;
 
-                void swap(xmsgstream& other) noexcept;
+                void swap(xmsgstream&& other) noexcept;
 
                 uuid* eid() noexcept { return _buf.eid(); }
                 msglen* len() noexcept { return _buf.len(); }                
                 msgversion* version() noexcept { return _buf.version(); }                
                 msgtype* type() noexcept { return _buf.type(); }
                 
-                virtual ~xmsgstream() = default;
+                ~xmsgstream() = default;
 
                 xmsgstream(const xmsgstream& other) = delete;
                 xmsgstream& operator=(const xmsgstream& other) = delete;

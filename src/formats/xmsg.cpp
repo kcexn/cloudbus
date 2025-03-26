@@ -18,15 +18,14 @@
 #include <cstring>
 namespace cloudbus{
     namespace messages{
-        xmsgbuf::xmsgbuf():
+        xmsgbuf::xmsgbuf(const std::size_t& buflen):
             Base(),
-            bufptr{nullptr}, bufsize{0}
+            bufptr{nullptr}, bufsize{buflen}
         {
-            if( !(bufptr=std::malloc(BUFINC)) )
+            if( bufsize && !(bufptr=std::malloc(bufsize)) )
                 throw std::bad_alloc();
-            bufsize = BUFINC;
             char *base = static_cast<char*>(bufptr);
-            setp(base, base+BUFINC);
+            setp(base, base+bufsize);
             setg(pbase(), pbase(), pptr());
         }
 
@@ -116,36 +115,31 @@ namespace cloudbus{
             return sputc(ch);
         }
         xmsgbuf::pos_type xmsgbuf::seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which){
-            pos_type pos=0;
             switch(dir){
                 case std::ios_base::beg:
-                    return seekpos(pos+off, which);
+                    return seekpos(off, which);
                 case std::ios_base::end:
-                    if(which & std::ios_base::in){
-                        pos = egptr()-eback();
-                    } else if (which & std::ios_base::out) {
-                        pos = epptr()-pbase();
-                    }
-                    return seekpos(pos+off, which);
+                    if(which & std::ios_base::in)
+                        return seekpos(egptr()-eback()+off, which);
+                    if(which & std::ios_base::out)
+                        return seekpos(epptr()-pbase()+off, which);
                 case std::ios_base::cur:
-                    if(which & std::ios_base::in){
-                        pos = gptr()-eback();
-                    } else if (which & std::ios_base::out){
-                        pos = pptr()-pbase();
-                    }
-                    return seekpos(pos+off, which);
+                    if(which & std::ios_base::in)
+                        return seekpos(gptr()-eback()+off, which);
+                    if(which & std::ios_base::out)
+                        return seekpos(pptr()-pbase()+off, which);
               default:
                     return Base::seekoff(off, dir, which);
             }
         }
         xmsgbuf::pos_type xmsgbuf::seekpos(pos_type pos, std::ios_base::openmode which){
-            if(pos < 0) 
+            if(pos < 0 || !which)
                 return Base::seekpos(pos, which);
-            if(which & std::ios_base::in){
+            if(which & std::ios_base::in) {
                 if(pos > pptr()-pbase())
                     return Base::seekpos(pos, which);
                 setg(eback(), eback()+pos, pptr());
-            } else if (which & std::ios_base::out){
+            } else {
                 if(pos > epptr()-pbase())
                     return Base::seekpos(pos, which);
                 setp(pbase(), epptr());
@@ -164,19 +158,16 @@ namespace cloudbus{
         {}
 
         xmsgstream::xmsgstream(xmsgstream&& other) noexcept:
-            xmsgstream()
-        { swap(other); }
+            Base(&_buf), _buf{0}
+        { swap(std::move(other)); }
 
         xmsgstream& xmsgstream::operator=(xmsgstream&& other) noexcept
         {
-            swap(other);
+            swap(std::move(other));
             return *this;
         }
 
-        void xmsgstream::swap(xmsgstream& other) noexcept
-        {
-            _buf.swap(other._buf);
-            Base::swap(other);
-        }
+        void xmsgstream::swap(xmsgstream&& other) noexcept
+        { _buf.swap(other._buf); }
     }
 }

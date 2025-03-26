@@ -83,8 +83,7 @@ namespace cloudbus{
             const std::streamsize& len
         ){
             const std::streamsize pos = MAX_BUFSIZE-len;
-            auto conn = connections.begin();
-            while(conn < connections.end()){
+            for(auto conn=connections.begin(); conn < connections.end(); ++conn){
                 if(!messages::uuid_cmpnode(&conn->uuid, &uuid)){
                     if(auto s = conn->south.lock()){
                         if(s->tellp() >= pos)
@@ -92,11 +91,10 @@ namespace cloudbus{
                                 return connections.end();
                         if(s->tellp() > pos)
                             return conn;
-                        ++conn;
-                    } else conn = connections.erase(conn);
-                } else ++conn;
+                    } else conn = --connections.erase(conn);
+                }
             }
-            return conn;
+            return connections.end();
         }
         static int clear_triggers(
             int sockfd,
@@ -170,8 +168,8 @@ namespace cloudbus{
         int connector::_route(marshaller_type::north_format& buf, const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
             auto&[nfd, nsp] = *stream;
             const auto eof = nsp->eof();
-            const auto *eid = buf.eid();
-            if(const auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
+            if(const auto *type = buf.type()){
+                auto *eid = buf.eid();
                 const auto seekpos = buf.tellg(), pos = buf.tellp();
                 const auto rem = buf.len()->length - pos;
                 std::vector<char> padding;
@@ -185,7 +183,7 @@ namespace cloudbus{
                             s && ++connected &&
                             c->state < connector::connection_type::CLOSED
                     ){
-                        *buf.eid() = c->uuid;
+                        *eid = c->uuid;
                         stream_write(*s, buf.seekg(seekpos), pos-seekpos);
                         triggers().set(s->native_handle(), POLLOUT);
                         if(!rem) {
@@ -217,8 +215,8 @@ namespace cloudbus{
         int connector::_route(marshaller_type::south_format& buf, const shared_south& interface, const south_type::handle_ptr& stream, event_mask& revents){
             auto&[sfd, ssp] = *stream;
             const auto eof = ssp->eof();
-            const auto *eid = buf.eid();
-            if(auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
+            if(const auto *type = buf.type()){
+                const auto *eid = buf.eid();
                 const auto seekpos = buf.tellg(), pos = buf.tellp();
                 const auto rem = buf.len()->length - pos;
                 std::vector<char> padding;

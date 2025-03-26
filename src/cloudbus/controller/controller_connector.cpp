@@ -87,8 +87,7 @@ namespace cloudbus {
             const std::streamsize& tellp
         ){
             const std::streamsize pos = MAX_BUFSIZE-(tellp+sizeof(messages::msgheader));
-            auto conn = connections.begin();
-            while(conn < connections.end()){
+            for(auto conn = connections.begin(); conn < connections.end(); ++conn){
                 if(auto n = conn->north.lock(); n && n==np){
                     if(auto s = conn->south.lock()){
                         if(s->tellp() >= pos)
@@ -96,11 +95,10 @@ namespace cloudbus {
                                 return connections.end();
                         if(s->tellp() > pos)
                             return conn;
-                        ++conn;
-                    } else conn = connections.erase(conn);
-                } else ++conn;
+                    } else conn = --connections.erase(conn);
+                }
             }
-            return conn;
+            return connections.end();
         }
         static int clear_triggers(
             int sockfd,
@@ -171,13 +169,14 @@ namespace cloudbus {
             return handled;
         }
         int connector::_route(marshaller_type::north_format& buf, const shared_north& interface, const north_type::handle_ptr& stream, event_mask& revents){
+            constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
             auto&[nfd, nsp] = *stream;
             const auto eof = nsp->eof();
             if(const auto p = buf.tellp(); eof || p > 0){
-                messages::msgheader head = {
-                    {},{1, static_cast<std::uint16_t>(static_cast<std::uint16_t>(p)+sizeof(head))},
-                    {0,0},{eof ? messages::STOP : messages::DATA, 0}
-                };
+                messages::msgheader head;
+                head.len = messages::msglen{1, static_cast<std::uint16_t>(p+HDRLEN)};
+                head.version = messages::msgversion{0,0};
+                head.type = messages::msgtype{eof ? messages::STOP : messages::DATA, 0};
                 if(write_prepare(connections(), triggers(), nsp, p) != connections().end())
                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                 const auto time = connection_type::clock_type::now();
@@ -185,7 +184,7 @@ namespace cloudbus {
                 for(auto conn=connections().begin(); conn < connections().end(); ++conn){
                     if(auto n = conn->north.lock(); n && n==nsp){
                         if(auto s = conn->south.lock(); s && ++connected && 
-                                conn->state < connection_type::CLOSED
+                                conn->state != connection_type::CLOSED
                         ){
                             state_update(*conn, head.type, time);
                             head.eid = conn->uuid;
@@ -206,8 +205,8 @@ namespace cloudbus {
             constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
             auto&[sfd, ssp] = *stream;
             const auto eof = ssp->eof();
-            const auto *eid = buf.eid();
-            if(const auto *type = eid != nullptr ? buf.type() : nullptr; type != nullptr){
+            if(const auto *type = buf.type()){
+                const auto *eid = buf.eid();
                 const std::streamsize seekpos = 
                     (buf.tellg() <= HDRLEN)
                     ? HDRLEN
@@ -233,18 +232,17 @@ namespace cloudbus {
                             }
                             if(mode()==FULL_DUPLEX && rem && !eof)
                                 break;
-                            buf.seekg(seekpos);
                             triggers().set(n->native_handle(), POLLOUT);
-                            if(pos > seekpos && !_south_write(n, buf))
-                                return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
+                            if(pos > seekpos){
+                                buf.seekg(seekpos);
+                                if(!_south_write(n, buf))
+                                    return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
+                            }
                             auto prev = conn->state;
                             if(!rem){
                                 state_update(*conn, *type, time);
-                                if(type->op == messages::STOP &&
-                                        (type->flags & messages::ABORT)
-                                ){
+                                if(type->flags & messages::ABORT)
                                     state_update(*conn, *type, time);
-                                }
                             }
                             if(mode() == HALF_DUPLEX &&
                                     prev == connection_type::HALF_OPEN &&
@@ -263,11 +261,11 @@ namespace cloudbus {
                                     // This is a very awkward way to do this, but I have implemented it like this to keep 
                                     // open the option of implementing UDP transport. With unreliable transports, it is 
                                     // necessary to retry control messages until after the remote end sends back an ACK.
-                                    if(auto sp = c->south.lock(); c->uuid==*eid && sp && sp != ssp){
+                                    if(auto sp = c->south.lock(); sp && c->uuid==*eid && sp != ssp){
                                         sp->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
                                         triggers().set(sp->native_handle(), POLLOUT);
-                                        state_update(*c, stop.type, time);
-                                        state_update(*c, stop.type, time);
+                                        for(int i=0; i<2; ++i)
+                                            state_update(*c, stop.type, time);
                                     }
                                 }
                             }

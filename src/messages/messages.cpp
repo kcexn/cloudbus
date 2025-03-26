@@ -50,19 +50,18 @@ namespace cloudbus{
             return tmp;
         }
         int uuid_cmpnode(const uuid *lhs, const uuid *rhs){
-            const char *left = reinterpret_cast<const char*>(lhs) + offsetof(uuid, node);
-            const char *right = reinterpret_cast<const char*>(rhs) + offsetof(uuid, node);
-            for(std::size_t i=0; i < sizeof(uuid)-offsetof(uuid, node); ++i)
-                if(left[i] != right[i])
-                    return -1;
-            return 0;
+            auto *left = reinterpret_cast<const unsigned char*>(lhs) + offsetof(uuid, node);
+            auto *const end = left + (sizeof(uuid)-offsetof(uuid, node));
+            auto *right = reinterpret_cast<const unsigned char*>(rhs) + offsetof(uuid, node);
+            while(*left++ == *right++ && left < end);
+            return left-end;
         }
         bool operator==(const uuid& lhs, const uuid& rhs){
-            const unsigned char *lhs_ = reinterpret_cast<const unsigned char*>(&lhs);
-            const unsigned char *rhs_ = reinterpret_cast<const unsigned char*>(&rhs);
-            for(std::size_t i=0; i < sizeof(uuid); ++i)
-                if(lhs_[i] != rhs_[i]) return false;
-            return true;
+            auto *left = reinterpret_cast<const unsigned char*>(&lhs);
+            auto *const end = left+sizeof(uuid);
+            auto *right = reinterpret_cast<const unsigned char*>(&rhs);
+            while(*left++ == *right++ && left < end);
+            return left==end;
         }
         bool operator!=(const uuid& lhs, const uuid& rhs){
             return !(lhs == rhs);

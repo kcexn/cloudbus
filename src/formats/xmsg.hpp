@@ -37,7 +37,7 @@ namespace cloudbus{
                 msgversion *version() noexcept;
                 msgtype *type() noexcept;
                 
-                ~xmsgbuf();
+                virtual ~xmsgbuf();
 
                 xmsgbuf(const xmsgbuf& other) = delete;
                 xmsgbuf& operator=(const xmsgbuf& other) = delete;
@@ -70,7 +70,7 @@ namespace cloudbus{
                 msgversion* version() noexcept { return _buf.version(); }                
                 msgtype* type() noexcept { return _buf.type(); }
                 
-                ~xmsgstream() = default;
+                virtual ~xmsgstream() = default;
 
                 xmsgstream(const xmsgstream& other) = delete;
                 xmsgstream& operator=(const xmsgstream& other) = delete;

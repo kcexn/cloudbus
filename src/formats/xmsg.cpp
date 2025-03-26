@@ -159,15 +159,18 @@ namespace cloudbus{
 
         xmsgstream::xmsgstream(xmsgstream&& other) noexcept:
             Base(&_buf), _buf{0}
-        { swap(std::move(other)); }
+        { swap(other); }
 
         xmsgstream& xmsgstream::operator=(xmsgstream&& other) noexcept
         {
-            swap(std::move(other));
+            swap(other);
             return *this;
         }
 
-        void xmsgstream::swap(xmsgstream&& other) noexcept
-        { _buf.swap(other._buf); }
+        void xmsgstream::swap(xmsgstream& other) noexcept
+        { 
+            _buf.swap(other._buf);
+            Base::swap(other);
+        }
     }
 }

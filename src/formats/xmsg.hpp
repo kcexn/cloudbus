@@ -63,7 +63,7 @@ namespace cloudbus{
                 xmsgstream(xmsgstream&& other) noexcept;               
                 xmsgstream& operator=(xmsgstream&& other) noexcept;
 
-                void swap(xmsgstream&& other) noexcept;
+                void swap(xmsgstream& other) noexcept;
 
                 uuid* eid() noexcept { return _buf.eid(); }
                 msglen* len() noexcept { return _buf.len(); }                

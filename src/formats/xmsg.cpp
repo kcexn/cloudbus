@@ -150,7 +150,7 @@ namespace cloudbus{
                     return Base::seekpos(pos, which);
                 setp(pbase(), epptr());
                 pbump(pos);
-                setg(eback(), gptr(), pptr());
+                setg(eback(), std::min(gptr(), pptr()), pptr());
             }
             return pos;
         }

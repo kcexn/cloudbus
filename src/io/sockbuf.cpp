@@ -69,19 +69,21 @@ namespace io{
         }
         sockbuf::sockbuf(): 
             Base(),
-            _which{std::ios_base::in | std::ios_base::out},
             _buffers{}, _socket{0},
-            _errno{0}, _connected{false}
-        { _init_buf_ptrs(); }
+            _errno{0}, _connected{false},
+            _which{std::ios_base::in | std::ios_base::out}
+            { _init_buf_ptrs(); }
 
         sockbuf::sockbuf(native_handle_type sockfd, bool connected, std::ios_base::openmode which):
-            Base(), _which{which}, _buffers{},
-            _socket{sockfd}, _errno{0}, _connected{connected}
+            Base(), _buffers{},
+            _socket{sockfd}, _errno{0}, _connected{connected},
+            _which{which}
         { _init_buf_ptrs(); }
 
         sockbuf::sockbuf(int domain, int type, int protocol, std::ios_base::openmode which):
-            Base(), _which{which}, _buffers{},
-            _socket{0}, _errno{0}, _connected{false}
+            Base(), _buffers{},
+            _socket{0}, _errno{0}, _connected{false},
+            _which{which}
         {
             if((_socket = socket(domain, type, protocol)) < 0) 
                 throw std::runtime_error("Can't open socket.");

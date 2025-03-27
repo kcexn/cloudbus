@@ -171,8 +171,8 @@ namespace io {
             basic_trigger& operator=(const basic_trigger&& other) = delete;
             
         private:
+            interest_list _list;
             poller_type& _poller;
-            interest_list _list{};
     };
     
     class trigger: public basic_trigger<poll_t> {   

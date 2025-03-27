@@ -110,10 +110,10 @@ namespace cloudbus {
 
             std::string _uri, _protocol;
             addresses_type _addresses;
-            std::size_t _idx;
             handles_type _streams;
             callbacks_type _pending;
             dns_ttl _timeout;
+            std::size_t _idx;
 
             void _resolve_callbacks();
             void _expire_addresses();

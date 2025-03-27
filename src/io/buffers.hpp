@@ -75,11 +75,11 @@ namespace io{
                 virtual int_type overflow(int_type ch = traits_type::eof()) override;
                 virtual int_type underflow() override;
             private:
-                std::ios_base::openmode _which;
                 buffers_type _buffers;
                 native_handle_type _socket;
                 int _errno;
                 bool _connected;
+                std::ios_base::openmode _which;
                 
                 void _init_buf_ptrs();
                 int _send(const buffer_type& buf);

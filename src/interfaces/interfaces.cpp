@@ -176,16 +176,14 @@ namespace cloudbus {
         if(!_addresses.empty()){
             for(auto&[wp, cb]: _pending){
                 if(auto ptr = wp.lock()){
-                    const auto&[addr, addrlen] = address();
-                    auto it = std::find_if(
-                            _streams.begin(),
-                            _streams.end(),
-                        [&](const auto& hnd){
-                            return std::get<stream_ptr>(hnd)==ptr;
+                    const auto&[a, addrlen] = address();
+                    const auto *addr = reinterpret_cast<const struct sockaddr*>(&a);
+                    for(auto& hnd: _streams){
+                        if(std::get<stream_ptr>(hnd) == ptr){
+                            cb(hnd, addr, addrlen, _protocol);
+                            break;
                         }
-                    );
-                    if(it != _streams.end())
-                        cb(*it, reinterpret_cast<const struct sockaddr*>(&addr), addrlen, _protocol);
+                    }                       
                 }
             }
             _pending.clear();

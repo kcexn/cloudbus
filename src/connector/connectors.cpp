@@ -28,7 +28,7 @@ namespace cloudbus {
             throw std::runtime_error("Unable to set the socket to nonblocking mode.");
         return fd;
     }
-    connector_base::connector_base(int mode, const config::configuration::section& section):
+    connector_base::connector_base(const config::configuration::section& section, int mode):
         _north{}, _south{}, _connections{}, 
         _mode{mode}, _drain{0}
     {

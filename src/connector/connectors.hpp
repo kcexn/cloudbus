@@ -51,9 +51,7 @@ namespace cloudbus {
             using connections_type = std::vector<connection_type>;
             enum modes {HALF_DUPLEX, FULL_DUPLEX};
            
-            connector_base(const config::configuration::section& section):
-                connector_base(HALF_DUPLEX, section){}
-            explicit connector_base(int mode, const config::configuration::section& section);
+            explicit connector_base(const config::configuration::section& section, int mode=HALF_DUPLEX);
 
             interface_base::native_handle_type make_north(const config::address_type& address);
             int make_south(const config::address_type& address);

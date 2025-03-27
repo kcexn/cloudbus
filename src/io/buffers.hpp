@@ -24,51 +24,7 @@
 #ifndef IO_BUFFERS
 #define IO_BUFFERS
 namespace io{
-    namespace buffers{         
-        class pipebuf : public std::streambuf {
-            public:
-                using Base = std::streambuf;
-                using traits = Base::traits_type;
-                using int_type = Base::int_type;
-                using char_type = Base::char_type;
-                using buffer = std::vector<char>;
-                using native_handle_type = int*;
-                static constexpr std::size_t DEFAULT_BUFSIZE = 4096;
-                
-                
-                pipebuf():
-                pipebuf(std::ios_base::in | std::ios_base::out){}
-                pipebuf(pipebuf&& other);
-                explicit pipebuf(std::ios_base::openmode which);
-                
-                pipebuf& operator=(pipebuf&& other);
-                
-                native_handle_type native_handle() { return _pipe.data(); }
-                void close_read(); 
-                void close_write();
-                std::size_t write_remaining();
-                std::ios_base::openmode mode() { return _which; }
-                
-                ~pipebuf();
-            protected:
-            
-                int sync() override; 
-                std::streamsize showmanyc() override; 
-                int_type underflow() override;
-                
-                int_type overflow(int_type ch = traits::eof()) override;
-            private:
-                std::ios_base::openmode _which{};
-                buffer _read, _write;
-                std::array<int, 2> _pipe{};
-                std::size_t BUFSIZE;
-                
-                int _send(char_type *buf, std::size_t size);
-                int _recv();
-                void _mvrbuf();
-                void _resizewbuf();
-        };
-
+    namespace buffers{
         struct socket_message {
             using address_type = std::tuple<struct sockaddr_storage, socklen_t>;
             using ancillary_buffer = std::vector<char>;
@@ -116,10 +72,8 @@ namespace io{
                 virtual int sync() override;
                 virtual std::streamsize showmanyc() override;
 
-                virtual std::streamsize xsputn(const char_type* s, std::streamsize count) override;
                 virtual int_type overflow(int_type ch = traits_type::eof()) override;
                 virtual int_type underflow() override;
-                virtual std::streamsize xsgetn(char_type *s, std::streamsize count) override;
             private:
                 std::ios_base::openmode _which;
                 buffers_type _buffers;

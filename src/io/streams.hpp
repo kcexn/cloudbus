@@ -18,38 +18,8 @@
 #pragma once
 #ifndef IO_STREAMS
 #define IO_STREAMS
-namespace io{
-    namespace streams{
-        using optname = std::string;
-        using optval = std::vector<char>;
-        using sockopt = std::tuple<std::string, std::vector<char> >;
-        
-        class pipestream: public std::iostream {
-            using Base = std::iostream;
-            using native_handle_type = int*;
-            buffers::pipebuf _buf;
-            public:
-                pipestream():
-                    pipestream(std::ios_base::in | std::ios_base::out){}
-                    
-                pipestream(pipestream&& other):
-                    Base(&_buf),
-                    _buf(std::move(other._buf))
-                {}
-                
-                explicit pipestream(std::ios_base::openmode which):
-                    Base(&_buf),
-                    _buf(which)
-                {}
-                
-                native_handle_type native_handle() { return _buf.native_handle(); }
-                void close_read() { return _buf.close_read(); }
-                void close_write() { return _buf.close_write(); }
-                std::size_t write_remaining() { return _buf.write_remaining(); }
-                
-                ~pipestream(){}
-        };
-        
+namespace io {
+    namespace streams {        
         class sockstream: public std::iostream {
             using Base = std::iostream;
             using sockbuf = buffers::sockbuf;
@@ -58,11 +28,14 @@ namespace io{
             public:
                 using native_handle_type = sockbuf::native_handle_type;
                 sockstream(): 
-                    Base(&_buf){}
+                    Base(&_buf), _buf{}
+                {}
                 explicit sockstream(native_handle_type sockfd, bool connected=false, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out)):
-                    Base(&_buf), _buf(sockfd, connected, which) {}
+                    Base(&_buf), _buf(sockfd, connected, which)
+                {}
                 explicit sockstream(int domain, int type, int protocol, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out)):
-                    Base(&_buf), _buf(domain, type, protocol, which) {}
+                    Base(&_buf), _buf(domain, type, protocol, which)
+                {}
 
                 const sockbuf::buffer_type& recvbuf() const { return _buf.recvbuf(); }
                 const sockbuf::buffer_type& sendbuf() const { return _buf.sendbuf(); }
@@ -70,7 +43,7 @@ namespace io{
                 int err() { return _buf.err(); }
                 sockbuf::buffer_type connectto(const struct sockaddr* addr, socklen_t len) { return _buf.connectto(addr, len); }
 
-                virtual ~sockstream() = default;
+                ~sockstream() = default;
                 
                 sockstream(const sockstream& other) = delete;
                 sockstream& operator=(const sockstream& other) = delete;

@@ -73,19 +73,6 @@ namespace cloudbus{
                 return reinterpret_cast<msgtype*>(base+OFF);
             return nullptr;
         }
-        std::streamsize xmsgbuf::xsputn(const char *s, std::streamsize count){
-            std::streamsize len=0, n=0;
-            while((s+=n) && (len+=n) < count){
-                while( !(n = std::min(epptr()-pptr(), count-len)) ){
-                    if(traits_type::eq_int_type(overflow(*s), traits_type::eof()))
-                        return len;
-                    ++len; ++s;
-                }
-                std::memcpy(pptr(), s, n);
-                pbump(n);
-            }
-            return len;
-        }
         std::streamsize xmsgbuf::showmanyc(){
             if(auto *lenp = len();
                 pptr()==gptr() &&

@@ -363,20 +363,9 @@ namespace io{
             return header.msg_control ? 0 : -1;
         }
         std::streamsize sockbuf::showmanyc() {
-            if(!(egptr()-gptr()) && _recv())
+            if(egptr()==gptr() && _recv())
                 return -1;
             return egptr()-gptr();
-        }
-        std::streamsize sockbuf::xsputn(const char_type *s, std::streamsize count){
-            std::streamsize len=0, n=0;
-            while((s+=n) && (len+=n) < count){
-                while( !(n=std::min(epptr()-pptr(), count-len)) )
-                    if(sync())
-                        return len;
-                std::memcpy(pptr(), s, n);
-                pbump(n);
-            }
-            return len;
         }
         sockbuf::int_type sockbuf::overflow(sockbuf::int_type ch){
             if(pbase() == nullptr || sync())
@@ -393,20 +382,6 @@ namespace io{
             if(_poll(_socket, POLLIN))
                 return traits_type::eof();
             return underflow();
-        }
-        std::streamsize sockbuf::xsgetn(char_type *s, std::streamsize count){
-            std::streamsize len=0, n=0;
-            while((s+=n) && (len+=n) < count){
-                while( !(n = std::min(egptr()-gptr(), count-len)) ){
-                    if(_recv() ||
-                        (!(egptr()-eback()) &&
-                            _poll(_socket,POLLIN)))
-                        return len;
-                }
-                std::memcpy(s, gptr(), n);
-                gbump(n);
-            }
-            return len;
         }
         sockbuf::~sockbuf(){
             for(auto& buf: _buffers)

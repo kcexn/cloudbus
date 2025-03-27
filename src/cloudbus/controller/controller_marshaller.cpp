@@ -16,27 +16,27 @@
 #include "controller_marshaller.hpp"
 namespace cloudbus{
     namespace controller {
-        static bool xmsg_read(messages::xmsgstream& buf, std::istream& is){
-            std::array<char, 256> _buf = {};
-            constexpr std::streamsize hdr_size = sizeof(messages::msgheader);
-            std::streamsize gcount = 0, p = 0;
+        static messages::xmsgstream& xmsg_read(messages::xmsgstream& buf, std::istream& is){
+            constexpr std::streamsize HDRLEN=sizeof(messages::msgheader), BUFSIZE=256;
+            std::array<char, BUFSIZE> _buf;
+            std::streamsize gcount = 0, p;
             if(buf.eof()){
                 buf.seekg(0);
                 buf.seekp(0);
             }
-            for(p = buf.tellp(); p < hdr_size; p += gcount){
-                if((gcount = is.readsome(_buf.data(), hdr_size - p))){
+            for(p = buf.tellp(); p < HDRLEN; p += gcount){
+                if( (gcount = is.readsome(_buf.data(), HDRLEN-p)) ){
                     if(buf.write(_buf.data(), gcount).bad())
-                        throw std::runtime_error("Unable to write to xmsg buffer.");
-                } else return is.eof();
+                        return buf;
+                } else return buf;
             }
-            for(std::uint16_t rem = buf.len()->length - p; rem > 0; rem -= gcount){
-                if((gcount = is.readsome(_buf.data(), std::min(rem, static_cast<std::uint16_t>(_buf.max_size()))))){
+            for(std::streamsize rem = buf.len()->length-p; rem > 0; rem -= gcount){
+                if( (gcount = is.readsome(_buf.data(), std::min(rem, BUFSIZE))) ){
                     if(buf.write(_buf.data(), gcount).bad())
-                        throw std::runtime_error("Unable to write to xmsg buffer.");
-                } else return is.eof();
+                        return buf;
+                } else return buf;
             }
-            return is.eof();
+            return buf;
         }
         static bool stream_copy(std::ostream& os, std::istream& is){
             std::array<char, 256> _buf = {};
@@ -70,16 +70,16 @@ namespace cloudbus{
             return --north().end(); 
         }
         marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_ptr& stream){
-            for(auto it = south().begin(); it < south().end();){
+            for(auto it = south().begin(); it < south().end(); ++it){
                 south_buffer& buffer = *it;
                 if(auto s = std::get<south_ptr>(buffer).lock()){
                     if(s == std::get<south_type::stream_ptr>(*stream)){
                         auto& format = std::get<south_format>(buffer);
-                        xmsg_read(format, *s);
+                        if(xmsg_read(format, *s).bad())
+                            return south().end();
                         return it;
                     }
-                    ++it;
-                } else it = south().erase(it);
+                } else it = --south().erase(it);
             }
             std::get<south_ptr>(south().emplace_back()) = std::get<south_type::stream_ptr>(*stream);
             auto s = std::get<south_ptr>(south().back()).lock();

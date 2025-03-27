@@ -16,27 +16,27 @@
 #include "segment_marshaller.hpp"
 namespace cloudbus{
     namespace segment {
-        static bool xmsg_read(messages::xmsgstream& buf, std::istream& is){
-            std::array<char, 256> _buf = {};
-            constexpr std::streamsize hdr_size = sizeof(messages::msgheader);
-            std::streamsize gcount = 0, p = 0;
+        static messages::xmsgstream& xmsg_read(messages::xmsgstream& buf, std::istream& is){
+            constexpr std::streamsize HDRLEN = sizeof(messages::msgheader), BUFSIZE=256;
+            std::array<char, BUFSIZE> _buf;
+            std::streamsize gcount=0, p;
             if(buf.eof()){
                 buf.seekg(0);
                 buf.seekp(0);
             }
-            for(p = buf.tellp(); p < hdr_size; p += gcount){
-                if((gcount = is.readsome(_buf.data(), hdr_size - p))){
+            for(p = buf.tellp(); p < HDRLEN; p += gcount){
+                if( (gcount = is.readsome(_buf.data(), HDRLEN-p)) ){
                     if(buf.write(_buf.data(), gcount).bad())
-                        throw std::runtime_error("Unable to write to xmsg buffer.");
-                } else return is.eof();
+                        return buf;
+                } else return buf;
             }
-            for(std::uint16_t rem = buf.len()->length - p; rem > 0; rem -= gcount){
-                if((gcount = is.readsome(_buf.data(), std::min(rem, static_cast<std::uint16_t>(_buf.max_size()))))){
+            for(std::streamsize rem = buf.len()->length-p; rem > 0; rem -= gcount){
+                if( (gcount = is.readsome(_buf.data(), std::min(rem, BUFSIZE))) ){
                     if(buf.write(_buf.data(), gcount).bad())
-                        throw std::runtime_error("Unable to write to xmsg buffer.");
-                } else return is.eof();
+                        return buf;
+                } else return buf;
             }
-            return is.eof();
+            return buf;
         }
         static bool stream_copy(std::ostream& os, std::istream& is){
             std::array<char, 256> _buf = {};
@@ -50,15 +50,15 @@ namespace cloudbus{
         }
 
         marshaller::north_buffers::iterator marshaller::_unmarshal(const north_type::handle_ptr& stream){
-            for(auto it = north().begin(); it < north().end();){
+            for(auto it = north().begin(); it < north().end(); ++it){
                 if(auto n = std::get<north_ptr>(*it).lock()){
                     if(n == std::get<north_type::stream_ptr>(*stream)){
                         auto& buf = std::get<north_format>(*it);
-                        xmsg_read(buf, *n);
+                        if(xmsg_read(buf, *n).bad())
+                            return north().end();
                         return it;
                     }
-                    ++it;
-                } else it = north().erase(it);
+                } else it = --north().erase(it);
             }
             std::get<north_ptr>(north().emplace_back()) = std::get<north_type::stream_ptr>(*stream);
             auto n = std::get<north_ptr>(north().back()).lock();
@@ -67,7 +67,7 @@ namespace cloudbus{
             return --north().end();
         }
         marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_ptr& stream){
-            for(auto it = south().begin(); it < south().end();){
+            for(auto it = south().begin(); it < south().end(); ++it){
                 if(auto s = std::get<south_ptr>(*it).lock()){
                         if(s == std::get<south_type::stream_ptr>(*stream)){
                             auto& buf = std::get<south_format>(*it);
@@ -77,8 +77,7 @@ namespace cloudbus{
                             }
                             return it;
                         }
-                        ++it;
-                } else it = south().erase(it);
+                } else it = --south().erase(it);
             }
             std::get<south_ptr>(south().emplace_back()) = std::get<south_type::stream_ptr>(*stream);
             auto s = std::get<south_ptr>(south().back()).lock();

@@ -43,7 +43,6 @@ namespace cloudbus{
                 xmsgbuf& operator=(const xmsgbuf& other) = delete;
                 
             protected:
-                virtual std::streamsize xsputn(const char *s, std::streamsize count) override;
                 virtual std::streamsize showmanyc() override;
                 virtual int_type underflow() override;
                 virtual int_type overflow(int_type ch) override;

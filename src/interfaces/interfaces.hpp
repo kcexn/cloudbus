@@ -76,6 +76,8 @@ namespace cloudbus {
                 const std::string& uri=std::string(),
                 const duration_type& ttl=duration_type(-1)
             );
+            explicit interface_base(interface_base&& other) noexcept;
+            interface_base& operator=(interface_base&& other) noexcept;
 
             std::string& uri() { return _uri; }
             std::string& protocol() { return _protocol; }
@@ -103,8 +105,6 @@ namespace cloudbus {
 
             interface_base(const interface_base& other) = delete;
             interface_base& operator=(const interface_base& other) = delete;
-            interface_base(interface_base&& other) = delete;
-            interface_base& operator=(interface_base&& other) = delete;
         private:
             using callbacks_type = std::vector<std::tuple<std::weak_ptr<handle_type>, callback_type> >;
 
@@ -117,106 +117,24 @@ namespace cloudbus {
 
             void _resolve_callbacks();
             void _expire_addresses();
-    };
 
+            friend void swap(interface_base& lhs, interface_base& rhs) noexcept;
+    };
     template<class InterfaceT, class Traits = stream_traits<InterfaceT> >
-    class interface : public interface_base
+    struct interface : public interface_base
     {
-        public:
-            using Base = interface_base;
-            using traits_type = Traits;
-            using format_type = typename traits_type::format_type;
-
-            interface(const std::string& protocol=std::string(), const std::string& url=std::string()):
-                interface(addresses_type(), protocol, url){}
-            explicit interface(
-                const struct sockaddr *addr,
-                socklen_t addrlen,
-                const std::string& protocol,
-                const std::string& uri=std::string(),
-                const duration_type& ttl=duration_type(-1)
-            ): Base(addr, addrlen, protocol, uri, ttl){}
-            explicit interface(
-                const addresses_type& addresses,
-                const std::string& protocol=std::string(),
-                const std::string& uri=std::string(),
-                const duration_type& ttl=duration_type(-1)
-            ): Base(addresses, protocol, uri, ttl){}
-
-            virtual ~interface() = default;
-
-            interface(const interface& other) = delete;
-            interface& operator=(const interface& other) = delete;
+        using Base = interface_base;
+        using traits_type = Traits;
+        using format_type = typename traits_type::format_type;
+        virtual ~interface() = default;
     };
-
-    class cs_interface: public interface<cbus_service>
+    struct cs_interface : public interface<cbus_service>
     {
-        public:
-            using Base = interface<cbus_service>;
-
-            cs_interface(const std::string& protocol=std::string(), const std::string& url=std::string()):
-                cs_interface(addresses_type(), protocol, url){}
-            explicit cs_interface(
-                const struct sockaddr *addr,
-                socklen_t addrlen,
-                const std::string& protocol,
-                const std::string& uri=std::string(),
-                const duration_type& ttl=duration_type(-1)
-            ): Base(addr, addrlen, protocol, uri, ttl){}
-            explicit cs_interface(
-                const addresses_type& addresses,
-                const std::string& protocol=std::string(),
-                const std::string& uri=std::string(),
-                const duration_type& ttl=duration_type(-1)
-            ): Base(addresses, protocol, uri, ttl){}
-            explicit cs_interface(
-                addresses_type&& addresses,
-                const std::string& protocol=std::string(),
-                const std::string& uri=std::string(),
-                const duration_type& ttl=duration_type(-1)
-            ): Base(std::move(addresses), protocol, uri, ttl){}
-
-            virtual ~cs_interface() = default;
-
-            cs_interface(const cs_interface& other) = delete;
-            cs_interface& operator=(const cs_interface& other) = delete;
-            cs_interface(cs_interface&& other) = delete;
-            cs_interface& operator=(cs_interface&& other) = delete;
+        virtual ~cs_interface() = default;
     };
-
-    class ss_interface: public interface<stream_service>
+    struct ss_interface : public interface<stream_service>
     {
-        public:
-            using Base = interface<stream_service>;
-
-            ss_interface(const std::string& protocol=std::string(), const std::string& url=std::string()):
-                ss_interface(addresses_type(), protocol, url){}
-            explicit ss_interface(
-                const struct sockaddr *addr,
-                socklen_t addrlen,
-                const std::string& protocol,
-                const std::string& uri=std::string(),
-                const duration_type& ttl=duration_type(-1)
-            ): Base(addr, addrlen, protocol, uri, ttl){}
-            explicit ss_interface(
-                const addresses_type& addresses,
-                const std::string& protocol=std::string(),
-                const std::string& uri=std::string(),
-                const duration_type& ttl=duration_type(-1)
-            ): Base(addresses, protocol, uri, ttl){}
-            explicit ss_interface(
-                addresses_type&& addresses,
-                const std::string& protocol=std::string(),
-                const std::string& uri=std::string(),
-                const duration_type& ttl=duration_type(-1)
-            ): Base(std::move(addresses), protocol, uri, ttl){}
-
-            virtual ~ss_interface() = default;
-
-            ss_interface(const ss_interface& other) = delete;
-            ss_interface& operator=(const ss_interface& other) = delete;
-            ss_interface(ss_interface&& other) = delete;
-            ss_interface& operator=(ss_interface&& other) = delete;
-    };  
+        virtual ~ss_interface() = default;
+    };
 }
 #endif

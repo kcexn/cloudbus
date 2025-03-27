@@ -60,9 +60,9 @@ namespace cloudbus {
             return -1;
         auto&[protocol, s_addr, addrlen] = std::get<config::SOCKADDR>(address);
         const auto *addr = reinterpret_cast<const struct sockaddr*>(&s_addr);
-        _north.push_back(std::make_shared<interface_base>(addr, addrlen, protocol));
+        _north.emplace_back(addr, addrlen, protocol);
         if(protocol == "TCP" || protocol == "UNIX"){
-            auto& hnd = _north.back()->make(addr->sa_family, SOCK_STREAM, 0, std::ios_base::openmode());
+            auto& hnd = _north.back().make(addr->sa_family, SOCK_STREAM, 0, std::ios_base::openmode());
             auto& sockfd = std::get<interface_base::native_handle_type>(*hnd);
             set_flags(sockfd);
             if(bind(sockfd, addr, addrlen))
@@ -79,18 +79,18 @@ namespace cloudbus {
             case config::SOCKADDR:
             {
                 auto&[protocol, addr, addrlen] = std::get<config::SOCKADDR>(address);
-                _south.push_back(std::make_shared<interface_base>(reinterpret_cast<const struct sockaddr*>(&addr), addrlen, protocol));
+                _south.emplace_back(reinterpret_cast<const struct sockaddr*>(&addr), addrlen, protocol);
                 return 0;
             }
             case config::URL:
             {
                 auto&[host, protocol] = std::get<config::URL>(address);
-                _south.push_back(std::make_shared<interface_base>(host, protocol));
+                _south.emplace_back(host, protocol);
                 return 0;
             }
             case config::URN:
                 if(auto& urn = std::get<config::URN>(address); !urn.empty()){
-                    _south.push_back(std::make_shared<interface_base>(urn));
+                    _south.emplace_back(urn);
                     return 0;
                 }
             default:
@@ -101,7 +101,7 @@ namespace cloudbus {
 
     connector_base::~connector_base(){
         for(auto& n: north())
-            for(const auto&[addr, addrlen]: n->addresses())
+            for(const auto&[addr, addrlen]: n.addresses())
                 if(addr.ss_family == AF_UNIX)
                     unlink(reinterpret_cast<const struct sockaddr_un*>(&addr)->sun_path);
     }

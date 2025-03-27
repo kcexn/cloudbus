@@ -79,6 +79,16 @@ namespace cloudbus {
         _streams{}, _pending{},
         _timeout{clock_type::now(), ttl}
     {}
+    interface_base::interface_base(interface_base&& other) noexcept:
+        interface_base()
+    {
+        swap(*this, other);
+    }
+    interface_base& interface_base::operator=(interface_base&& other) noexcept {
+        swap(*this, other);
+        return *this;
+    }
+
     const interface_base::address_type& interface_base::address(){
         if(_addresses.empty())
             return NULLADDR;
@@ -166,5 +176,14 @@ namespace cloudbus {
     void interface_base::_expire_addresses(){
         _addresses.clear();
         _timeout = std::make_tuple(clock_type::now(), duration_type(-1));
+    }
+
+    void swap(interface_base& lhs, interface_base& rhs) noexcept {
+        using std::swap;
+        swap(lhs._uri, rhs._uri);
+        swap(lhs._addresses, rhs._addresses);
+        swap(lhs._idx, rhs._idx);
+        swap(lhs._streams, rhs._streams);
+        swap(lhs._timeout, rhs._timeout);
     }
 }

@@ -39,11 +39,10 @@ namespace cloudbus {
             using native_handle_type = stream_type::native_handle_type;
             using stream_ptr = std::shared_ptr<stream_type>;
             using handle_type = std::tuple<native_handle_type, stream_ptr>;
-            using handle_ptr = std::shared_ptr<handle_type>;
-            using handles_type = std::vector<handle_ptr>;
+            using handles_type = std::vector<handle_type>;
             using address_type = std::tuple<struct sockaddr_storage, socklen_t>;
             using addresses_type = std::vector<address_type>;
-            using callback_type = std::function<void(const handle_ptr&, const struct sockaddr*, socklen_t, const std::string&)>;
+            using callback_type = std::function<void(handle_type& hnd, const struct sockaddr*, socklen_t, const std::string&)>;
             using clock_type = std::chrono::system_clock;
             using time_point = clock_type::time_point;
             using duration_type = std::chrono::seconds;
@@ -51,9 +50,9 @@ namespace cloudbus {
          
             static const address_type NULLADDR;
             static address_type make_address(const struct sockaddr *addr, socklen_t addrlen);
-            static handle_ptr make_handle();
-            static handle_ptr make_handle(int domain, int type, int protocol, std::ios_base::openmode which);
-            static handle_ptr make_handle(native_handle_type sockfd, bool connected=false);
+            static handle_type make_handle();
+            static handle_type make_handle(int domain, int type, int protocol, std::ios_base::openmode which);
+            static handle_type make_handle(native_handle_type sockfd, bool connected=false);
 
             interface_base(const std::string& protocol=std::string(), const std::string& url=std::string()):
                 interface_base(addresses_type(), protocol, url){}
@@ -88,25 +87,25 @@ namespace cloudbus {
             const addresses_type& addresses(addresses_type&& addrs, const duration_type& ttl=duration_type(-1));
 
             const handles_type& streams() const { return _streams; }
-            handle_ptr& make();
-            handle_ptr& make(int domain, int type, int protocol, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out));
-            handle_ptr& make(native_handle_type sockfd);
-            handle_ptr& make(native_handle_type sockfd, bool connected);
+            handle_type& make();
+            handle_type& make(int domain, int type, int protocol, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out));
+            handle_type& make(native_handle_type sockfd);
+            handle_type& make(native_handle_type sockfd, bool connected);
 
             handles_type::const_iterator erase(handles_type::const_iterator it);
             handles_type::iterator erase(handles_type::iterator it);
-            handles_type::const_iterator erase(const handle_ptr& handle);
-            handles_type::iterator erase(handle_ptr& handle);
+            handles_type::const_iterator erase(const handle_type& handle);
+            handles_type::iterator erase(handle_type& handle);
 
-            void register_connect(std::weak_ptr<handle_type> wp, const callback_type& connect_callback);
-            void register_connect(std::weak_ptr<handle_type> wp, callback_type&& connect_callback);
+            void register_connect(const stream_ptr& ptr, const callback_type& connect_callback);
+            void register_connect(const stream_ptr& ptr, callback_type&& connect_callback);
 
             virtual ~interface_base() = default;
 
             interface_base(const interface_base& other) = delete;
             interface_base& operator=(const interface_base& other) = delete;
         private:
-            using callbacks_type = std::vector<std::tuple<std::weak_ptr<handle_type>, callback_type> >;
+            using callbacks_type = std::vector<std::tuple<std::weak_ptr<stream_type>, callback_type> >;
 
             std::string _uri, _protocol;
             addresses_type _addresses;

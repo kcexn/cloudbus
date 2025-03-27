@@ -63,7 +63,7 @@ namespace cloudbus {
         _north.emplace_back(addr, addrlen, protocol);
         if(protocol == "TCP" || protocol == "UNIX"){
             auto& hnd = _north.back().make(addr->sa_family, SOCK_STREAM, 0, std::ios_base::openmode());
-            auto& sockfd = std::get<interface_base::native_handle_type>(*hnd);
+            auto& sockfd = std::get<interface_base::native_handle_type>(hnd);
             set_flags(sockfd);
             if(bind(sockfd, addr, addrlen))
                 throw std::runtime_error("bind()");

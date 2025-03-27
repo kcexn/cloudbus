@@ -26,8 +26,8 @@ namespace cloudbus{
                 using Base = basic_marshaller<cs_north, cs_south>;
 
             protected:
-                virtual north_buffers::iterator _unmarshal(const north_type::handle_ptr& stream) override;
-                virtual south_buffers::iterator _marshal(const south_type::handle_ptr& stream) override;
+                virtual north_buffers::iterator _unmarshal(const north_type::handle_type& stream) override;
+                virtual south_buffers::iterator _marshal(const south_type::handle_type& stream) override;
         };      
     }
 }

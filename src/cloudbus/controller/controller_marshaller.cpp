@@ -49,10 +49,10 @@ namespace cloudbus{
             return is.eof();
         }
 
-        marshaller::north_buffers::iterator marshaller::_unmarshal(const north_type::handle_ptr& stream){
+        marshaller::north_buffers::iterator marshaller::_unmarshal(const north_type::handle_type& stream){
             for(auto it = north().begin(); it < north().end();){
                 if(auto n = std::get<north_ptr>(*it).lock()){
-                    if(n == std::get<north_type::stream_ptr>(*stream)){
+                    if(n == std::get<north_type::stream_ptr>(stream)){
                         auto& buf = std::get<north_format>(*it);
                         if(buf.tellg() == buf.tellp()){
                             buf.seekg(0);
@@ -64,16 +64,16 @@ namespace cloudbus{
                 } else it = north().erase(it);
             }
             auto&[nptr, buf] = north().emplace_back();
-            auto& nsp = std::get<north_type::stream_ptr>(*stream);
+            auto& nsp = std::get<north_type::stream_ptr>(stream);
             nptr = nsp;
             stream_copy(buf, *nsp);
             return --north().end(); 
         }
-        marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_ptr& stream){
+        marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_type& stream){
             for(auto it = south().begin(); it < south().end(); ++it){
                 south_buffer& buffer = *it;
                 if(auto s = std::get<south_ptr>(buffer).lock()){
-                    if(s == std::get<south_type::stream_ptr>(*stream)){
+                    if(s == std::get<south_type::stream_ptr>(stream)){
                         auto& format = std::get<south_format>(buffer);
                         if(xmsg_read(format, *s).bad())
                             return south().end();
@@ -81,7 +81,7 @@ namespace cloudbus{
                     }
                 } else it = --south().erase(it);
             }
-            std::get<south_ptr>(south().emplace_back()) = std::get<south_type::stream_ptr>(*stream);
+            std::get<south_ptr>(south().emplace_back()) = std::get<south_type::stream_ptr>(stream);
             auto s = std::get<south_ptr>(south().back()).lock();
             auto& format = std::get<south_format>(south().back());
             xmsg_read(format, *s);

@@ -26,15 +26,15 @@ namespace cloudbus {
         std::memcpy(&ifaddr, addr, addrlen);
         return address;
     }
-    interface_base::handle_ptr interface_base::make_handle(){
-        return std::make_shared<handle_type>(0, std::make_shared<stream_type>());
+    interface_base::handle_type interface_base::make_handle(){
+        return std::make_tuple(0, std::make_shared<stream_type>());
     }
-    interface_base::handle_ptr interface_base::make_handle(int domain, int type, int protocol, std::ios_base::openmode which){
-        auto s = std::make_shared<stream_type>(domain, type, protocol, which); 
-        return std::make_shared<handle_type>(s->native_handle(), s);
+    interface_base::handle_type interface_base::make_handle(int domain, int type, int protocol, std::ios_base::openmode which){
+        auto s = std::make_shared<stream_type>(domain, type, protocol, which);
+        return std::make_tuple(s->native_handle(), s);
     }
-    interface_base::handle_ptr interface_base::make_handle(int sockfd, bool connected){
-        return std::make_shared<handle_type>(sockfd, std::make_shared<stream_type>(sockfd, connected));
+    interface_base::handle_type interface_base::make_handle(int sockfd, bool connected){
+        return std::make_tuple(sockfd, std::make_shared<stream_type>(sockfd, connected));
     }
 
     interface_base::interface_base(
@@ -110,25 +110,25 @@ namespace cloudbus {
         _resolve_callbacks();
         return _addresses;
     }
-    interface_base::handle_ptr& interface_base::make(){
+    interface_base::handle_type& interface_base::make(){
         _streams.push_back(make_handle());
         if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();
     }
-    interface_base::handle_ptr& interface_base::make(int domain, int type, int protocol, std::ios_base::openmode which){
+    interface_base::handle_type& interface_base::make(int domain, int type, int protocol, std::ios_base::openmode which){
         _streams.push_back(make_handle(domain, type, protocol, which));
         if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();
     }
-    interface_base::handle_ptr& interface_base::make(native_handle_type sockfd){
+    interface_base::handle_type& interface_base::make(native_handle_type sockfd){
         _streams.push_back(make_handle(sockfd));
         if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();
     }
-    interface_base::handle_ptr& interface_base::make(native_handle_type sockfd, bool connected){
+    interface_base::handle_type& interface_base::make(native_handle_type sockfd, bool connected){
         _streams.push_back(make_handle(sockfd, connected));
         if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
@@ -140,22 +140,34 @@ namespace cloudbus {
     interface_base::handles_type::iterator interface_base::erase(handles_type::iterator it){ 
         return _streams.erase(it); 
     }
-    interface_base::handles_type::const_iterator interface_base::erase(const handle_ptr& handle){
-        auto cit = std::find(_streams.cbegin(), _streams.cend(), handle);
+    interface_base::handles_type::const_iterator interface_base::erase(const handle_type& handle){
+        auto cit = std::find_if(
+                _streams.cbegin(),
+                _streams.cend(),
+            [&](const auto& hnd){
+                return std::get<0>(hnd)==std::get<0>(handle);
+            }
+        );
         return erase(cit);
     }
-    interface_base::handles_type::iterator interface_base::erase(handle_ptr& handle){
-        auto it = std::find(_streams.begin(), _streams.end(), handle);
+    interface_base::handles_type::iterator interface_base::erase(handle_type& handle){
+        auto it = std::find_if(
+                _streams.begin(),
+                _streams.end(),
+            [&](auto& hnd){
+                return std::get<0>(hnd)==std::get<0>(handle);
+            }
+        );
         return erase(it);
     }
-    void interface_base::register_connect(std::weak_ptr<handle_type> wp, const callback_type& connect_callback){
-        _pending.emplace_back(wp, connect_callback);
+    void interface_base::register_connect(const stream_ptr& ptr, const callback_type& connect_callback){
+        _pending.emplace_back(ptr, connect_callback);
         if(_pending.capacity() > SHRINK_THRESHOLD)
             _pending.shrink_to_fit();
         return _resolve_callbacks();
     }
-    void interface_base::register_connect(std::weak_ptr<handle_type> wp, callback_type&& connect_callback){
-        _pending.emplace_back(wp, std::move(connect_callback));
+    void interface_base::register_connect(const stream_ptr& ptr, callback_type&& connect_callback){
+        _pending.emplace_back(ptr, std::move(connect_callback));
         if(_pending.capacity() > SHRINK_THRESHOLD)
             _pending.shrink_to_fit();
         return _resolve_callbacks();
@@ -165,7 +177,15 @@ namespace cloudbus {
             for(auto&[wp, cb]: _pending){
                 if(auto ptr = wp.lock()){
                     const auto&[addr, addrlen] = address();
-                    cb(ptr, reinterpret_cast<const struct sockaddr*>(&addr), addrlen, _protocol);
+                    auto it = std::find_if(
+                            _streams.begin(),
+                            _streams.end(),
+                        [&](const auto& hnd){
+                            return std::get<stream_ptr>(hnd)==ptr;
+                        }
+                    );
+                    if(it != _streams.end())
+                        cb(*it, reinterpret_cast<const struct sockaddr*>(&addr), addrlen, _protocol);
                 }
             }
             _pending.clear();

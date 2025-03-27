@@ -16,10 +16,6 @@
 #include "segment_connector.hpp"
 #include <sys/un.h>
 #include <fcntl.h>
-#ifdef PROFILE
-    #include <chrono>
-    #include <iostream>
-#endif
 namespace cloudbus{
     namespace segment {
         static constexpr std::streamsize MAX_BUFSIZE = 65536 * 4096; /* 256MiB */
@@ -118,7 +114,7 @@ namespace cloudbus{
                                     interface.streams().cbegin(),
                                     interface.streams().cend(),
                                 [&](const auto& stream){
-                                    const auto&[sockfd, nsp] = *stream;
+                                    const auto&[sockfd, nsp] = stream;
                                     if(sockfd == ev->fd && ev->revents & (POLLOUT | POLLERR))
                                         for(auto& c: connections())
                                             if(auto n = c.north.lock(); n && n==nsp)
@@ -142,7 +138,7 @@ namespace cloudbus{
                                     interface.streams().cbegin(),
                                     interface.streams().cend(),
                                 [&](const auto& stream){
-                                    const auto&[sockfd, ssp] = *stream;
+                                    const auto&[sockfd, ssp] = stream;
                                     if(sockfd==ev->fd && ev->revents & (POLLOUT | POLLERR))
                                         for(auto& c: connections())
                                             if(auto s = c.south.lock(); s && s==ssp)
@@ -164,9 +160,9 @@ namespace cloudbus{
             }
             return handled;
         }
-        int connector::_route(marshaller_type::north_format& buf, const north_type& interface, const north_type::handle_ptr& stream, event_mask& revents){
+        int connector::_route(marshaller_type::north_format& buf, const north_type& interface, const north_type::handle_type& stream, event_mask& revents){
             constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
-            const auto&[nfd, nsp] = *stream;
+            const auto&[nfd, nsp] = stream;
             const auto eof = nsp->eof();
             if(const auto *type = buf.type()){
                 const auto *eid = buf.eid();
@@ -217,8 +213,8 @@ namespace cloudbus{
             }
             return eof ? -1 : 0;
         }
-        int connector::_route(marshaller_type::south_format& buf, const south_type& interface, const south_type::handle_ptr& stream, event_mask& revents){
-            auto&[sfd, ssp] = *stream;
+        int connector::_route(marshaller_type::south_format& buf, const south_type& interface, const south_type::handle_type& stream, event_mask& revents){
+            auto&[sfd, ssp] = stream;
             const auto p = buf.tellp();
             if(const auto eof = ssp->eof(); eof || p > 0){
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){
@@ -246,21 +242,28 @@ namespace cloudbus{
         std::streamsize connector::_north_connect(const north_type& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
             constexpr std::size_t SHRINK_THRESHOLD = 4096;
             auto& sbd = south().front();
-            auto& hnd = sbd.make();
-            sbd.register_connect(hnd, [&triggers=triggers()](const auto& hnd, const auto *addr, auto addrlen, const std::string& protocol){
-                auto&[sfd, ssp] = *hnd;
-                if(!sfd){
-                    auto& sockfd = ssp->native_handle();
-                    if(protocol == "TCP" || protocol == "UNIX")
-                        sockfd = socket(addr->sa_family, SOCK_STREAM, 0);
-                    else throw std::invalid_argument("Unsupported transport protocol.");
-                    sfd = set_flags(sockfd);
-                    ssp->connectto(addr, addrlen);
+            auto&[sfd, ssp] = sbd.make();
+            sbd.register_connect(
+                ssp,
+                [&triggers=triggers()](
+                    auto& hnd,
+                    const auto *addr,
+                    auto addrlen,
+                    const std::string& protocol
+                ){
+                    auto&[sfd, ssp] = hnd;
+                    if(!sfd){
+                        if(protocol == "TCP" || protocol == "UNIX")
+                            sfd = socket(addr->sa_family, SOCK_STREAM, 0);
+                        else throw std::invalid_argument("Unsupported transport protocol.");
+                        sfd = set_flags(sfd);
+                        ssp->native_handle() = sfd;
+                        ssp->connectto(addr, addrlen);
+                    }
+                    triggers.set(sfd, (POLLIN | POLLOUT));
                 }
-                triggers.set(sfd, (POLLIN | POLLOUT));
-            });
+            );
             const auto n = connection_type::clock_type::now();
-            auto& ssp = std::get<south_type::stream_ptr>(*hnd);
             connections().push_back(
                 (buf.type()->op == messages::STOP)
                 ? connection_type{{n,n,n,{}}, *buf.eid(), nsp, ssp, connection_type::HALF_CLOSED}
@@ -270,9 +273,9 @@ namespace cloudbus{
                 connections().shrink_to_fit();
             return _north_write(ssp, buf);
         }
-        void connector::_north_err_handler(north_type& interface, const north_type::handle_ptr& stream, event_mask& revents){
+        void connector::_north_err_handler(north_type& interface, const north_type::handle_type& stream, event_mask& revents){
             const auto time = connection_type::clock_type::now();
-            const auto&[nfd, nsp] = *stream;
+            const auto&[nfd, nsp] = stream;
             for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto n = conn->north.lock(); n && n == nsp){
                     if(auto s = conn->south.lock()){
@@ -296,17 +299,17 @@ namespace cloudbus{
                 return p-g;
             } else return 0;
         }
-        int connector::_north_pollin_handler(const north_type& interface, const north_type::handle_ptr& stream, event_mask& revents){
+        int connector::_north_pollin_handler(const north_type& interface, const north_type::handle_type& stream, event_mask& revents){
             if(auto it = marshaller().unmarshal(stream); it != marshaller().north().end()){
-                if(std::get<north_type::stream_ptr>(*stream)->gcount() == 0)
+                if(std::get<north_type::stream_ptr>(stream)->gcount() == 0)
                     revents &= ~(POLLIN | POLLHUP);
                 return route(std::get<marshaller_type::north_format>(*it), interface, stream, revents);
             } else return -1;
         }
-        int connector::_north_accept_handler(north_type& interface, const north_type::handle_ptr& stream, event_mask& revents){
+        int connector::_north_accept_handler(north_type& interface, const north_type::handle_type& stream, event_mask& revents){
             if(drain())
                 return -1;
-            int sockfd = 0, listenfd = std::get<north_type::native_handle_type>(*stream);
+            int sockfd = 0, listenfd = std::get<north_type::native_handle_type>(stream);
             while((sockfd = _accept(listenfd, nullptr, nullptr)) >= 0){
                 interface.make(sockfd, true);
                 triggers().set(sockfd, POLLIN);
@@ -314,8 +317,8 @@ namespace cloudbus{
             revents &= ~(POLLIN | POLLHUP);
             return 0;
         }
-        int connector::_north_pollout_handler(const north_type::handle_ptr& stream, event_mask& revents){
-            auto&[nfd, nsp] = *stream;
+        int connector::_north_pollout_handler(const north_type::handle_type& stream, event_mask& revents){
+            auto&[nfd, nsp] = stream;
             if(revents & (POLLERR | POLLNVAL))
                 nsp->setstate(std::ios_base::badbit);
             if(nsp->flush().bad())
@@ -325,7 +328,7 @@ namespace cloudbus{
             revents &= ~(POLLOUT | POLLERR | POLLNVAL);
             return 0;
         }
-        connector::size_type connector::_handle(north_type& interface, const north_type::handle_ptr& stream, event_mask& revents){
+        connector::size_type connector::_handle(north_type& interface, const north_type::handle_type& stream, event_mask& revents){
             size_type handled = 0;
             if(revents & (POLLOUT | POLLERR | POLLNVAL)){
                 ++handled;
@@ -342,8 +345,8 @@ namespace cloudbus{
             }
             return handled;
         }
-        void connector::_south_err_handler(south_type& interface, const south_type::handle_ptr& stream, event_mask& revents){
-            const auto&[sfd, ssp] = *stream;
+        void connector::_south_err_handler(south_type& interface, const south_type::handle_type& stream, event_mask& revents){
+            const auto&[sfd, ssp] = stream;
             const auto time = connection_type::clock_type::now();
             for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto s = conn->south.lock(); s && s == ssp){
@@ -393,15 +396,15 @@ namespace cloudbus{
                 return -1;
             return size;
         }
-        int connector::_south_pollin_handler(const south_type& interface, const south_type::handle_ptr& stream, event_mask& revents){
+        int connector::_south_pollin_handler(const south_type& interface, const south_type::handle_type& stream, event_mask& revents){
             auto it = marshaller().marshal(stream);
-            auto& ssp = std::get<south_type::stream_ptr>(*stream);
+            auto& ssp = std::get<south_type::stream_ptr>(stream);
             if(ssp->gcount() == 0)
                 revents &= ~(POLLIN | POLLHUP);
             return route(std::get<marshaller_type::south_format>(*it), interface, stream, revents);
         }
-        void connector::_south_state_handler(south_type& interface, const south_type::handle_ptr& stream, event_mask& revents){
-            const auto&[sfd, ssp] = *stream;
+        void connector::_south_state_handler(south_type& interface, const south_type::handle_type& stream, event_mask& revents){
+            const auto&[sfd, ssp] = stream;
             for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(auto s = conn->south.lock(); s && s == ssp){
                     switch(conn->state){
@@ -416,8 +419,8 @@ namespace cloudbus{
                 }
             }
         }
-        int connector::_south_pollout_handler(const south_type::handle_ptr& stream, event_mask& revents){
-            auto&[sfd, ssp] = *stream;
+        int connector::_south_pollout_handler(const south_type::handle_type& stream, event_mask& revents){
+            auto&[sfd, ssp] = stream;
             if(revents & (POLLERR | POLLNVAL))
                 ssp->setstate(std::ios_base::badbit);
             if(ssp->flush().bad())
@@ -427,7 +430,7 @@ namespace cloudbus{
             revents &= ~(POLLOUT | POLLERR | POLLNVAL);
             return 0;
         }
-        connector::size_type connector::_handle(south_type& interface, const south_type::handle_ptr& stream, event_mask& revents){
+        connector::size_type connector::_handle(south_type& interface, const south_type::handle_type& stream, event_mask& revents){
             size_type handled = 0;
             if(revents & (POLLOUT | POLLERR | POLLNVAL)){
                 ++handled;

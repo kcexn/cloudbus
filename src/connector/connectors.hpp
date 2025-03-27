@@ -88,7 +88,7 @@ namespace cloudbus {
                 HandlerBase(triggers), ConnectorBase(section)
             {
                 const auto& hnd = north().front().streams().front();
-                auto sockfd = std::get<interface_base::native_handle_type>(*hnd);
+                auto sockfd = std::get<interface_base::native_handle_type>(hnd);
                 triggers.set(sockfd, POLLIN);
             }
 
@@ -145,7 +145,7 @@ namespace cloudbus {
             int route(
                 typename marshaller_type::north_format& buf,
                 const north_type& interface,
-                const typename north_type::handle_ptr& stream,
+                const typename north_type::handle_type& stream,
                 event_mask& revents
             ){ 
                 return _route(buf, interface, stream, revents);
@@ -153,7 +153,7 @@ namespace cloudbus {
             int route(
                 typename marshaller_type::south_format& buf,
                 const south_type& interface,
-                const typename south_type::handle_ptr& stream,
+                const typename south_type::handle_type& stream,
                 event_mask& revents
             ){ 
                 return _route(buf, interface, stream, revents);
@@ -177,14 +177,14 @@ namespace cloudbus {
             virtual int _route(
                 typename marshaller_type::north_format& buf,
                 const north_type& interface,
-                const typename north_type::handle_ptr& stream,
+                const typename north_type::handle_type& stream,
                 event_mask& revents
             ){ return -1; }
 
             virtual int _route(
                 typename marshaller_type::south_format& buf,
                 const south_type& interface,
-                const typename south_type::handle_ptr& stream,
+                const typename south_type::handle_type& stream,
                 event_mask& revents
             ){ return -1; }
 

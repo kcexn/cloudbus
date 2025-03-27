@@ -28,10 +28,10 @@ namespace cloudbus {
         using time_point = clock_type::time_point;
         using times_type = std::array<time_point, 4>;
         enum states {HALF_OPEN, OPEN, HALF_CLOSED, CLOSED};
+        times_type timestamps;
         uuid_type uuid;
         socket_type north, south;
         int state;
-        times_type timestamps;
     };
 
     template<class MarshallerT>

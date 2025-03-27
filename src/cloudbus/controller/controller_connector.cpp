@@ -323,8 +323,8 @@ namespace cloudbus {
                 auto& ssp = std::get<south_type::stream_ptr>(*hnd);
                 connect.push_back(
                     (nsp->eof())
-                    ? connection_type{eid, nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
-                    : connection_type{eid, nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
+                    ? connection_type{{n,n,n,{}}, eid, nsp, ssp, connection_type::HALF_CLOSED}
+                    : connection_type{{n,{},{},{}}, eid, nsp, ssp, connection_type::HALF_OPEN}
                 );
             }
             connections().insert(connections().cend(), connect.cbegin(), connect.cend());

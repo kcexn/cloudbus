@@ -263,8 +263,8 @@ namespace cloudbus{
             auto& ssp = std::get<south_type::stream_ptr>(*hnd);
             connections().push_back(
                 (buf.type()->op == messages::STOP)
-                ? connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_CLOSED, {n,n,n,{}}}
-                : connection_type{*buf.eid(), nsp, ssp, connection_type::HALF_OPEN, {n,{},{},{}}}
+                ? connection_type{{n,n,n,{}}, *buf.eid(), nsp, ssp, connection_type::HALF_CLOSED}
+                : connection_type{{n,{},{},{}}, *buf.eid(), nsp, ssp, connection_type::HALF_OPEN}
             );
             if(connections().capacity() > SHRINK_THRESHOLD)
                 connections().shrink_to_fit();

@@ -111,25 +111,25 @@ namespace cloudbus {
         return _addresses;
     }
     interface_base::handle_type& interface_base::make(){
-        _streams.push_back(make_handle());
+        _streams.emplace_back(make_handle());
         if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();
     }
     interface_base::handle_type& interface_base::make(int domain, int type, int protocol, std::ios_base::openmode which){
-        _streams.push_back(make_handle(domain, type, protocol, which));
+        _streams.emplace_back(make_handle(domain, type, protocol, which));
         if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();
     }
     interface_base::handle_type& interface_base::make(native_handle_type sockfd){
-        _streams.push_back(make_handle(sockfd));
+        _streams.emplace_back(make_handle(sockfd));
         if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();
     }
     interface_base::handle_type& interface_base::make(native_handle_type sockfd, bool connected){
-        _streams.push_back(make_handle(sockfd, connected));
+        _streams.emplace_back(make_handle(sockfd, connected));
         if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();
@@ -144,8 +144,9 @@ namespace cloudbus {
         auto cit = std::find_if(
                 _streams.cbegin(),
                 _streams.cend(),
-            [&](const auto& hnd){
-                return std::get<0>(hnd)==std::get<0>(handle);
+            [&fd=std::get<native_handle_type>(handle)]
+            (const auto& hnd){
+                return std::get<native_handle_type>(hnd)==fd;
             }
         );
         return erase(cit);
@@ -154,8 +155,9 @@ namespace cloudbus {
         auto it = std::find_if(
                 _streams.begin(),
                 _streams.end(),
-            [&](auto& hnd){
-                return std::get<0>(hnd)==std::get<0>(handle);
+            [&fd=std::get<native_handle_type>(handle)]
+            (auto& hnd){
+                return std::get<native_handle_type>(hnd)==fd;
             }
         );
         return erase(it);

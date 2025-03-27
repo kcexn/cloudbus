@@ -111,27 +111,33 @@ namespace cloudbus{
             for(auto ev = events.begin(); ev < events.end(); ++ev){
                 if(ev->revents){
                     auto nit = std::find_if(
-                            north().front().streams().begin(),
-                            north().front().streams().end(), 
-                        [&](const auto& stream){
-                            auto&[sockfd, nsp] = *stream;
-                            if(sockfd == ev->fd){
-                                if(ev->revents & (POLLOUT | POLLERR))
-                                    for(auto& c: connections())
-                                        if(auto n = c.north.lock(); n && n == nsp)
-                                            if(auto s = c.south.lock(); s && !s->eof())
-                                                ev = read_restart(s->native_handle(), triggers(), events, ev);
-                                handled += _handle(static_cast<north_type&>(north().front()), stream, ev->revents);
-                            }
-                            return sockfd==ev->fd;
+                            north().begin(),
+                            north().end(),
+                        [&](auto& interface){
+                            auto it = std::find_if(
+                                    interface.streams().cbegin(),
+                                    interface.streams().cend(),
+                                [&](const auto& stream){
+                                    const auto&[sockfd, nsp] = *stream;
+                                    if(sockfd == ev->fd && ev->revents & (POLLOUT | POLLERR))
+                                        for(auto& c: connections())
+                                            if(auto n = c.north.lock(); n && n==nsp)
+                                                if(auto s = c.south.lock(); s && !s->eof())
+                                                    ev = read_restart(s->native_handle(), triggers(), events, ev);
+                                    return sockfd == ev->fd;
+                                }
+                            );
+                            if(it != interface.streams().cend())
+                                handled += _handle(static_cast<north_type&>(interface), *it, ev->revents);
+                            return it != interface.streams().cend();
                         }
                     );
-                    if(nit != north().front().streams().end())
+                    if(nit != north().end())
                         continue;
                     auto sit = std::find_if(
                             south().begin(),
                             south().end(),
-                        [&](interface_type& interface){
+                        [&](auto& interface){
                             auto it = std::find_if(
                                     interface.streams().cbegin(),
                                     interface.streams().cend(),

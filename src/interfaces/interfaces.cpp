@@ -189,7 +189,9 @@ namespace cloudbus {
             _pending.clear();
             if(auto&[time, ttl] = _timeout;
                 ttl.count() >= 0 && clock_type::now() >= time+ttl)
+            {
                 return _expire_addresses();
+            }
         }
     }
     void interface_base::_expire_addresses(){

@@ -185,7 +185,7 @@ namespace cloudbus{
             const auto eof = nsp->eof();
             if(const auto *type = buf.type()){
                 auto *eid = buf.eid();
-                const auto seekpos = buf.tellg(), pos = buf.tellp();
+                const auto pos=buf.tellp(), seekpos=buf.tellg();
                 const auto rem = buf.len()->length - pos;
                 std::vector<char> padding;
                 if(write_prepare(connections(), *eid, pos-seekpos) != connections().end())
@@ -232,7 +232,7 @@ namespace cloudbus{
             const auto eof = ssp->eof();
             if(const auto *type = buf.type()){
                 const auto *eid = buf.eid();
-                const auto seekpos = buf.tellg(), pos = buf.tellp();
+                const auto pos=buf.tellp(), seekpos=buf.tellg();
                 const auto rem = buf.len()->length - pos;
                 std::vector<char> padding;
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){

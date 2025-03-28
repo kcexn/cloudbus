@@ -166,7 +166,7 @@ namespace cloudbus{
             const auto eof = nsp->eof();
             if(const auto *type = buf.type()){
                 const auto *eid = buf.eid();
-                const std::streamsize gpos=buf.tellg(), pos=buf.tellp();
+                const std::streamsize pos=buf.tellp(), gpos=buf.tellg();
                 const std::streamsize seekpos = 
                     (gpos <= HDRLEN)
                         ? HDRLEN 

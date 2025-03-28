@@ -227,11 +227,11 @@ namespace cloudbus {
             const auto eof = ssp->eof();
             if(const auto *type = buf.type()){
                 const auto *eid = buf.eid();
+                const std::streamsize pos=buf.tellp(), gpos=buf.tellg();
                 const std::streamsize seekpos = 
-                    (buf.tellg() <= HDRLEN)
+                    (gpos <= HDRLEN)
                     ? HDRLEN
-                    : static_cast<std::streamsize>(buf.tellg());
-                const std::streamsize pos = buf.tellp();
+                    : gpos;
                 const auto rem = buf.len()->length - pos;
                 const auto time = connection_type::clock_type::now();
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){

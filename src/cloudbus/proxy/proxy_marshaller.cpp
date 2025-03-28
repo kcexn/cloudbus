@@ -21,7 +21,7 @@ namespace cloudbus{
             constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
             std::streamsize gcount = 0, p = 0;
             if(buf.eof()){
-                buf.seekg(0);
+                buf.clear(buf.rdstate() & ~buf.eofbit);
                 buf.seekp(0);
             }
             for(p = buf.tellp(); p < HDRLEN; p += gcount){

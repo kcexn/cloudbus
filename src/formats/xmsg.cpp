@@ -74,31 +74,29 @@ namespace cloudbus{
             return nullptr;
         }
         std::streamsize xmsgbuf::showmanyc(){
-            if(auto *lenp = len();
-                pptr()==gptr() &&
-                lenp->length == gptr()-eback())
-            { 
-                return -1; 
+            if(auto *lp = len();
+                (lp && lp->length == gptr()-eback()) ||
+                pptr()-gptr() < 0
+            ){
+                return -1;
             }
+            setg(eback(), gptr(), pptr());
             return pptr()-gptr();
         }
         xmsgbuf::int_type xmsgbuf::underflow(){
-            if(showmanyc() < 0)
-                return traits_type::eof();
-            setg(eback(), gptr(), pptr());
-            return traits_type::to_int_type(*gptr());
+            return (showmanyc() > 0) ? sgetc() : Base::underflow();
         }
         xmsgbuf::int_type xmsgbuf::overflow(int_type ch){
             auto poff = pptr()-pbase(), goff = gptr()-eback();
             if(auto *lp = len(); lp && lp->length == pptr()-pbase())
-                return traits_type::eof();
+                return Base::overflow(ch);
             bufsize += BUFINC;
             if( !(bufptr=std::realloc(bufptr, bufsize)) )
-                return traits_type::eof();
+                return Base::overflow(ch);
             char *base = static_cast<char*>(bufptr);
             setp(base, base+bufsize);
             pbump(poff);
-            setg(pbase(), pbase()+goff, pptr());
+            setg(pbase(), pbase()+std::min(poff, goff), pptr());
             return sputc(ch);
         }
         xmsgbuf::pos_type xmsgbuf::seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which){

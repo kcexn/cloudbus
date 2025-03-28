@@ -274,9 +274,9 @@ namespace cloudbus {
                                     {0,0},{messages::STOP, 0}
                                 };
                                 for(auto c=connections().begin();
-                                        (c < connections().end() &&
-                                            c->state < connection_type::HALF_CLOSED);
-                                        ++c
+                                    (c < connections().end() &&
+                                        c->state < connection_type::HALF_CLOSED);
+                                    ++c
                                 ){
                                     // This is a very awkward way to do this, but I have implemented it like this to keep 
                                     // open the option of implementing UDP transport. With unreliable transports, it is 

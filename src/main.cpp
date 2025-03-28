@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
         path += "/proxy.ini";
     #endif
     cloudbus::config::configuration config;
-    if(std::fstream f{path, f.in}; f.is_open())
+    if(std::fstream f{path, f.in}; f.good())
         f >> config;
     else return -1;
     #ifdef COMPILE_CONTROLLER

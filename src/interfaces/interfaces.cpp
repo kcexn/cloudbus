@@ -89,13 +89,6 @@ namespace cloudbus {
         swap(*this, other);
         return *this;
     }
-
-    const interface_base::address_type& interface_base::address(){
-        if(_addresses.empty())
-            return NULLADDR;
-        _idx = (_idx + 1) % _addresses.size();
-        return _addresses[_idx];
-    }
     const interface_base::addresses_type& interface_base::addresses(const addresses_type& addrs, const duration_type& ttl){
         _timeout = std::make_tuple(clock_type::now(), ttl);
         _addresses = addrs;
@@ -174,26 +167,37 @@ namespace cloudbus {
             _pending.shrink_to_fit();
         return _resolve_callbacks();
     }
+    const interface_base::address_type& interface_base::next(){
+        if(_addresses.empty())
+            return NULLADDR;
+        _idx = (_idx+1) % _addresses.size();
+        return _addresses[_idx];
+    }
     void interface_base::_resolve_callbacks(){
+        constexpr duration_type HYST_WND{300};
+        auto&[time, ttl] = _timeout;
+        const auto currtime = clock_type::now();
+        if(ttl.count() >= 0 && currtime >= time+ttl+HYST_WND)
+            return _expire_addresses();
         if(!_addresses.empty()){
             for(auto&[wp, cb]: _pending){
-                if(auto ptr = wp.lock()){
-                    const auto&[a, addrlen] = address();
-                    const auto *addr = reinterpret_cast<const struct sockaddr*>(&a);
-                    for(auto& hnd: _streams){
-                        if(std::get<stream_ptr>(hnd) == ptr){
-                            cb(hnd, addr, addrlen, _protocol);
-                            break;
+                if(auto ptr=wp.lock()){
+                    const auto&[addr, addrlen] = next();
+                    std::find_if(
+                            _streams.begin(),
+                            _streams.end(),
+                        [&, addr=reinterpret_cast<const struct sockaddr*>(&addr)]
+                        (auto& hnd){
+                            if(std::get<stream_ptr>(hnd)==ptr)
+                                cb(hnd, addr, addrlen, _protocol);
+                            return std::get<stream_ptr>(hnd)==ptr;
                         }
-                    }                       
+                    );
                 }
             }
             _pending.clear();
-            if(auto&[time, ttl] = _timeout;
-                ttl.count() >= 0 && clock_type::now() >= time+ttl)
-            {
+            if(ttl.count() >= 0 && currtime >= time+ttl)
                 return _expire_addresses();
-            }
         }
     }
     void interface_base::_expire_addresses(){

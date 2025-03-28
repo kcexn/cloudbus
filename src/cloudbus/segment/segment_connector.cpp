@@ -201,12 +201,14 @@ namespace cloudbus{
                     }
                 }
                 if(!eof && !buf.eof() &&
-                        (type->flags & messages::INIT) &&
-                        seekpos==HDRLEN
+                    (type->flags & messages::INIT) &&
+                    seekpos==HDRLEN && pos > HDRLEN
                 ){
                     buf.seekg(HDRLEN);
-                    if(pos > HDRLEN && !north_connect(interface, nsp, buf))
-                        return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
+                    if(auto status = north_connect(interface, nsp, buf)){
+                        if(status < 0)
+                            return -1;
+                    } else return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                 }
                 if(!rem)
                     buf.setstate(std::ios_base::eofbit);

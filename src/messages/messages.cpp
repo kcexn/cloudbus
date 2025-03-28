@@ -22,32 +22,39 @@ namespace cloudbus{
     namespace messages {
         static constexpr std::uint16_t VARIANT = 0x80;
         uuid make_uuid_v4(){
-            std::ifstream urandom("/dev/urandom", std::ios::in|std::ios::binary);
             constexpr std::uint16_t UUID_VERSION = 0x4000;
-            uuid tmp;
-            urandom.read(reinterpret_cast<char*>(&tmp), sizeof(uuid));
-            tmp.time_high_version &= TIME_HIGH_MAX;
-            tmp.time_high_version |= UUID_VERSION;
-            tmp.clock_seq_reserved &= CLOCK_SEQ_MAX;
-            tmp.clock_seq_reserved |= VARIANT;
-            return tmp;
+            if(std::ifstream urnd("/dev/urandom", urnd.in | urnd.binary);
+                    urnd.good()
+            ){
+                uuid tmp;
+                urnd.read(reinterpret_cast<char*>(&tmp), sizeof(uuid));
+                tmp.time_high_version &= TIME_HIGH_MAX;
+                tmp.time_high_version |= UUID_VERSION;
+                tmp.clock_seq_reserved &= CLOCK_SEQ_MAX;
+                tmp.clock_seq_reserved |= VARIANT;
+                return tmp;
+            } else return uuid{};
         }
         uuid make_uuid_v7(){
-            std::ifstream urandom("/dev/urandom", std::ios::in|std::ios::binary);
             constexpr std::uint16_t UUID_VERSION = 0x7000;
-            constexpr std::uint64_t TIME_LOW_MASK = UINT32_MAX, TIME_MID_MASK = UINT16_MAX;
-            uuid tmp;
-            auto timepoint = std::chrono::system_clock::now().time_since_epoch();
-            std::uint64_t ms_count = std::chrono::duration_cast<std::chrono::milliseconds>(timepoint).count();
-            tmp.time_low &= (ms_count & TIME_LOW_MASK);
-            tmp.time_mid &= ((ms_count>>32) & TIME_MID_MASK);
-            char *start = reinterpret_cast<char*>(&tmp) + offsetof(uuid, time_high_version);
-            urandom.read(start, sizeof(uuid) - offsetof(uuid, time_high_version));
-            tmp.time_high_version &= TIME_HIGH_MAX;
-            tmp.time_high_version |= UUID_VERSION;
-            tmp.clock_seq_reserved &= CLOCK_SEQ_MAX;
-            tmp.clock_seq_reserved |= VARIANT;
-            return tmp;
+            constexpr std::uint64_t TIME_LOW_MASK = UINT32_MAX, TIME_MID_MASK = UINT16_MAX;            
+            if(std::ifstream urnd("/dev/urandom", urnd.in | urnd.binary); 
+                    urnd.good()
+            ){
+                uuid tmp;
+                auto timepoint = std::chrono::system_clock::now().time_since_epoch();
+                std::uint64_t ms_count = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                            timepoint).count();
+                tmp.time_low = (ms_count & TIME_LOW_MASK);
+                tmp.time_mid = ((ms_count>>32) & TIME_MID_MASK);
+                char *start = reinterpret_cast<char*>(&tmp)+offsetof(uuid, time_high_version);
+                urnd.read(start, sizeof(uuid)-offsetof(uuid, time_high_version));
+                tmp.time_high_version &= TIME_HIGH_MAX;
+                tmp.time_high_version |= UUID_VERSION;
+                tmp.clock_seq_reserved &= CLOCK_SEQ_MAX;
+                tmp.clock_seq_reserved |= VARIANT;
+                return tmp;
+            } else return uuid{};
         }
         int uuid_cmpnode(const uuid *lhs, const uuid *rhs){
             auto *left = reinterpret_cast<const char*>(lhs) + offsetof(uuid, node);

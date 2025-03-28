@@ -210,8 +210,12 @@ namespace cloudbus {
                         } else conn = --connections().erase(conn);
                     }
                 }
-                if(!eof && !connected && !north_connect(interface, nsp, buf))
-                    return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
+                if(!eof && !connected){
+                    if(auto status = north_connect(interface, nsp, buf)){
+                        if(status < 0)
+                            return -1;
+                    } else return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
+                }
             }
             if(eof)
                 triggers().clear(nfd, POLLIN);
@@ -300,6 +304,8 @@ namespace cloudbus {
             constexpr std::size_t SHRINK_THRESHOLD = 4096;
             const auto n = connection_type::clock_type::now();
             auto eid = messages::make_uuid_v7();
+            if(eid == messages::uuid{})
+                return -1;
             connections_type connect;
             for(auto& sbd: south()){
                 auto&[sockfd, sptr] = sbd.streams().empty() ? sbd.make() : sbd.streams().back();

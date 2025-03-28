@@ -81,7 +81,6 @@ namespace cloudbus {
             std::string& uri() { return _uri; }
             std::string& protocol() { return _protocol; }
 
-            const address_type& address();
             const addresses_type& addresses() const { return _addresses; }
             const addresses_type& addresses(const addresses_type& addrs, const duration_type& ttl=duration_type(-1));
             const addresses_type& addresses(addresses_type&& addrs, const duration_type& ttl=duration_type(-1));
@@ -107,15 +106,16 @@ namespace cloudbus {
         private:
             using callbacks_type = std::vector<std::tuple<std::weak_ptr<stream_type>, callback_type> >;
 
+            const address_type& next();
+            void _resolve_callbacks();
+            void _expire_addresses();
+
             std::string _uri, _protocol;
             addresses_type _addresses;
             handles_type _streams;
             callbacks_type _pending;
             dns_ttl _timeout;
             std::size_t _idx;
-
-            void _resolve_callbacks();
-            void _expire_addresses();
 
             friend void swap(interface_base& lhs, interface_base& rhs) noexcept;
     };

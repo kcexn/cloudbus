@@ -214,11 +214,11 @@ namespace cloudbus{
                         }
                     }
                 }
-                if(!eof && !connected && 
-                        (type->op & messages::INIT) &&
-                        !north_connect(interface, nsp, buf)
-                ){
-                    return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
+                if(!eof && !connected && (type->op & messages::INIT)){
+                    if(auto status = north_connect(interface, nsp, buf)){
+                        if(status < 0)
+                            return -1;
+                    } else return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                 }
                 if(!rem)
                     buf.setstate(std::ios_base::eofbit);

@@ -193,26 +193,27 @@ namespace cloudbus{
                 const auto time = connector::connection_type::clock_type::now();
                 std::size_t connected = 0;
                 for(auto c=connections().begin(); c < connections().end(); ++c){
-                    if(auto s = c->south.lock();
-                            !messages::uuid_cmpnode(&c->uuid, eid) && 
-                            s && ++connected &&
-                            c->state < connector::connection_type::CLOSED
-                    ){
-                        *eid = c->uuid;
-                        stream_write(*s, buf.seekg(seekpos), pos-seekpos);
-                        triggers().set(s->native_handle(), POLLOUT);
-                        if(!rem) {
-                            state_update(*c, *type, time);
-                            if(type->op == messages::STOP &&
-                                (type->flags & messages::ABORT)
-                            ){
+                    if(auto s = c->south.lock()){
+                        if(!messages::uuid_cmpnode(&c->uuid, eid) &&
+                            ++connected &&
+                            c->state < connection_type::CLOSED
+                        ){
+                            *eid = c->uuid;
+                            stream_write(*s, buf.seekg(seekpos), pos-seekpos);
+                            triggers().set(s->native_handle(), POLLOUT);
+                            if(!rem) {
                                 state_update(*c, *type, time);
+                                if(type->op == messages::STOP &&
+                                    (type->flags & messages::ABORT)
+                                ){
+                                    state_update(*c, *type, time);
+                                }
+                            } else if(eof) {
+                                padding.resize(rem);
+                                s->write(padding.data(), padding.size());
                             }
-                        } else if(eof) {
-                            padding.resize(rem);
-                            s->write(padding.data(), padding.size());
                         }
-                    }
+                    } else c = --connections().erase(c);
                 }
                 if(!eof && !connected && (type->op & messages::INIT)){
                     if(auto status = north_connect(interface, nsp, buf)){

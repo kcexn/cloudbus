@@ -199,14 +199,14 @@ namespace cloudbus {
                 std::size_t connected = 0;
                 for(auto conn=connections().begin(); conn < connections().end(); ++conn){
                     if(auto n = conn->north.lock(); n && n==nsp){
-                        if(auto s = conn->south.lock(); s && ++connected && 
-                                conn->state != connection_type::CLOSED
-                        ){
-                            state_update(*conn, head.type, time);
-                            head.eid = conn->uuid;
-                            s->write(reinterpret_cast<const char*>(&head), sizeof(head));
-                            stream_write(*s, buf.seekg(0), p);
-                            triggers().set(s->native_handle(), POLLOUT);
+                        if(auto s = conn->south.lock()){
+                            if(++connected && conn->state != connection_type::CLOSED){
+                                state_update(*conn, head.type, time);
+                                head.eid = conn->uuid;
+                                s->write(reinterpret_cast<const char*>(&head), sizeof(head));
+                                stream_write(*s, buf.seekg(0), p);
+                                triggers().set(s->native_handle(), POLLOUT);
+                            }
                         } else conn = --connections().erase(conn);
                     }
                 }

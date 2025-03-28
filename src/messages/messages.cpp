@@ -58,15 +58,13 @@ namespace cloudbus{
         }
         int uuid_cmpnode(const uuid *lhs, const uuid *rhs){
             auto *left = reinterpret_cast<const char*>(lhs) + offsetof(uuid, node);
-            auto *const end = left + (sizeof(uuid)-offsetof(uuid, node));
             auto *right = reinterpret_cast<const char*>(rhs) + offsetof(uuid, node);
-            return std::strncmp(left, right, end-left);
+            return std::strncmp(left, right, sizeof(uuid)-offsetof(uuid, node));
         }
         bool operator==(const uuid& lhs, const uuid& rhs){
             auto *left = reinterpret_cast<const char*>(&lhs);
-            auto *const end = left+sizeof(uuid);
             auto *right = reinterpret_cast<const char*>(&rhs);
-            return !std::strncmp(left, right, end-left);
+            return !std::strncmp(left, right, sizeof(uuid));
         }
         bool operator!=(const uuid& lhs, const uuid& rhs){
             return !(lhs == rhs);

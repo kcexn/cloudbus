@@ -19,21 +19,20 @@
 #define CLOUDBUS_DNS
 namespace cloudbus {
     namespace dns {
-        class resolver_base
+        class resolver
         {
             public:
-                resolver_base();
-                virtual ~resolver_base();
+                resolver();
+                ~resolver();
 
-                resolver_base(const resolver_base& other) = delete;
-                resolver_base& operator=(const resolver_base& other) = delete;
-                resolver_base(resolver_base&& other) = delete;
-                resolver_base& operator=(resolver_base&& other) = delete;
+                resolver(const resolver& other) = delete;
+                resolver& operator=(const resolver& other) = delete;
+                resolver(resolver&& other) = delete;
+                resolver& operator=(resolver&& other) = delete;
 
             private:
                 ares_channel _channel;
         };
-        class resolver : public resolver_base{};
     }
 }
 #endif

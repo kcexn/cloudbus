@@ -84,13 +84,13 @@ namespace cloudbus {
                     return;
             }
         }
-        resolver_base::resolver_base():
+        resolver::resolver():
             _channel{}
         {
             initialize_ares_library();
             initialize_ares_channel(&_channel);
         }
-        resolver_base::~resolver_base(){
+        resolver::~resolver(){
             ares_destroy(_channel);
             cleanup_ares_library();
         }

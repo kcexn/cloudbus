@@ -1,5 +1,5 @@
 /*
-*   Copyright 2025 Kevin Exton
+*   Copyright 2025 Kevin ExtonGNU Affero General Public License
 *   This file is part of Cloudbus.
 *
 *   Cloudbus is free software: you can redistribute it and/or modify it under the
@@ -13,4 +13,14 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
 *   If not, see <https://www.gnu.org/licenses/>.
 */
-#include "marshallers/marshallers.hpp"
+#include "../../interfaces.hpp"
+#pragma once
+#ifndef CLOUDBUS_SEGMENT_INTERFACES
+#define CLOUDBUS_SEGMENT_INTERFACES
+namespace cloudbus{
+    namespace segment {
+        struct cbus_interface : public cs_interface {};
+        struct service_interface : public ss_interface{};
+    }
+}
+#endif

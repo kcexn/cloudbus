@@ -1,17 +1,17 @@
-/*     
+/*
 *   Copyright 2024 Kevin Exton
 *   This file is part of Cloudbus.
 *
-*   Cloudbus is free software: you can redistribute it and/or modify it under the 
-*   terms of the GNU Affero General Public License as published by the Free Software 
+*   Cloudbus is free software: you can redistribute it and/or modify it under the
+*   terms of the GNU Affero General Public License as published by the Free Software
 *   Foundation, either version 3 of the License, or any later version.
 *
-*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 *   See the GNU Affero General Public License for more details.
 *
-*   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
-*   If not, see <https://www.gnu.org/licenses/>. 
+*   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
+*   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "buffers.hpp"
 #include <algorithm>
@@ -38,7 +38,7 @@ namespace io{
             }
             return 0;
         }
-        
+
         pipebuf::pipebuf(pipebuf&& other):
             Base(other),
             _which{std::move(other._which)},
@@ -49,25 +49,25 @@ namespace io{
         {
             other._pipe = {};
         }
-        
+
         pipebuf::pipebuf(std::ios_base::openmode which):
             Base(),
             _which{which},
             BUFSIZE{DEFAULT_BUFSIZE}
         {
-            if(pipe(_pipe.data())) throw std::runtime_error("Unable to open pipes."); 
+            if(pipe(_pipe.data())) throw std::runtime_error("Unable to open pipes.");
             fcntl(_pipe[0], F_SETFL, fcntl(_pipe[0], F_GETFL) | O_NONBLOCK);
             fcntl(_pipe[1], F_SETFL, fcntl(_pipe[1], F_GETFL) | O_NONBLOCK);
             if(_which & std::ios_base::out) {
                 _write.resize(BUFSIZE);
-                Base::setp(_write.data(), _write.data() + _write.size()); 
+                Base::setp(_write.data(), _write.data() + _write.size());
             }
             if(_which & std::ios_base::in) {
                 _read.resize(BUFSIZE);
                 Base::setg(_read.data(), _read.data(), _read.data());
             }
         }
-        
+
         pipebuf& pipebuf::operator=(pipebuf&& other){
             _which = std::move(other._which);
             _read = std::move(other._read);
@@ -78,32 +78,32 @@ namespace io{
             Base::operator=(std::move(other));
             return *this;
         }
-        
-        void pipebuf::close_read() { 
+
+        void pipebuf::close_read() {
             close(_pipe[0]);
             _read = buffer();
             Base::setg(nullptr, nullptr, nullptr);
             _which &= ~std::ios_base::in;
         }
-        
+
         void pipebuf::close_write() {
             close(_pipe[1]);
             _write = buffer();
             Base::setp(nullptr, nullptr);
             _which &= ~std::ios_base::out;
         }
-        
+
         std::size_t pipebuf::write_remaining() {
             if(Base::pbase() == nullptr) return 0;
             return Base::pptr() - Base::pbase();
         }
-        
+
         pipebuf::~pipebuf(){
             for(int fd: _pipe){
                 if(fd > 2) close(fd);
             }
         }
-        
+
         void pipebuf::_resizewbuf(){
             std::size_t off = Base::pptr() - Base::pbase();
             if(off < BUFSIZE-1 && _write.size() > BUFSIZE){
@@ -117,7 +117,7 @@ namespace io{
                 Base::pbump(off);
             }
         }
-        
+
         int pipebuf::_send(pipebuf::char_type *buf, std::size_t size){
             int wfd = _pipe[1];
             std::streamsize len = write(wfd, buf, size);
@@ -144,7 +144,7 @@ namespace io{
             Base::setp(Base::pbase(), Base::epptr());
             return 0;
         }
-        
+
         void pipebuf::_mvrbuf() {
             auto garea = Base::egptr() - Base::gptr();
             auto oldarea = Base::gptr() - Base::eback();
@@ -157,7 +157,7 @@ namespace io{
             }
             Base::setg(Base::eback(), Base::eback(), Base::eback()+garea);
         }
-        
+
         int pipebuf::_recv(){
             auto rfd = _pipe[0];
             std::size_t size = Base::eback() + BUFSIZE - Base::egptr();
@@ -179,7 +179,7 @@ namespace io{
             Base::setg(Base::eback(), Base::gptr(), Base::egptr()+len);
             return 0;
         }
-        
+
         int pipebuf::sync(){
             if(_which & std::ios_base::out){
                 std::size_t size = Base::pptr()-Base::pbase();
@@ -193,7 +193,7 @@ namespace io{
             }
             return 0;
         }
-        
+
         std::streamsize pipebuf::showmanyc() {
             auto which_ = _which;
             _which &= ~std::ios_base::out;
@@ -204,7 +204,7 @@ namespace io{
             _which = which_;
             return Base::egptr() - Base::gptr();
         }
-        
+
         pipebuf::int_type pipebuf::underflow() {
             if(Base::eback() == nullptr) return traits::eof();
             if(sync()) return traits::eof();
@@ -213,8 +213,8 @@ namespace io{
                 return underflow();
             }
             return traits::to_int_type(*Base::gptr());
-        }   
-        
+        }
+
         pipebuf::int_type pipebuf::overflow(int_type ch) {
             if(Base::pbase() == nullptr) return traits::eof();
             if(sync()) return traits::eof();

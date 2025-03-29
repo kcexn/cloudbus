@@ -13,4 +13,14 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
 *   If not, see <https://www.gnu.org/licenses/>.
 */
-#include "marshallers/marshallers.hpp"
+#include "node/node.hpp"
+#include "cloudbus/controller/controller_connector.hpp"
+#include "cloudbus/segment/segment_connector.hpp"
+#pragma once
+#ifndef CLOUDBUS_NODES
+#define CLOUDBUS_NODES
+namespace cloudbus {
+    using controller_type = basic_node<controller::connector>;
+    using segment_type = basic_node<segment::connector>;
+}
+#endif

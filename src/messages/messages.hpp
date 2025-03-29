@@ -1,20 +1,18 @@
-/*     
+/*
 *   Copyright 2025 Kevin Exton
 *   This file is part of Cloudbus.
 *
-*   Cloudbus is free software: you can redistribute it and/or modify it under the 
-*   terms of the GNU Affero General Public License as published by the Free Software 
+*   Cloudbus is free software: you can redistribute it and/or modify it under the
+*   terms of the GNU Affero General Public License as published by the Free Software
 *   Foundation, either version 3 of the License, or any later version.
 *
-*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 *   See the GNU Affero General Public License for more details.
 *
-*   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
-*   If not, see <https://www.gnu.org/licenses/>. 
+*   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
+*   If not, see <https://www.gnu.org/licenses/>.
 */
-#include <memory>
-#include <vector>
 #include <cstdint>
 #pragma once
 #ifndef CLOUDBUS_MESSAGE_TYPES
@@ -25,13 +23,13 @@ namespace cloudbus{
             std::uint32_t time_low;
             std::uint16_t time_mid;
             std::uint16_t time_high_version;
-            std::uint16_t clock_seq_reserved;
+            std::uint8_t clock_seq_reserved;
             std::uint8_t clock_seq_low;
             char node[6];
         } uuid;
         // UUID utils.
         constexpr std::uint16_t TIME_HIGH_MAX = 0x0FFF;
-        constexpr std::uint16_t CLOCK_SEQ_MAX = 0x3FFF;
+        constexpr std::uint16_t CLOCK_SEQ_MAX = 0x3F;
         uuid make_uuid_v4();
         uuid make_uuid_v7();
         int uuid_cmpnode(const uuid *lhs, const uuid *rhs);
@@ -40,17 +38,20 @@ namespace cloudbus{
 
         // Message structures.
         typedef struct {
-            std::uint16_t seqno; 
+            std::uint16_t seqno;
             std::uint16_t length; // number of bytes in this envelope.
         } msglen; // 4 bytes.
         typedef struct {
-            std::uint8_t no; // 8 bit version number.
-            std::uint8_t flags; // 8 bits of flags for variations.
+            std::uint8_t major;
+            std::uint8_t minor;
         } msgversion;
-        enum types : std::uint8_t {
+        enum opcodes : std::uint8_t {
             DATA,
-            STOP,
-            CONTROL
+            STOP
+        };
+        enum session_flags : std::uint8_t {
+            INIT = 1 << 7,
+            ABORT = 1 << 6
         };
         typedef struct {
             std::uint8_t op; // 8 bit msg op code.

@@ -13,4 +13,14 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
 *   If not, see <https://www.gnu.org/licenses/>.
 */
-#include "marshallers/marshallers.hpp"
+#include "../../interfaces.hpp"
+#pragma once
+#ifndef CLOUDBUS_CONTROLLER_INTERFACES
+#define CLOUDBUS_CONTROLLER_INTERFACES
+namespace cloudbus{
+    namespace controller {
+        struct cs_north : public ss_interface{};
+        struct cs_south : public cs_interface{};
+    }
+}
+#endif

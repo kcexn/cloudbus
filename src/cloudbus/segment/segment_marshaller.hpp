@@ -13,4 +13,22 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
 *   If not, see <https://www.gnu.org/licenses/>.
 */
-#include "marshallers/marshallers.hpp"
+#include "segment_interfaces.hpp"
+#include "../../marshallers.hpp"
+#pragma once
+#ifndef CLOUDBUS_SEGMENT_MARSHALLERS
+#define CLOUDBUS_SEGMENT_MARSHALLERS
+namespace cloudbus{
+    namespace segment {
+        class marshaller : public basic_marshaller<cbus_interface, service_interface>
+        {
+            public:
+                using Base = basic_marshaller<cbus_interface, service_interface>;
+
+            protected:
+                virtual north_buffers::iterator _unmarshal(const north_type::handle_type& stream) override;
+                virtual south_buffers::iterator _marshal(const south_type::handle_type& stream) override;
+        };
+    }
+}
+#endif

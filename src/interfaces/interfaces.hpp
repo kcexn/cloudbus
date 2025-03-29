@@ -1,208 +1,139 @@
-/*     
+/*
 *   Copyright 2025 Kevin Exton
 *   This file is part of Cloudbus.
 *
-*   Cloudbus is free software: you can redistribute it and/or modify it under the 
-*   terms of the GNU Affero General Public License as published by the Free Software 
+*   Cloudbus is free software: you can redistribute it and/or modify it under the
+*   terms of the GNU Affero General Public License as published by the Free Software
 *   Foundation, either version 3 of the License, or any later version.
 *
-*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 *   See the GNU Affero General Public License for more details.
 *
-*   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
-*   If not, see <https://www.gnu.org/licenses/>. 
+*   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
+*   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "../io.hpp"
 #include "../formats.hpp"
 #include <sstream>
-
+#include <functional>
 #pragma once
 #ifndef CLOUDBUS_INTERFACES
 #define CLOUDBUS_INTERFACES
 namespace cloudbus {
-    struct cbus_service{};
-    struct stream_service{};
-    struct service_registration{};
-
-    template<class InterfaceT> struct stream_traits;
-    template<>
-    struct stream_traits<cbus_service>{
-        using stream_type = ::io::streams::sockstream;
-        using native_handle_type = stream_type::native_handle_type;
-        using stream_ptr = std::shared_ptr<stream_type>;
-        using handle_type = std::tuple<native_handle_type, stream_ptr>;
-        using storage_type = struct sockaddr_storage;
-        using size_type = socklen_t;
-        using address_type = struct sockaddr*;
+    struct cbus_service {
         using format_type = messages::xmsgstream;
-        static handle_type make_stream(int domain, int type, int protocol){ 
-            auto s = std::make_shared<stream_type>(domain, type, protocol); 
-            return std::make_tuple(s->native_handle(),s);
-        }
-        static handle_type make_stream(native_handle_type sockfd) { 
-            return std::make_tuple(sockfd, std::make_shared<stream_type>(sockfd));
-        }
     };
-    template<>
-    struct stream_traits<stream_service>{
-        using stream_type = ::io::streams::sockstream;
-        using native_handle_type = stream_type::native_handle_type;
-        using stream_ptr = std::shared_ptr<stream_type>;
-        using handle_type = std::tuple<native_handle_type, stream_ptr>;     
-        using storage_type = struct sockaddr_storage;
-        using size_type = socklen_t;
-        using address_type = struct sockaddr*;
+    struct stream_service {
         using format_type = std::stringstream;
-        static handle_type make_stream(int domain, int type, int protocol){ 
-            auto s = std::make_shared<stream_type>(domain, type, protocol); 
-            return std::make_tuple(s->native_handle(),s);
-        }
-        static handle_type make_stream(native_handle_type sockfd) { 
-            return std::make_tuple(sockfd, std::make_shared<stream_type>(sockfd));
-        }
     };
-    template<>
-    struct stream_traits<service_registration>{
-        using stream_type = ::io::streams::sockstream;
-        using native_handle_type = stream_type::native_handle_type;
-        using stream_ptr = std::shared_ptr<stream_type>;
-        using handle_type = std::tuple<native_handle_type, stream_ptr>;     
-        using storage_type = struct sockaddr_storage;
-        using size_type = socklen_t;
-        using address_type = struct sockaddr*;
-        using format_type = messages::xmsgstream;
-        static handle_type make_stream(int domain, int type, int protocol){ 
-            auto s = std::make_shared<stream_type>(domain, type, protocol); 
-            return std::make_tuple(s->native_handle(),s);
-        }
-        static handle_type make_stream(native_handle_type sockfd) { 
-            return std::make_tuple(sockfd, std::make_shared<stream_type>(sockfd));
-        }
+    template<class InterfaceT>
+    struct stream_traits : public InterfaceT
+    {
+        using Base = InterfaceT;
+    };
+
+    class interface_base {
+        public:
+            using stream_type = ::io::streams::sockstream;
+            using native_handle_type = stream_type::native_handle_type;
+            using stream_ptr = std::shared_ptr<stream_type>;
+            using handle_type = std::tuple<native_handle_type, stream_ptr>;
+            using handles_type = std::vector<handle_type>;
+            using address_type = std::tuple<struct sockaddr_storage, socklen_t>;
+            using addresses_type = std::vector<address_type>;
+            using callback_type = std::function<void(handle_type& hnd, const struct sockaddr*, socklen_t, const std::string&)>;
+            using clock_type = std::chrono::system_clock;
+            using time_point = clock_type::time_point;
+            using duration_type = std::chrono::seconds;
+            using dns_ttl = std::tuple<time_point, duration_type>;
+
+            static const address_type NULLADDR;
+            static address_type make_address(const struct sockaddr *addr, socklen_t addrlen);
+            static handle_type make_handle();
+            static handle_type make_handle(int domain, int type, int protocol, std::ios_base::openmode which);
+            static handle_type make_handle(native_handle_type sockfd, bool connected=false);
+
+            interface_base(const std::string& protocol=std::string(), const std::string& url=std::string()):
+                interface_base(addresses_type(), protocol, url){}
+            explicit interface_base(
+                const struct sockaddr *addr,
+                socklen_t addrlen,
+                const std::string& protocol,
+                const std::string& uri=std::string(),
+                const duration_type& ttl=duration_type(-1)
+            );
+            explicit interface_base(
+                const addresses_type& addresses,
+                const std::string& protocol=std::string(),
+                const std::string& uri=std::string(),
+                const duration_type& ttl=duration_type(-1)
+            );
+            explicit interface_base(
+                addresses_type&& addresses,
+                const std::string& protocol=std::string(),
+                const std::string& uri=std::string(),
+                const duration_type& ttl=duration_type(-1)
+            );
+            explicit interface_base(interface_base&& other) noexcept;
+            interface_base& operator=(interface_base&& other) noexcept;
+
+            std::string& uri() { return _uri; }
+            std::string& protocol() { return _protocol; }
+
+            const addresses_type& addresses() const { return _addresses; }
+            const addresses_type& addresses(const addresses_type& addrs, const duration_type& ttl=duration_type(-1));
+            const addresses_type& addresses(addresses_type&& addrs, const duration_type& ttl=duration_type(-1));
+
+            const handles_type& streams() const { return _streams; }
+            handle_type& make();
+            handle_type& make(int domain, int type, int protocol, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out));
+            handle_type& make(native_handle_type sockfd);
+            handle_type& make(native_handle_type sockfd, bool connected);
+
+            handles_type::const_iterator erase(handles_type::const_iterator it);
+            handles_type::iterator erase(handles_type::iterator it);
+            handles_type::const_iterator erase(const handle_type& handle);
+            handles_type::iterator erase(handle_type& handle);
+
+            void register_connect(const stream_ptr& ptr, const callback_type& connect_callback);
+            void register_connect(const stream_ptr& ptr, callback_type&& connect_callback);
+
+            virtual ~interface_base() = default;
+
+            interface_base(const interface_base& other) = delete;
+            interface_base& operator=(const interface_base& other) = delete;
+        private:
+            using callbacks_type = std::vector<std::tuple<std::weak_ptr<stream_type>, callback_type> >;
+
+            const address_type& next();
+            void _resolve_callbacks();
+            void _expire_addresses();
+
+            std::string _uri, _protocol;
+            addresses_type _addresses;
+            handles_type _streams;
+            callbacks_type _pending;
+            dns_ttl _timeout;
+            std::size_t _idx;
+
+            friend void swap(interface_base& lhs, interface_base& rhs) noexcept;
     };
     template<class InterfaceT, class Traits = stream_traits<InterfaceT> >
-    class interface {
-        public:
-            using traits_type = Traits;
-            using stream_ptr = typename traits_type::stream_ptr;
-            using native_handle_type = typename traits_type::native_handle_type;
-            using stream_type = typename traits_type::handle_type;
-            using streams_type = std::vector<stream_type>;
-            using storage_type = typename traits_type::storage_type;
-            using size_type = typename traits_type::size_type;
-            using address_type = typename traits_type::address_type;
-
-            interface() = default;
-            interface(const address_type addr, size_type addrlen)
-            :   _addrlen{addrlen}
-            { std::memcpy(&_address, addr, addrlen); }
-            interface(interface&& other)
-                : _streams{std::move(other._streams)},
-                    _addrlen{std::move(other._addrlen)}
-            { 
-                std::memcpy(&_address, &other._address, other._addrlen);
-                other._address = {};
-                other._addrlen = 0;
-            }
-
-            interface& operator=(interface&& other){
-                _streams = std::move(other._streams);
-                std::memcpy(&_address, &other._address, other._addrlen);
-                _addrlen = std::move(other._addrlen);
-                other._address = {};
-                other._addrlen = 0;
-                return *this;
-            }
-
-            streams_type& streams() { return _streams; }
-            const address_type address() { return reinterpret_cast<const address_type>(&_address); }
-            const size_type& addrlen() const { return _addrlen; }
-
-            stream_type& make(int domain, int type, int protocol){ return _make(domain, type, protocol); }
-            stream_type& make(native_handle_type sockfd){ return _make(sockfd); }
-
-            typename streams_type::const_iterator erase(typename streams_type::const_iterator it){ return _erase(it); }
-            typename streams_type::iterator erase(typename streams_type::iterator it){ return _erase(it); }
-            typename streams_type::const_iterator erase(const stream_type& sp){ return _erase(sp); }
-            typename streams_type::iterator erase(stream_type& sp){ return _erase(sp); }
-
-            virtual ~interface() = default;
-
-            interface(const interface& other) = delete;
-            interface& operator=(const interface& other) = delete;
-
-        protected:
-            virtual stream_type& _make(int domain, int type, int protocol){
-                streams().push_back(traits_type::make_stream(domain, type, protocol));
-                return streams().back();
-            }
-            virtual stream_type& _make(native_handle_type sockfd){
-                streams().push_back(traits_type::make_stream(sockfd));           
-                return streams().back();
-            }
-            virtual typename streams_type::const_iterator _erase(typename streams_type::const_iterator it){ return streams().erase(it); }
-            virtual typename streams_type::iterator _erase(typename streams_type::iterator it){ return streams().erase(it); }
-            virtual typename streams_type::const_iterator _erase(const stream_type& sp){
-                auto it = std::find_if(streams().cbegin(), streams().cend(), [&](const auto& h){ return std::get<native_handle_type>(h) == std::get<native_handle_type>(sp); });
-                return _erase(it);
-            }
-            virtual typename streams_type::iterator _erase(stream_type& sp){
-                auto it = std::find_if(streams().begin(), streams().end(), [&](const auto& h){ return std::get<native_handle_type>(h) == std::get<native_handle_type>(sp); });
-                return _erase(it);
-            }
-
-        private:
-            streams_type _streams;
-            storage_type _address;
-            size_type _addrlen;
-    };
-
-    class cs_interface: public interface<cbus_service>
+    struct interface : public interface_base
     {
-        public:
-            using Base = interface<cbus_service>;
-            using traits_type = Base::traits_type;
-            using stream_ptr = Base::stream_ptr;
-            using native_handle_type = Base::native_handle_type;
-            using stream_type = Base::stream_type;
-            using streams_type = Base::stream_type;
-            using storage_type = Base::storage_type;
-            using size_type = Base::size_type;
-            using address_type = Base::address_type;
-
-            cs_interface() = default;
-            cs_interface(const address_type addr, size_type addrlen);
-            cs_interface(cs_interface&& other);
-
-            cs_interface& operator=(cs_interface&& other);
-
-            virtual ~cs_interface() = default;
-
-            cs_interface(const cs_interface& other) = delete;
-            cs_interface& operator=(const cs_interface& other) = delete;
+        using Base = interface_base;
+        using traits_type = Traits;
+        using format_type = typename traits_type::format_type;
+        virtual ~interface() = default;
     };
-
-    class ss_interface: public interface<stream_service>
+    struct cs_interface : public interface<cbus_service>
     {
-        public:
-            using Base = interface<stream_service>;
-            using traits_type = Base::traits_type;
-            using stream_ptr = Base::stream_ptr;
-            using native_handle_type = Base::native_handle_type;
-            using stream_type = Base::stream_type;
-            using streams_type = Base::stream_type;
-            using storage_type = Base::storage_type;
-            using size_type = Base::size_type;
-            using address_type = Base::address_type;
-
-            ss_interface();
-            ss_interface(const address_type addr, size_type addrlen);
-            ss_interface(ss_interface&& other);
-
-            ss_interface& operator=(ss_interface&& other);
-
-            ss_interface(const ss_interface& other) = delete;
-            ss_interface& operator=(const ss_interface& other) = delete;
-    };  
+        virtual ~cs_interface() = default;
+    };
+    struct ss_interface : public interface<stream_service>
+    {
+        virtual ~ss_interface() = default;
+    };
 }
 #endif

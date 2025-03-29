@@ -1,26 +1,22 @@
-/*     
+/*
 *   Copyright 2025 Kevin Exton
 *   This file is part of Cloudbus.
 *
-*   Cloudbus is free software: you can redistribute it and/or modify it under the 
-*   terms of the GNU Affero General Public License as published by the Free Software 
+*   Cloudbus is free software: you can redistribute it and/or modify it under the
+*   terms of the GNU Affero General Public License as published by the Free Software
 *   Foundation, either version 3 of the License, or any later version.
 *
-*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 *   See the GNU Affero General Public License for more details.
 *
-*   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
-*   If not, see <https://www.gnu.org/licenses/>. 
+*   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
+*   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "controller_connector.hpp"
 #include <tuple>
 #include <sys/un.h>
 #include <fcntl.h>
-#ifdef PROFILE
-    #include <chrono>
-    #include <iostream>
-#endif
 namespace cloudbus {
     namespace controller {
         static constexpr std::streamsize MAX_BUFSIZE = 65536 * 4096; /* 256MiB */
@@ -81,9 +77,9 @@ namespace cloudbus {
             return os;
         }
         static connector::connections_type::iterator write_prepare(
-            connector::connections_type& connections, 
-            connector::trigger_type& triggers, 
-            const connector::north_type::stream_ptr& np, 
+            connector::connections_type& connections,
+            connector::trigger_type& triggers,
+            const connector::north_type::stream_ptr& np,
             const std::streamsize& tellp
         ){
             const std::streamsize pos = MAX_BUFSIZE-(tellp+sizeof(messages::msgheader));
@@ -230,19 +226,19 @@ namespace cloudbus {
             if(const auto *type = buf.type()){
                 const auto *eid = buf.eid();
                 const std::streamsize pos=buf.tellp(), gpos=buf.tellg();
-                const std::streamsize seekpos = 
+                const std::streamsize seekpos =
                     (gpos <= HDRLEN)
                     ? HDRLEN
                     : gpos;
                 const auto rem = buf.len()->length - pos;
                 const auto time = connection_type::clock_type::now();
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){
-                    if(auto s = conn->south.lock(); 
-                            !messages::uuid_cmpnode(&conn->uuid, eid) && 
+                    if(auto s = conn->south.lock();
+                            !messages::uuid_cmpnode(&conn->uuid, eid) &&
                             s && s == ssp
                     ){
                         if(auto n = conn->north.lock()){
-                            if(conn->state==connection_type::HALF_CLOSED && 
+                            if(conn->state==connection_type::HALF_CLOSED &&
                                     !n->eof() && !(type->flags & messages::ABORT)
                             ){
                                 break;
@@ -280,8 +276,8 @@ namespace cloudbus {
                                         c->state < connection_type::HALF_CLOSED);
                                     ++c
                                 ){
-                                    // This is a very awkward way to do this, but I have implemented it like this to keep 
-                                    // open the option of implementing UDP transport. With unreliable transports, it is 
+                                    // This is a very awkward way to do this, but I have implemented it like this to keep
+                                    // open the option of implementing UDP transport. With unreliable transports, it is
                                     // necessary to retry control messages until after the remote end sends back an ACK.
                                     if(auto sp = c->south.lock(); sp && c->uuid==*eid && sp != ssp){
                                         sp->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
@@ -390,7 +386,7 @@ namespace cloudbus {
                             conn = --connections().erase(conn);
                     } else conn = --connections().erase(conn);
                 }
-            }            
+            }
             revents = 0;
             triggers().clear(nfd);
             interface.erase(stream);

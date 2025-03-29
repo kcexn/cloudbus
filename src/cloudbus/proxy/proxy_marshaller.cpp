@@ -1,17 +1,17 @@
-/*     
+/*
 *   Copyright 2025 Kevin Exton
 *   This file is part of Cloudbus.
 *
-* Cloudbus is free software: you can redistribute it and/or modify it under the 
-*   terms of the GNU Affero General Public License as published by the Free Software 
+* Cloudbus is free software: you can redistribute it and/or modify it under the
+*   terms of the GNU Affero General Public License as published by the Free Software
 *   Foundation, either version 3 of the License, or any later version.
 *
-* Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+* Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 *   See the GNU Affero General Public License for more details.
 *
-* You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
-*   If not, see <https://www.gnu.org/licenses/>. 
+* You should have received a copy of the GNU Affero General Public License along with Cloudbus.
+*   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "proxy_marshaller.hpp"
 namespace cloudbus{
@@ -54,7 +54,7 @@ namespace cloudbus{
             auto n = std::get<north_ptr>(north().back()).lock();
             auto& buf = std::get<north_format>(north().back());
             xmsg_read(buf, *n);
-            return --north().end(); 
+            return --north().end();
         }
         marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_type& stream){
             for(auto it = south().begin(); it < south().end();){

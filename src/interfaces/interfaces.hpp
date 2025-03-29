@@ -1,17 +1,17 @@
-/*     
+/*
 *   Copyright 2025 Kevin Exton
 *   This file is part of Cloudbus.
 *
-*   Cloudbus is free software: you can redistribute it and/or modify it under the 
-*   terms of the GNU Affero General Public License as published by the Free Software 
+*   Cloudbus is free software: you can redistribute it and/or modify it under the
+*   terms of the GNU Affero General Public License as published by the Free Software
 *   Foundation, either version 3 of the License, or any later version.
 *
-*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 *   See the GNU Affero General Public License for more details.
 *
-*   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
-*   If not, see <https://www.gnu.org/licenses/>. 
+*   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
+*   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "../io.hpp"
 #include "../formats.hpp"
@@ -47,7 +47,7 @@ namespace cloudbus {
             using time_point = clock_type::time_point;
             using duration_type = std::chrono::seconds;
             using dns_ttl = std::tuple<time_point, duration_type>;
-         
+
             static const address_type NULLADDR;
             static address_type make_address(const struct sockaddr *addr, socklen_t addrlen);
             static handle_type make_handle();

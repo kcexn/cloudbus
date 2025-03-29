@@ -1,17 +1,17 @@
-/*     
+/*
 *   Copyright 2025 Kevin Exton
 *   This file is part of Cloudbus.
 *
-*   Cloudbus is free software: you can redistribute it and/or modify it under the 
-*   terms of the GNU Affero General Public License as published by the Free Software 
+*   Cloudbus is free software: you can redistribute it and/or modify it under the
+*   terms of the GNU Affero General Public License as published by the Free Software
 *   Foundation, either version 3 of the License, or any later version.
 *
-*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 *   See the GNU Affero General Public License for more details.
 *
-*   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
-*   If not, see <https://www.gnu.org/licenses/>. 
+*   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
+*   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "segment_connector.hpp"
 #include <sys/un.h>
@@ -58,14 +58,14 @@ namespace cloudbus{
                     conn.timestamps[++conn.state] = time;
                 default: return;
             }
-        }       
+        }
         static std::ostream& stream_write(std::ostream& os, std::istream& is){
             std::array<char, 256> _buf;
             while(auto gcount = is.readsome(_buf.data(), _buf.max_size()))
                 if(os.write(_buf.data(), gcount).bad())
                     return os;
             return os;
-        }    
+        }
         static std::ostream& stream_write(std::ostream& os, std::istream& is, std::streamsize maxlen){
             std::array<char, 256> _buf = {};
             while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.max_size())))){
@@ -101,7 +101,7 @@ namespace cloudbus{
             events.emplace_back(connector::event_type{sockfd, POLLIN, POLLIN});
             return events.begin()+off;
         }
-        
+
         connector::size_type connector::_handle(events_type& events){
             size_type handled = 0;
             for(auto ev = events.begin(); ev < events.end(); ++ev){
@@ -167,7 +167,7 @@ namespace cloudbus{
             if(const auto *type = buf.type()){
                 const auto *eid = buf.eid();
                 const std::streamsize pos=buf.tellp();
-                const std::streamsize seekpos = 
+                const std::streamsize seekpos =
                     (buf.tellg() <= HDRLEN)
                         ? HDRLEN
                         : static_cast<std::streamsize>(buf.tellg());
@@ -387,8 +387,8 @@ namespace cloudbus{
                 return 0;
             auto s = conn.south.lock();
             const messages::msgheader head = {
-                conn.uuid, 
-                {1, static_cast<std::uint16_t>(sizeof(head) + p)}, 
+                conn.uuid,
+                {1, static_cast<std::uint16_t>(sizeof(head) + p)},
                 {0,0},
                 {(!s || s->eof()) ? messages::STOP : messages::DATA, 0}
             };
@@ -445,7 +445,7 @@ namespace cloudbus{
                 if(_south_pollin_handler(interface, stream, revents))
                     _south_err_handler(interface, stream, revents);
             }
-            return handled;      
+            return handled;
         }
     }
 }

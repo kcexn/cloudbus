@@ -1,17 +1,17 @@
-/*     
+/*
 *   Copyright 2024 Kevin Exton
 *   This file is part of Cloudbus.
 *
-*   Cloudbus is free software: you can redistribute it and/or modify it under the 
-*   terms of the GNU Affero General Public License as published by the Free Software 
+*   Cloudbus is free software: you can redistribute it and/or modify it under the
+*   terms of the GNU Affero General Public License as published by the Free Software
 *   Foundation, either version 3 of the License, or any later version.
 *
-*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 *   See the GNU Affero General Public License for more details.
 *
-*   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
-*   If not, see <https://www.gnu.org/licenses/>. 
+*   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
+*   If not, see <https://www.gnu.org/licenses/>.
 */
 #include <streambuf>
 #include <memory>
@@ -36,7 +36,7 @@ namespace io{
             data_buffer data;
         };
         class sockbuf : public std::streambuf {
-            public:     
+            public:
                 using Base = std::streambuf;
                 using pos_type = Base::pos_type;
                 using off_type = Base::off_type;
@@ -48,7 +48,7 @@ namespace io{
                 using buffers_type = std::vector<buffer_type>;
                 using native_handle_type = int;
                 static constexpr size_type MIN_BUFSIZE = 32*1024;
-                
+
                 sockbuf();
                 explicit sockbuf(native_handle_type sockfd, bool connected=false, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out));
                 explicit sockbuf(int domain, int type, int protocol, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out));
@@ -58,7 +58,7 @@ namespace io{
                 const buffer_type& sendbuf() const { return _buffers.back(); }
                 native_handle_type& native_handle() { return _socket; }
                 int err(){ return _errno; }
-                
+
                 ~sockbuf();
 
                 sockbuf(const sockbuf& other) = delete;
@@ -80,7 +80,7 @@ namespace io{
                 int _errno;
                 bool _connected;
                 std::ios_base::openmode _which;
-                
+
                 void _init_buf_ptrs();
                 int _send(const buffer_type& buf);
                 void _resizewbuf(const buffer_type& buf, void *iov_base=nullptr, std::size_t buflen=0);

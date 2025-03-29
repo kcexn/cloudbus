@@ -1,17 +1,17 @@
-/*     
+/*
 *   Copyright 2025 Kevin Exton
 *   This file is part of Cloudbus.
 *
-*   Cloudbus is free software: you can redistribute it and/or modify it under the 
-*   terms of the GNU Affero General Public License as published by the Free Software 
+*   Cloudbus is free software: you can redistribute it and/or modify it under the
+*   terms of the GNU Affero General Public License as published by the Free Software
 *   Foundation, either version 3 of the License, or any later version.
 *
-*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 *   See the GNU Affero General Public License for more details.
 *
-*   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
-*   If not, see <https://www.gnu.org/licenses/>. 
+*   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
+*   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "interfaces.hpp"
 #include <cstring>
@@ -38,14 +38,14 @@ namespace cloudbus {
     }
 
     interface_base::interface_base(
-        const struct sockaddr *addr, 
-        socklen_t addrlen, 
-        const std::string& protocol, 
-        const std::string& uri, 
+        const struct sockaddr *addr,
+        socklen_t addrlen,
+        const std::string& protocol,
+        const std::string& uri,
         const duration_type& ttl
-    ):  
+    ):
         _uri{uri}, _protocol{protocol},
-        _addresses{}, _streams{}, _pending{}, 
+        _addresses{}, _streams{}, _pending{},
         _timeout{clock_type::now(), ttl}, _idx{0}
     {
         if(addr != nullptr && addrlen >= sizeof(sa_family_t))
@@ -63,7 +63,7 @@ namespace cloudbus {
         const std::string& protocol,
         const std::string& uri,
         const duration_type& ttl
-    ):  
+    ):
         _uri{uri}, _protocol{protocol},
         _addresses{addresses}, _streams{}, _pending{},
         _timeout{clock_type::now(), ttl}, _idx{0}
@@ -73,7 +73,7 @@ namespace cloudbus {
         const std::string& protocol,
         const std::string& uri,
         const duration_type& ttl
-    ):  
+    ):
         _uri{uri}, _protocol{protocol},
         _addresses{std::move(addresses)},
         _streams{}, _pending{},
@@ -128,10 +128,10 @@ namespace cloudbus {
         return _streams.back();
     }
     interface_base::handles_type::const_iterator interface_base::erase(handles_type::const_iterator cit){
-        return _streams.erase(cit); 
+        return _streams.erase(cit);
     }
-    interface_base::handles_type::iterator interface_base::erase(handles_type::iterator it){ 
-        return _streams.erase(it); 
+    interface_base::handles_type::iterator interface_base::erase(handles_type::iterator it){
+        return _streams.erase(it);
     }
     interface_base::handles_type::const_iterator interface_base::erase(const handle_type& handle){
         auto cit = std::find_if(

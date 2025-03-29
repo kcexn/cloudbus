@@ -1,17 +1,17 @@
-/*     
+/*
 *   Copyright 2024 Kevin Exton
 *   This file is part of Cloudbus.
 *
-*   Cloudbus is free software: you can redistribute it and/or modify it under the 
-*   terms of the GNU Affero General Public License as published by the Free Software 
+*   Cloudbus is free software: you can redistribute it and/or modify it under the
+*   terms of the GNU Affero General Public License as published by the Free Software
 *   Foundation, either version 3 of the License, or any later version.
 *
-*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 *   See the GNU Affero General Public License for more details.
 *
-*   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
-*   If not, see <https://www.gnu.org/licenses/>. 
+*   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
+*   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "buffers.hpp"
 #include <algorithm>
@@ -67,7 +67,7 @@ namespace io{
                 setp(data, data+MIN_BUFSIZE);
             }
         }
-        sockbuf::sockbuf(): 
+        sockbuf::sockbuf():
             Base(),
             _buffers{}, _socket{0},
             _errno{0}, _connected{false},
@@ -85,7 +85,7 @@ namespace io{
             _socket{0}, _errno{0}, _connected{false},
             _which{which}
         {
-            if((_socket = socket(domain, type, protocol)) < 0) 
+            if((_socket = socket(domain, type, protocol)) < 0)
                 throw std::runtime_error("Can't open socket.");
             _init_buf_ptrs();
         }
@@ -115,7 +115,7 @@ namespace io{
                     case EALREADY:
                     case EINPROGRESS:
                         return _buffers.back();
-                    default: 
+                    default:
                         return buffer_type();
                 }
             }

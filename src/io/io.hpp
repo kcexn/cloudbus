@@ -1,17 +1,17 @@
-/*     
+/*
 *   Copyright 2025 Kevin Exton
 *   This file is part of Cloudbus.
 *
-*   Cloudbus is free software: you can redistribute it and/or modify it under the 
-*   terms of the GNU Affero General Public License as published by the Free Software 
+*   Cloudbus is free software: you can redistribute it and/or modify it under the
+*   terms of the GNU Affero General Public License as published by the Free Software
 *   Foundation, either version 3 of the License, or any later version.
 *
-*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 *   See the GNU Affero General Public License for more details.
 *
-*   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
-*   If not, see <https://www.gnu.org/licenses/>. 
+*   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
+*   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "buffers.hpp"
 #include "streams.hpp"
@@ -28,14 +28,14 @@ namespace io {
         using events_type = std::vector<event_type>;
         using event_mask = short;
         static event_type mkevent(
-            const native_handle_type& hnd, 
-            const event_mask& events, 
+            const native_handle_type& hnd,
+            const event_mask& events,
             const event_mask& revents=0
         ){
             return event_type{hnd, events, revents};
         }
     };
-    
+
     template<class PollT>
     struct poll_traits : public PollT
     {
@@ -61,14 +61,14 @@ namespace io {
             basic_poller() = default;
 
             size_type operator()(duration_type timeout = duration_type(0)){ return _poll(timeout); }
-            
+
             size_type add(native_handle_type handle, event_type event){ return _add(handle, _events, event); }
             size_type update(native_handle_type handle, event_type event){ return _update(handle, _events, event); }
             size_type del(native_handle_type handle) { return _del(handle, _events); }
 
             events_type& events() { return _events; }
             const events_type& events() const { return _events; }
-            
+
             virtual ~basic_poller() = default;
 
             basic_poller(const basic_poller& other) = delete;
@@ -81,11 +81,11 @@ namespace io {
             virtual size_type _update(native_handle_type handle, events_type& events, event_type event) { return npos; }
             virtual size_type _del(native_handle_type handle, events_type& events ) { return npos; }
             virtual size_type _poll(duration_type timeout) { return npos; }
-            
+
         private:
             events_type _events{};
     };
-    
+
     class poller: public basic_poller<poll_t> {
         public:
             using Base = basic_poller<poll_t>;
@@ -94,7 +94,7 @@ namespace io {
             using event_type = Base::event_type;
             using events_type = Base::events_type;
             using event_mask = Base::event_mask;
-            
+
             poller(): Base(){}
             virtual ~poller() = default;
 
@@ -102,14 +102,14 @@ namespace io {
             poller(poller&& other) = delete;
             poller& operator=(const poller& other) = delete;
             poller& operator=(poller&& other) = delete;
-        
+
         protected:
             size_type _add(native_handle_type handle, events_type& events, event_type event) override;
             size_type _update(native_handle_type handle, events_type& events, event_type event) override;
             size_type _del(native_handle_type handle, events_type& events ) override;
             size_type _poll(duration_type timeout) override;
     };
-    
+
     template<class PollT, class Traits = poll_traits<PollT> >
     class basic_trigger {
         public:
@@ -126,9 +126,9 @@ namespace io {
             using interest_type = std::tuple<native_handle_type, trigger_type>;
             using interest_list = std::vector<interest_type>;
             static const size_type npos = traits_type::npos;
-            
+
             basic_trigger(poller_type& poller): _poller{poller}{}
-            
+
             size_type set(native_handle_type handle, trigger_type trigger){
                 for(auto&[hnd, trig]: _list){
                     if(hnd == handle){
@@ -141,7 +141,7 @@ namespace io {
                     _list.shrink_to_fit();
                 return _poller.add(handle, traits_type::mkevent(handle, trigger));
             }
-            
+
             size_type clear(native_handle_type handle, trigger_type trigger=-1){
                 for(auto it=_list.begin(); it < _list.end(); ++it){
                     auto&[hnd, trig] = *it;
@@ -154,14 +154,14 @@ namespace io {
                 }
                 return npos;
             }
-            
+
             size_type wait(duration_type timeout = duration_type(0)){ return _poller(timeout); }
             const interest_list& list() const { return _list; }
-            
+
             const events_type& events() const {
                 return _poller.events();
             }
-                
+
             virtual ~basic_trigger() = default;
 
             basic_trigger() = delete;
@@ -169,13 +169,13 @@ namespace io {
             basic_trigger(basic_trigger&& other) = delete;
             basic_trigger& operator=(const basic_trigger& other) = delete;
             basic_trigger& operator=(const basic_trigger&& other) = delete;
-            
+
         private:
             interest_list _list;
             poller_type& _poller;
     };
-    
-    class trigger: public basic_trigger<poll_t> {   
+
+    class trigger: public basic_trigger<poll_t> {
         public:
             using Base = basic_trigger<poll_t>;
             using native_handle_type = Base::native_handle_type;
@@ -184,7 +184,7 @@ namespace io {
             using events_type = Base::events_type;
             using event_mask = Base::event_mask;
             using size_type = Base::size_type;
-            
+
             trigger(): Base(_poller){}
             virtual ~trigger() = default;
 
@@ -192,7 +192,7 @@ namespace io {
             trigger(trigger&& other) = delete;
             trigger& operator=(const trigger& other) = delete;
             trigger& operator=(trigger&& other) = delete;
-            
+
         private:
             poller _poller;
     };

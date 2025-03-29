@@ -1,17 +1,17 @@
-/*     
+/*
 *   Copyright 2025 Kevin Exton
 *   This file is part of Cloudbus.
 *
-*   Cloudbus is free software: you can redistribute it and/or modify it under the 
-*   terms of the GNU Affero General Public License as published by the Free Software 
+*   Cloudbus is free software: you can redistribute it and/or modify it under the
+*   terms of the GNU Affero General Public License as published by the Free Software
 *   Foundation, either version 3 of the License, or any later version.
 *
-*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 *   See the GNU Affero General Public License for more details.
 *
-*   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
-*   If not, see <https://www.gnu.org/licenses/>. 
+*   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
+*   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "proxy_connector.hpp"
 #include <sys/un.h>
@@ -43,7 +43,7 @@ namespace cloudbus{
                 } else return set_flags(fd);
             }
             return 0;
-        }    
+        }
         static void state_update(
             connector::connection_type& conn,
             const messages::msgtype& type,
@@ -60,7 +60,7 @@ namespace cloudbus{
             }
         }
         static std::streamsize stream_write(std::ostream& os, std::istream& is, std::streamsize len){
-            std::array<char, 256> _buf = {};  
+            std::array<char, 256> _buf = {};
             std::streamsize pos=MAX_BUFSIZE-len;
             if(os.fail()) return -1;
             if(os.tellp() >= pos && os.flush().bad())
@@ -69,7 +69,7 @@ namespace cloudbus{
                 std::streamsize count = 0;
                 std::streamsize size = std::min(len, static_cast<std::streamsize>(_buf.max_size()));
                 while(auto gcount = is.readsome(_buf.data(), size)){
-                    if(os.write(_buf.data(), gcount).bad()) 
+                    if(os.write(_buf.data(), gcount).bad())
                         return -1;
                     count += gcount;
                     size = std::min(len-count, static_cast<std::streamsize>(_buf.max_size()));
@@ -275,8 +275,8 @@ namespace cloudbus{
                                         {0,0},{messages::STOP, 0}
                                     };
                                     for(auto c=connections().begin(); c < connections().end() && c->state < connection_type::HALF_CLOSED; ++c){
-                                        // This is a very awkward way to do this, but I have implemented it like this to keep 
-                                        // open the option of implementing UDP transport. With unreliable transports, it is 
+                                        // This is a very awkward way to do this, but I have implemented it like this to keep
+                                        // open the option of implementing UDP transport. With unreliable transports, it is
                                         // necessary to retry control messages until after the remote end sends back an ACK.
                                         if(auto sp = c->south.lock(); c->uuid==*eid && sp && sp != ssp){
                                             sp->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
@@ -348,7 +348,7 @@ namespace cloudbus{
                 return len;
             }
             return 0;
-        }        
+        }
         void connector::_north_err_handler(north_type& interface, const north_type::handle_type& stream, event_mask& revents){
             auto&[nfd, nsp] = stream;
             const auto time = connection_type::clock_type::now();
@@ -482,7 +482,7 @@ namespace cloudbus{
             triggers().clear(sfd);
             interface.erase(stream);
         }
-        int connector::_south_pollin_handler(const south_type& interface, const south_type::handle_type& stream, event_mask& revents){       
+        int connector::_south_pollin_handler(const south_type& interface, const south_type::handle_type& stream, event_mask& revents){
             auto it = marshaller().marshal(stream);
             if(std::get<south_type::stream_ptr>(stream)->gcount() == 0)
                 revents &= ~(POLLIN | POLLHUP);

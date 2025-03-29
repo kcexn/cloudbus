@@ -1,17 +1,17 @@
-/*     
+/*
 *   Copyright 2025 Kevin Exton
 *   This file is part of Cloudbus.
 *
-*   Cloudbus is free software: you can redistribute it and/or modify it under the 
-*   terms of the GNU Affero General Public License as published by the Free Software 
+*   Cloudbus is free software: you can redistribute it and/or modify it under the
+*   terms of the GNU Affero General Public License as published by the Free Software
 *   Foundation, either version 3 of the License, or any later version.
 *
-*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
-*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+*   Cloudbus is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+*   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 *   See the GNU Affero General Public License for more details.
 *
-*   You should have received a copy of the GNU Affero General Public License along with Cloudbus. 
-*   If not, see <https://www.gnu.org/licenses/>. 
+*   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
+*   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "../io.hpp"
 #include "../config.hpp"
@@ -25,7 +25,7 @@ namespace cloudbus{
         public:
             using Base = handler_type;
             using duration_type = trigger_type::duration_type;
-            
+
             node_base(const duration_type& timeout = duration_type(-1));
             duration_type& timeout() { return _timeout; }
             int run(int notify_pipe=0) { return _run(notify_pipe); }
@@ -35,7 +35,7 @@ namespace cloudbus{
             node_base(node_base&& other) = delete;
             node_base(const node_base& other) = delete;
             node_base& operator=(node_base&& other) = delete;
-            node_base& operator=(const node_base& other) = delete;    
+            node_base& operator=(const node_base& other) = delete;
 
         protected:
             virtual int _run(int notify_pipe);
@@ -64,9 +64,9 @@ namespace cloudbus{
             basic_node(const basic_node& other) = delete;
             basic_node& operator=(basic_node&& other) = delete;
             basic_node& operator=(const basic_node& other) = delete;
-        
+
         protected:
-            virtual size_type _handle(events_type& events) override { 
+            virtual size_type _handle(events_type& events) override {
                 return _connector.handle(events);
             }
             virtual int _signal_handler(int sig) override {

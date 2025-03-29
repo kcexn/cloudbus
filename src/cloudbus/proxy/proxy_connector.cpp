@@ -86,9 +86,11 @@ namespace cloudbus{
             for(auto conn=connections.begin(); conn < connections.end(); ++conn){
                 if(!messages::uuid_cmpnode(&conn->uuid, &uuid)){
                     if(auto s = conn->south.lock()){
-                        if(s->tellp() >= pos)
-                            if(s->flush().bad())
-                                return connections.end();
+                        if(s->fail())
+                            continue;
+                        if(s->tellp() >= pos &&
+                                s->flush().bad())
+                            continue;
                         if(s->tellp() > pos)
                             return conn;
                     } else conn = --connections.erase(conn);

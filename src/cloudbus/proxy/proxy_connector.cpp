@@ -61,15 +61,15 @@ namespace cloudbus{
         }
         static std::streamsize stream_write(std::ostream& os, std::istream& is, std::streamsize len){
             constexpr std::streamsize BUFLEN=256;
-            std::array<char, BUFLEN> _buf;
+            std::array<char, BUFLEN> buf;
             std::streamsize pos=MAX_BUFSIZE-len;
             if(os.fail()) return -1;
             if(os.tellp() >= pos && os.flush().bad())
                 return -1;
             if(os.tellp() < pos){
                 std::streamsize count=0, n=std::min(len-count, BUFLEN);
-                while(auto gcount = is.readsome(_buf.data(), n)){
-                    if(os.write(_buf.data(), gcount).bad())
+                while(auto gcount = is.readsome(buf.data(), n)){
+                    if(os.write(buf.data(), gcount).bad())
                         return -1;
                     if( (count+=gcount) == len )
                         return count;

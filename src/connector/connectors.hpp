@@ -117,7 +117,7 @@ namespace cloudbus {
             connector_marshaller(const connector_marshaller& other) = delete;
             connector_marshaller(connector_marshaller&& other) = delete;
             connector_marshaller& operator=(const connector_marshaller& other) = delete;
-            connector_marshaller& operator=(connector_marshaller&& other) = delete;            
+            connector_marshaller& operator=(connector_marshaller&& other) = delete;
 
         private:
             marshaller_type _marshaller;

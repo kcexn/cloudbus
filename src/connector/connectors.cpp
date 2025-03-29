@@ -29,6 +29,7 @@ namespace cloudbus {
         return fd;
     }
     connector_base::connector_base(const config::configuration::section& section, int mode):
+        _resolver{},
         _north{}, _south{}, _connections{},
         _mode{mode}, _drain{0}
     {

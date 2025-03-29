@@ -16,6 +16,7 @@
 #include "../config.hpp"
 #include "../interfaces.hpp"
 #include "../messages.hpp"
+#include "../dns.hpp"
 #pragma once
 #ifndef CLOUDBUS_CONNECTOR
 #define CLOUDBUS_CONNECTOR
@@ -49,6 +50,8 @@ namespace cloudbus {
 
             using connection_type = connection<stream_ptr>;
             using connections_type = std::vector<connection_type>;
+
+            using resolver_type = dns::resolver;
             enum modes {HALF_DUPLEX, FULL_DUPLEX};
 
             explicit connector_base(const config::configuration::section& section, int mode=HALF_DUPLEX);
@@ -56,6 +59,7 @@ namespace cloudbus {
             interface_base::native_handle_type make_north(const config::address_type& address);
             int make_south(const config::address_type& address);
 
+            resolver_type& resolver() { return _resolver; }
             interfaces& north() { return _north; }
             interfaces& south() { return _south; }
             connections_type& connections() { return _connections; }
@@ -71,6 +75,7 @@ namespace cloudbus {
             connector_base& operator=(connector_base&& other) = delete;
 
         private:
+            resolver_type _resolver;
             interfaces _north, _south;
             connections_type _connections;
             int _mode, _drain;
@@ -109,9 +114,7 @@ namespace cloudbus {
             using marshaller_type = typename Base::marshaller_type;
 
             connector_marshaller() = default;
-
             marshaller_type& marshaller() { return _marshaller; }
-
             virtual ~connector_marshaller() = default;
 
             connector_marshaller(const connector_marshaller& other) = delete;
@@ -124,7 +127,9 @@ namespace cloudbus {
     };
 
     template<class MarshallerT, class HandlerT>
-    class basic_connector: public connector_handler<HandlerT>, public connector_marshaller<MarshallerT>
+    class basic_connector: 
+            public connector_handler<HandlerT>,
+            public connector_marshaller<MarshallerT>
     {
         public:
             using HandlerBase = connector_handler<HandlerT>;
@@ -140,8 +145,9 @@ namespace cloudbus {
                 trigger_type& triggers,
                 const config::configuration::section& section
             ):
-                HandlerBase(triggers, section){}
-
+                HandlerBase(triggers, section),
+                MarshallerBase()
+            {}
             int route(
                 typename marshaller_type::north_format& buf,
                 const north_type& interface,
@@ -173,6 +179,7 @@ namespace cloudbus {
             basic_connector(basic_connector&& other) = delete;
             basic_connector& operator=(const basic_connector& other) = delete;
             basic_connector& operator=(basic_connector&& other) = delete;
+
         protected:
             virtual int _route(
                 typename marshaller_type::north_format& buf,

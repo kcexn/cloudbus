@@ -1,5 +1,6 @@
 AC_PREREQ([2.71])
 AC_INIT([cloudbus], [0.0.2], [kevin.exton@pm.me])
+AC_CHECK_LIB(cares, ares_library_init)
 AM_INIT_AUTOMAKE([-Wall subdir-objects foreign])
 : ${CXXFLAGS=""}
 AC_PROG_CXX

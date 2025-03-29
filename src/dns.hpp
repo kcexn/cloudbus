@@ -13,27 +13,4 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
 *   If not, see <https://www.gnu.org/licenses/>.
 */
-#include <ares.h>
-#pragma once
-#ifndef CLOUDBUS_DNS
-#define CLOUDBUS_DNS
-namespace cloudbus {
-    namespace dns {
-        class resolver_base
-        {
-            public:
-                resolver_base();
-                virtual ~resolver_base();
-
-                resolver_base(const resolver_base& other) = delete;
-                resolver_base& operator=(const resolver_base& other) = delete;
-                resolver_base(resolver_base&& other) = delete;
-                resolver_base& operator=(resolver_base&& other) = delete;
-
-            private:
-                ares_channel _channel;
-        };
-        class resolver : public resolver_base{};
-    }
-}
-#endif
+#include "dns/dns.hpp"

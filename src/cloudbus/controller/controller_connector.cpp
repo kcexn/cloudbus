@@ -331,7 +331,7 @@ namespace cloudbus {
                         triggers.set(sfd, (POLLIN | POLLOUT));
                     }
                 );
-                if(Base::mode() == Base::FULL_DUPLEX){
+                if(mode() == FULL_DUPLEX){
                     if((eid.clock_seq_reserved & messages::CLOCK_SEQ_MAX) == messages::CLOCK_SEQ_MAX)
                         eid.clock_seq_reserved &= ~messages::CLOCK_SEQ_MAX;
                     else ++eid.clock_seq_reserved;

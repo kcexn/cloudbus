@@ -61,18 +61,22 @@ namespace cloudbus {
             }
         }
         static std::ostream& stream_write(std::ostream& os, std::istream& is){
-            std::array<char, 256> _buf = {};
+            std::array<char, 256> _buf;
             while(auto gcount = is.readsome(_buf.data(), _buf.max_size()))
                 if(os.write(_buf.data(), gcount).bad())
                     return os;
             return os;
         }
         static std::ostream& stream_write(std::ostream& os, std::istream& is, std::streamsize maxlen){
-            std::array<char, 256> _buf = {};
-            while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.max_size())))){
+            constexpr std::streamsize BUFSIZE = 256;
+            if(maxlen <= 0)
+                return os;
+            std::array<char, BUFSIZE> _buf;
+            while( auto gcount = is.readsome(_buf.data(), std::min(maxlen, BUFSIZE)) ){
                 if(os.write(_buf.data(), gcount).bad())
                     return os;
-                maxlen -= gcount;
+                if( !(maxlen-=gcount) )
+                    return os;
             }
             return os;
         }

@@ -48,13 +48,17 @@ namespace cloudbus{
         const int& notify_pipe,
         int& notice
     ){
-        if(!notify_pipe) notice |= signal;
-        if(!notify_pipe || !n) return 0;
-        auto it = std::find_if(events.begin(), events.end(),
-                [&notify_pipe](auto& event){
-                    return event.fd==notify_pipe;
-                }
-            );
+        if(!notify_pipe && (notice |= signal))
+            signal = 0;
+        if(!notify_pipe || !n)
+            return 0;
+        auto it = std::find_if(
+                events.begin(),
+                events.end(),
+            [&notify_pipe](auto& event){
+                return event.fd==notify_pipe;
+            }
+        );
         if(it != events.end() &&
                 it->revents &&
                 n--
@@ -62,6 +66,8 @@ namespace cloudbus{
             if(it->revents & (POLLERR | POLLNVAL))
                 return -1;
             it->revents = 0;
+            std::swap(*it, *(--events.end()));
+            events.resize(events.size()-1);
             return read_notice(notify_pipe, notice);
         }
         return 0;
@@ -83,16 +89,16 @@ namespace cloudbus{
             std::signal(SIGINT, sighandler);
             std::signal(SIGHUP, sighandler);
         } else triggers().set(notify_pipe, POLLIN);
-        while((n = triggers().wait(_timeout)) != trigger_type::npos){
-            auto events = triggers().events();
+        while( (n = triggers().wait(_timeout)) != trigger_type::npos ){
+            auto events = n ? triggers().events() : events_type();
             if(check_for_signal(events, n, notify_pipe, notice))
                 return notice;
-            if(n) for(size_type i=0, handled=handle(events); n && handled; handled=handle(events)){
+            for(size_type i=0, handled=handle(events); handled; handled=handle(events)){
                 if(handled == trigger_type::npos)
                     return notice;
                 if(++i == FAIRNESS){
                     n = filter_events(events);
-                    if((i = triggers().wait()) != trigger_type::npos){
+                    if( (i = triggers().wait()) != trigger_type::npos ){
                         for(const auto& e: triggers().events()){
                             if(e.revents && i--){
                                 auto it = std::find_if(events.begin(), events.end(), [&](auto& ev){

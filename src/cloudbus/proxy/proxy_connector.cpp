@@ -125,7 +125,7 @@ namespace cloudbus{
                 return events.begin()+goff;
             }
             it->revents |= POLLIN;
-            if(it < ev && it > put)
+            if(it < ev && it >= put)
                 std::swap(*put++, *it);
             return ev;
         }

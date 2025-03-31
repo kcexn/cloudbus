@@ -78,11 +78,14 @@ namespace cloudbus {
                     if(auto& sockfd=std::get<ares_socket_t>(channel_handle());
                         sockfd != ARES_SOCKET_BAD
                     ){
-                        for(auto& event: events)
-                            if(event.revents && event.fd==sockfd && ++handled)
+                        if(events.empty())
+                            process_event();
+                        for(auto& event: events){
+                            if(event.revents && event.fd==sockfd && ++handled){
                                 process_event();
-                        if(events.empty() && process_event().count() > -1)
-                            ++handled;
+                                event.revents = 0;
+                            }
+                        }
                     }
                     return handled;
                 }

@@ -69,11 +69,10 @@ namespace cloudbus{
             virtual size_type _handle(events_type& events) override {
                 size_type handled = _connector.handle(events);
                 auto&[time, interval] = _connector.resolver().timeout();
+                timeout() = duration_type(-1);
                 if(interval.count() > -1){
                     auto wait = (time+interval)-connector_type::resolver_type::clock_type::now();
-                    auto wait_ms = std::chrono::duration_cast<duration_type>(wait);
-                    if(wait_ms.count() > 0)
-                        timeout() = wait_ms;
+                    timeout() = std::chrono::duration_cast<duration_type>(wait);;
                 }
                 return handled;
             }
@@ -81,7 +80,9 @@ namespace cloudbus{
                 if(sig & (SIGTERM | SIGINT | SIGHUP)){
                     if(connector().connections().empty())
                         sig &= ~(SIGTERM | SIGINT | SIGHUP);
-                    timeout() = duration_type(50);
+                    timeout() = (timeout().count() < 0) ?
+                            duration_type(50) :
+                            std::min(duration_type(50), timeout());
                     connector().drain() = 1;
                 }
                 return Base::_signal_handler(sig);

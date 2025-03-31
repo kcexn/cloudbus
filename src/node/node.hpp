@@ -26,9 +26,9 @@ namespace cloudbus{
             using Base = handler_type;
             using duration_type = trigger_type::duration_type;
 
-            node_base(const duration_type& timeout = duration_type(-1));
-            duration_type& timeout() { return _timeout; }
+            node_base();
             int run(int notify_pipe=0) { return _run(notify_pipe); }
+            duration_type& timeout() { return _timeout; }
             int signal_handler(int sig){ return _signal_handler(sig); }
             virtual ~node_base() = default;
 
@@ -67,7 +67,15 @@ namespace cloudbus{
 
         protected:
             virtual size_type _handle(events_type& events) override {
-                return _connector.handle(events);
+                size_type handled = _connector.handle(events);
+                auto&[time, interval] = _connector.resolver().timeout();
+                if(interval.count() > -1){
+                    auto wait = (time+interval)-connector_type::resolver_type::clock_type::now();
+                    auto wait_ms = std::chrono::duration_cast<duration_type>(wait);
+                    if(wait_ms.count() > 0)
+                        timeout() = wait_ms;
+                }
+                return handled;
             }
             virtual int _signal_handler(int sig) override {
                 if(sig & (SIGTERM | SIGINT | SIGHUP)){

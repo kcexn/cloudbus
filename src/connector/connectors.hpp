@@ -51,15 +51,15 @@ namespace cloudbus {
             using connection_type = connection<stream_ptr>;
             using connections_type = std::vector<connection_type>;
 
-            using resolver_type = dns::resolver;
+            using resolver_base = dns::resolver_base;
             enum modes {HALF_DUPLEX, FULL_DUPLEX};
 
-            explicit connector_base(const config::configuration::section& section, int mode=HALF_DUPLEX);
+            explicit connector_base(const config::configuration::section& section, resolver_base& resolver, int mode=HALF_DUPLEX);
 
             interface_base::native_handle_type make_north(const config::address_type& address);
             int make_south(const config::address_type& address);
 
-            resolver_type& resolver() { return _resolver; }
+            resolver_base& resolver() { return _resolver; }
             interfaces& north() { return _north; }
             interfaces& south() { return _south; }
             connections_type& connections() { return _connections; }
@@ -75,7 +75,7 @@ namespace cloudbus {
             connector_base& operator=(connector_base&& other) = delete;
 
         private:
-            resolver_type _resolver;
+            resolver_base& _resolver;
             interfaces _north, _south;
             connections_type _connections;
             int _mode, _drain;
@@ -85,12 +85,14 @@ namespace cloudbus {
     class connector_handler : public HandlerT, public connector_base
     {
         public:
-            using HandlerBase = HandlerT;
-            using ConnectorBase = connector_base;
-            using trigger_type = typename HandlerBase::trigger_type;
+            using Base = connector_base;
+            using trigger_type = typename HandlerT::trigger_type;
+            using size_type = typename HandlerT::size_type;
+            using events_type = typename HandlerT::events_type;
+            using resolver_type = dns::basic_resolver<HandlerT>;
 
             connector_handler(trigger_type& triggers, const config::configuration::section& section):
-                HandlerBase(triggers), ConnectorBase(section)
+                HandlerT(triggers), Base(section, _resolver), _resolver{triggers}
             {
                 const auto& hnd = north().front().streams().front();
                 auto sockfd = std::get<interface_base::native_handle_type>(hnd);
@@ -104,6 +106,14 @@ namespace cloudbus {
             connector_handler(connector_handler&& other) = delete;
             connector_handler& operator=(const connector_handler& other) = delete;
             connector_handler& operator=(connector_handler&& other) = delete;
+
+        protected:
+            virtual size_type _handle(events_type& events) override {
+                return _resolver.handle(events);
+            }
+
+        private:
+            resolver_type _resolver;
     };
 
     template<class MarshallerT>

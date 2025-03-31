@@ -184,6 +184,19 @@ namespace cloudbus{
                 }
             }
             events.resize(put-events.begin());
+            handled += Base::_handle(events);
+            auto&[dnsfd, dnsev] = resolver().channel_handle();
+            if(dnsfd != ARES_SOCKET_BAD){
+                event_mask mask = 0;
+                if(dnsev){
+                    if(dnsev & resolver_type::READABLE)
+                        mask |= POLLIN;
+                    if(dnsev & resolver_type::WRITABLE)
+                        mask |= POLLOUT;
+                    triggers().set(dnsfd, mask);
+                }
+                triggers().clear(dnsfd, ~mask);
+            }
             return handled;
         }
         int connector::_route(marshaller_type::north_format& buf, const north_type& interface, const north_type::handle_type& stream, event_mask& revents){

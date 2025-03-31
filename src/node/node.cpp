@@ -17,8 +17,9 @@
 #include <algorithm>
 #include <unistd.h>
 namespace cloudbus{
-    node_base::node_base(const duration_type& timeout):
-        Base(_triggers), _triggers{}, _timeout{timeout}{}
+    node_base::node_base():
+        Base(_triggers), _triggers{}, _timeout{-1}
+    {}
 
     volatile static std::sig_atomic_t signal = 0;
     extern "C" {
@@ -82,6 +83,7 @@ namespace cloudbus{
     }
     int node_base::_run(int notify_pipe) {
         constexpr size_type FAIRNESS = 16;
+        duration_type timeout{-1};
         size_type n = 0;
         int notice = 0;
         if(!notify_pipe){
@@ -89,7 +91,7 @@ namespace cloudbus{
             std::signal(SIGINT, sighandler);
             std::signal(SIGHUP, sighandler);
         } else triggers().set(notify_pipe, POLLIN);
-        while( (n = triggers().wait(_timeout)) != trigger_type::npos ){
+        while( (n = triggers().wait(timeout)) != trigger_type::npos ){
             auto events = n ? triggers().events() : events_type();
             if(check_for_signal(events, n, notify_pipe, notice))
                 return notice;

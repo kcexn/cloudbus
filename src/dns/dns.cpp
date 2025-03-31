@@ -15,30 +15,35 @@
 */
 #include "dns.hpp"
 #include <mutex>
+#include <cstring>
 namespace cloudbus {
     namespace dns {
-        static const int ares_channel_optmask = 0;
-        static const struct ares_options ares_channel_opts = {
-            0,          //int flags;
-            0,          //int timeout;
-            0,          //int tries;
-            0,          //int ndots;
-            0,          //unsigned short udp_port;
-            0,          //unsigned short tcp_port;
-            0,          //int socket_send_buffer_size;
-            0,          //int socket_receive_buffer_size;
-            nullptr,    //struct in_addr *servers;
-            0,          //int nservers;
-            nullptr,    //char **domains;
-            0,          //int ndomains;
-            nullptr,    //char *lookups;
-            nullptr,    //ares_sock_state_cb sock_state_cb;
-            nullptr,    //void *sock_state_cb_data;
-            nullptr,    //struct apattern *sortlist;
-            0,          //int nsort;
-            0,          //int ednspsz;
-            nullptr     //char *resolvconf_path;
-        };
+        extern "C" {
+            static void ares_socket_cb(void *data, ares_socket_t socket_fd, int readable, int writable){
+                auto *hnd = static_cast<resolver_base::socket_handle*>(data);
+                auto&[sockfd, sockstate] = *hnd;
+                sockfd = socket_fd;
+                sockstate = 0;
+                if(readable)
+                    sockstate |= resolver_base::READABLE;
+                if(writable)
+                    sockstate |= resolver_base::WRITABLE;
+            }
+            static void ares_addrinfo_cb(void *arg, int status, int timeouts, struct ares_addrinfo *result){
+                using argument_type = std::tuple<interface_base&, struct ares_addrinfo_hints*>;
+                auto *args = static_cast<argument_type*>(arg);
+                auto&[interface, hint_ptr] = *args;
+                delete hint_ptr;
+                switch(status){
+                    case ARES_SUCCESS:
+                        ares_freeaddrinfo(result);
+                        break;
+                    default:
+                        break;
+                }
+                delete args;
+            }
+        }
         static std::mutex ares_library_mtx;
         static int ares_version_number=0, ares_initialized=0;
         static void initialize_ares_library(){
@@ -63,11 +68,11 @@ namespace cloudbus {
             if( !(--ares_initialized) )
                 ares_library_cleanup();
         }
-        static void initialize_ares_channel(ares_channel *channel){
+        static void initialize_ares_channel(ares_channel *channel, ares_options *opts, int mask){
             int status = ares_init_options(
                 channel,
-                const_cast<struct ares_options*>(&ares_channel_opts),
-                ares_channel_optmask
+                opts,
+                mask
             );
             switch(status){
                 case ARES_ENOTINITIALIZED:
@@ -84,15 +89,55 @@ namespace cloudbus {
                     return;
             }
         }
-        resolver::resolver():
-            _channel{}
+        resolver_base::resolver_base():
+            _handle{ARES_SOCKET_BAD, 0}, _timeout{clock_type::now(), -1},
+            _channel{}, _opts{}
         {
             initialize_ares_library();
-            initialize_ares_channel(&_channel);
+            _opts.timeout = 500;
+            _opts.sock_state_cb = ares_socket_cb;
+            _opts.sock_state_cb_data = &_handle;
+            initialize_ares_channel(&_channel, &_opts, ARES_OPT_SOCK_STATE_CB | ARES_OPT_TIMEOUTMS | ARES_OPT_ROTATE);
         }
-        resolver::~resolver(){
+        resolver_base::duration_type resolver_base::resolve(
+            interface_base& interface,
+            const char *hostname,
+            const char *port,
+            const struct ares_addrinfo_hints *hints
+        ){
+            using argument_type = std::tuple<interface_base&, struct ares_addrinfo_hints*>;
+            struct ares_addrinfo_hints *hint_ptr = new struct ares_addrinfo_hints;
+            std::memcpy(hint_ptr, hints, sizeof(struct ares_addrinfo_hints));
+            argument_type *args = new argument_type{interface, hint_ptr};
+            ares_getaddrinfo(_channel, hostname, port, hint_ptr, ares_addrinfo_cb, args);
+            return set_timeout();
+        }
+        resolver_base::duration_type resolver_base::process_event(){
+            ares_socket_t readfd=ARES_SOCKET_BAD, writefd=ARES_SOCKET_BAD;
+            auto&[sockfd, sockev] = _handle;
+            auto&[time, interval] = _timeout;
+            if(clock_type::now() < time+interval){
+                if(sockev & READABLE)
+                    readfd = sockfd;
+                if(sockev & WRITABLE)
+                    writefd = sockfd;
+            }
+            ares_process_fd(_channel, readfd, writefd);
+            return set_timeout();
+        }
+        resolver_base::~resolver_base(){
             ares_destroy(_channel);
             cleanup_ares_library();
+        }
+        resolver_base::duration_type resolver_base::set_timeout(){
+            struct timeval tv = {};
+            if( ares_timeout(_channel, nullptr, &tv) ){
+                auto interval = duration_type(tv.tv_sec*1000+tv.tv_usec/1000);
+                _timeout = timeout_type{clock_type::now(), interval};
+                return interval;
+            }
+            _timeout = timeout_type{clock_type::now(), -1};
+            return duration_type(-1);
         }
     }
 }

@@ -72,7 +72,7 @@ namespace cloudbus{
                 timeout() = duration_type(-1);
                 if(interval.count() > -1){
                     auto wait = (time+interval)-connector_type::resolver_type::clock_type::now();
-                    timeout() = std::chrono::duration_cast<duration_type>(wait);;
+                    timeout() = std::chrono::duration_cast<duration_type>(wait);
                 }
                 return handled;
             }

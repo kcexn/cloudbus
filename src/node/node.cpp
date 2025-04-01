@@ -87,16 +87,19 @@ namespace cloudbus{
                 if(handled == trigger_type::npos)
                     return notice;
                 if(++i == FAIRNESS){
-                    n = events.size();
                     if( (i = triggers().wait()) != trigger_type::npos ){
                         for(const auto& e: triggers().events()){
                             if(e.revents && i--){
-                                auto it = std::find_if(events.begin(), events.end(), [&](auto& ev){
-                                    if(e.fd==ev.fd)
-                                        ev.revents |= e.revents;
-                                    return e.fd==ev.fd;
-                                });
-                                if(it == events.end() && ++n)
+                                auto it = std::find_if(
+                                        events.begin(),
+                                        events.end(),
+                                    [&](auto& ev){
+                                        if(e.fd==ev.fd)
+                                            ev.revents |= e.revents;
+                                        return e.fd==ev.fd;
+                                    }
+                                );
+                                if(it == events.end())
                                     events.push_back(e);
                             }
                             if(!i) break;

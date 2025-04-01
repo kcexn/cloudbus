@@ -23,9 +23,14 @@ Cloudbus currently supports:
 - Half and full-duplex one-to-N communication between a controller and multiple segments.
 
 Cloudbus currently does not support:
-
-- DNS
 - Abstract sockets, UDP, and SCTP transports.
+
+Cloudbus currently supports an implementation DNS for hostname resolution *only*.
+i.e.:
+```
+<PROTOCOL>://<FQDN>:<PORTNUM>
+```
+At some stage, there is a plan to implement NAPTR and SRV record resolution.
 
 Adding these features and addressing these limitations is currently WIP.
 

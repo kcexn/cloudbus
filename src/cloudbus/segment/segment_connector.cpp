@@ -163,7 +163,7 @@ namespace cloudbus{
                         );
                     }
                     if(ev->revents)
-                        std::swap(*put++, *ev);
+                        *put++ = *ev;
                 }
             }
             events.resize(put-events.begin());

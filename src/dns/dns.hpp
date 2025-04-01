@@ -61,9 +61,6 @@ namespace cloudbus {
             public:
                 using Base = resolver_base;
                 using trigger_type = typename HandlerT::trigger_type;
-                using event_mask = typename HandlerT::event_mask;
-                using events_type = typename HandlerT::events_type;
-                using size_type = typename HandlerT::size_type;
                 basic_resolver(trigger_type& triggers):
                     HandlerT(triggers), Base(){}
                 virtual ~basic_resolver() = default;

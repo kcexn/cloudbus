@@ -15,6 +15,7 @@
 */
 #include "segment_connector.hpp"
 #include <sys/un.h>
+#include <unistd.h>
 #include <fcntl.h>
 namespace cloudbus{
     namespace segment {
@@ -161,24 +162,12 @@ namespace cloudbus{
                             }
                         );
                     }
-                    std::swap(*put++, *ev);
+                    if(ev->revents)
+                        std::swap(*put++, *ev);
                 }
             }
             events.resize(put-events.begin());
-            handled += Base::_handle(events);
-            auto&[dnsfd, dnsev] = resolver().channel_handle();
-            if(dnsfd != ARES_SOCKET_BAD){
-                event_mask mask = 0;
-                if(dnsev){
-                    if(dnsev & resolver_type::READABLE)
-                        mask |= POLLIN;
-                    if(dnsev & resolver_type::WRITABLE)
-                        mask |= POLLOUT;
-                    triggers().set(dnsfd, mask);
-                }
-                triggers().clear(dnsfd, ~mask);
-            }
-            return handled;
+            return handled + Base::_handle(events);
         }
         int connector::_route(marshaller_type::north_format& buf, const north_type& interface, const north_type::handle_type& stream, event_mask& revents){
             constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
@@ -196,7 +185,8 @@ namespace cloudbus{
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                     if(conn->uuid == *eid && !conn->north.owner_before(nsp)){
                         if(auto s = conn->south.lock()){
-                            triggers().set(s->native_handle(), POLLOUT);
+                            if(auto sockfd = s->native_handle(); sockfd >= 0)
+                                triggers().set(sockfd, POLLOUT);
                             if(!rem && (type->flags & messages::ABORT))
                             {
                                 s->setstate(std::ios_base::badbit);
@@ -274,9 +264,14 @@ namespace cloudbus{
                     const std::string& protocol
                 ){
                     auto&[sfd, ssp] = hnd;
-                    if(!sfd){
+                    if(sfd < 0){
                         if(protocol == "TCP" || protocol == "UNIX")
-                            sfd = socket(addr->sa_family, SOCK_STREAM, 0);
+                        {
+                            if( (sfd = socket(addr->sa_family, SOCK_STREAM, 0)) < 0 )
+                            {
+                                throw std::runtime_error("Unable to create socket.");
+                            }
+                        }
                         else throw std::invalid_argument("Unsupported transport protocol.");
                         sfd = set_flags(sfd);
                         ssp->native_handle() = sfd;
@@ -285,6 +280,8 @@ namespace cloudbus{
                     triggers.set(sfd, (POLLIN | POLLOUT));
                 }
             );
+            if(sbd.addresses().empty())
+                resolver().resolve(sbd);
             const auto n = connection_type::clock_type::now();
             connections().push_back(
                 (buf.type()->op == messages::STOP)

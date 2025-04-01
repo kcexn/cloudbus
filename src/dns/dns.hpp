@@ -34,9 +34,9 @@ namespace cloudbus {
                     WRITABLE = 1 << 2
                 };
                 resolver_base();
-                const socket_handle& channel_handle() const { return _handle; }
+                socket_handle& channel_handle() { return _handle; }
                 const timeout_type& timeout() const { return _timeout; }
-                duration_type resolve(interface_base& interface, const char *hostname, const char *port, const struct ares_addrinfo_hints *hints);
+                duration_type resolve(interface_base& interface);
                 duration_type process_event();
                 ~resolver_base();
 
@@ -60,6 +60,7 @@ namespace cloudbus {
             public:
                 using Base = resolver_base;
                 using trigger_type = typename HandlerT::trigger_type;
+                using event_mask = typename HandlerT::event_mask;
                 using events_type = typename HandlerT::events_type;
                 using size_type = typename HandlerT::size_type;
                 basic_resolver(trigger_type& triggers):
@@ -75,17 +76,34 @@ namespace cloudbus {
             protected:
                 virtual size_type _handle(events_type& events) override {
                     size_type handled = 0;
-                    if(auto& sockfd=std::get<ares_socket_t>(channel_handle());
+                    if(auto&[sockfd, sockev] = channel_handle();
                         sockfd != ARES_SOCKET_BAD
                     ){
-                        if(events.empty())
-                            process_event();
-                        for(auto& event: events){
-                            if(event.revents && event.fd==sockfd && ++handled){
-                                process_event();
-                                event.revents = 0;
+                        auto cit = std::find_if(
+                                events.cbegin(),
+                                events.cend(),
+                            [&](const auto& event){
+                                if(event.fd==sockfd && event.revents && ++handled)
+                                    process_event();
+                                return event.fd==sockfd;
                             }
+                        );
+                        if(cit == events.cend()){
+                            auto&[time, interval] = timeout();
+                            if(clock_type::now() > time+interval && ++handled)
+                                process_event();
+                        } else cit=events.erase(cit);
+                        event_mask mask = 0;
+                        if(sockev){
+                            if(sockev & READABLE)
+                                mask |= POLLIN;
+                            if(sockev & WRITABLE)
+                                mask |= POLLOUT;
+                            this->triggers().set(sockfd, mask);
                         }
+                        this->triggers().clear(sockfd, ~mask);
+                        if(!mask)
+                            sockfd=ARES_SOCKET_BAD;
                     }
                     return handled;
                 }

@@ -39,7 +39,7 @@ namespace cloudbus{
             return buf;
         }
         static bool stream_copy(std::ostream& os, std::istream& is){
-            std::array<char, 256> _buf = {};
+            std::array<char, 256> _buf;
             constexpr std::streamsize hdrlen = sizeof(messages::msgheader);
             std::streamsize maxlen = UINT16_MAX - hdrlen;
             while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.max_size())))){
@@ -50,39 +50,40 @@ namespace cloudbus{
         }
 
         marshaller::north_buffers::iterator marshaller::_unmarshal(const north_type::handle_type& stream){
+            auto& nsp = std::get<north_type::stream_ptr>(stream);
             for(auto it = north().begin(); it < north().end(); ++it){
-                if(auto n = std::get<north_ptr>(*it).lock()){
-                    if(n == std::get<north_type::stream_ptr>(stream)){
-                        auto& buf = std::get<north_format>(*it);
-                        if(xmsg_read(buf, *n).bad())
-                            return north().end();
-                        return it;
-                    }
-                } else it = --north().erase(it);
+                auto&[n, buf] = *it;
+                if(!n.owner_before(nsp)){
+                    if(xmsg_read(buf, *nsp).bad())
+                        return north().end();
+                    return it;
+                }
+                if(n.expired())
+                    it = --north().erase(it);
             }
-            std::get<north_ptr>(north().emplace_back()) = std::get<north_type::stream_ptr>(stream);
-            auto n = std::get<north_ptr>(north().back()).lock();
-            auto& buf = std::get<north_format>(north().back());
-            xmsg_read(buf, *n);
+            auto&[ptr, buf] = north().emplace_back();
+            ptr = nsp;
+            xmsg_read(buf, *nsp);
             return --north().end();
         }
         marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_type& stream){
+            auto& ssp = std::get<south_type::stream_ptr>(stream);
             for(auto it = south().begin(); it < south().end(); ++it){
-                if(auto s = std::get<south_ptr>(*it).lock()){
-                        if(s == std::get<south_type::stream_ptr>(stream)){
-                            auto& buf = std::get<south_format>(*it);
-                            if(buf.tellg() == buf.tellp()){
-                                buf.seekg(0);
-                                stream_copy(buf.seekp(0), *s);
-                            }
-                            return it;
-                        }
-                } else it = --south().erase(it);
+                auto&[s, buf] = *it;
+                if(!s.owner_before(ssp)){
+                    auto& buf = std::get<south_format>(*it);
+                    if(buf.tellg() == buf.tellp()){
+                        buf.seekg(0);
+                        stream_copy(buf.seekp(0), *ssp);
+                    }
+                    return it;
+                }
+                if(s.expired())
+                    it = --south().erase(it);
             }
-            std::get<south_ptr>(south().emplace_back()) = std::get<south_type::stream_ptr>(stream);
-            auto s = std::get<south_ptr>(south().back()).lock();
-            auto& buf = std::get<south_format>(south().back());
-            stream_copy(buf, *s);
+            auto&[ptr, buf] = south().emplace_back();
+            ptr = ssp;
+            stream_copy(buf, *ssp);
             return --south().end();
         }
     }

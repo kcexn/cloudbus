@@ -69,7 +69,7 @@ namespace io{
         }
         sockbuf::sockbuf():
             Base(),
-            _buffers{}, _socket{0},
+            _buffers{}, _socket{BAD_SOCKET},
             _errno{0}, _connected{false},
             _which{std::ios_base::in | std::ios_base::out}
             { _init_buf_ptrs(); }
@@ -82,7 +82,7 @@ namespace io{
 
         sockbuf::sockbuf(int domain, int type, int protocol, std::ios_base::openmode which):
             Base(), _buffers{},
-            _socket{0}, _errno{0}, _connected{false},
+            _socket{BAD_SOCKET}, _errno{0}, _connected{false},
             _which{which}
         {
             if((_socket = socket(domain, type, protocol)) < 0)
@@ -188,7 +188,7 @@ namespace io{
         int sockbuf::_send(const buffer_type& buf){
             auto& header = buf->header;
             auto&[address, addrlen] = buf->addr;
-            if(!_connected && address.ss_family == AF_UNSPEC){
+            if( (_socket == BAD_SOCKET) || (!_connected && address.ss_family == AF_UNSPEC) ){
                 _resizewbuf(buf);
                 return 0;
             } else if(_connected ||
@@ -311,6 +311,8 @@ namespace io{
             setg(eback(), eback(), eback()+len);
         }
         int sockbuf::_recv(){
+            if(_socket == BAD_SOCKET)
+                return -1;
             _memmoverbuf();
             auto& buf = _buffers.front();
             auto& header = buf->header;

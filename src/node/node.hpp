@@ -67,12 +67,13 @@ namespace cloudbus{
 
         protected:
             virtual size_type _handle(events_type& events) override {
+                timeout() = duration_type(-1);
                 size_type handled = _connector.handle(events);
                 auto&[time, interval] = _connector.resolver().timeout();
-                timeout() = duration_type(-1);
                 if(interval.count() > -1){
-                    auto wait = (time+interval)-connector_type::resolver_type::clock_type::now();
-                    timeout() = std::chrono::duration_cast<duration_type>(wait);
+                    auto wait = time + interval - connector_type::resolver_type::clock_type::now();
+                    auto waitms = std::chrono::duration_cast<duration_type>(wait);
+                    timeout() = (waitms.count() < 0) ? duration_type(0) : waitms;
                 }
                 return handled;
             }

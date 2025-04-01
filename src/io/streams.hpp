@@ -27,6 +27,8 @@ namespace io {
 
             public:
                 using native_handle_type = sockbuf::native_handle_type;
+                static constexpr native_handle_type BAD_SOCKET = sockbuf::BAD_SOCKET;
+                
                 sockstream():
                     Base(&_buf), _buf{}
                 {}

@@ -27,7 +27,7 @@ namespace cloudbus {
         return address;
     }
     interface_base::handle_type interface_base::make_handle(){
-        return std::make_tuple(0, std::make_shared<stream_type>());
+        return std::make_tuple(stream_type::BAD_SOCKET, std::make_shared<stream_type>());
     }
     interface_base::handle_type interface_base::make_handle(int domain, int type, int protocol, std::ios_base::openmode which){
         auto s = std::make_shared<stream_type>(domain, type, protocol, which);
@@ -115,12 +115,6 @@ namespace cloudbus {
             _streams.shrink_to_fit();
         return _streams.back();
     }
-    interface_base::handle_type& interface_base::make(native_handle_type sockfd){
-        _streams.emplace_back(make_handle(sockfd));
-        if(_streams.capacity() > SHRINK_THRESHOLD)
-            _streams.shrink_to_fit();
-        return _streams.back();
-    }
     interface_base::handle_type& interface_base::make(native_handle_type sockfd, bool connected){
         _streams.emplace_back(make_handle(sockfd, connected));
         if(_streams.capacity() > SHRINK_THRESHOLD)
@@ -181,16 +175,17 @@ namespace cloudbus {
             return _expire_addresses();
         if(!_addresses.empty()){
             for(auto&[wp, cb]: _pending){
-                if(auto ptr=wp.lock()){
+                if(!wp.expired()){
                     const auto&[addr, addrlen] = next();
                     std::find_if(
                             _streams.begin(),
                             _streams.end(),
                         [&, addr=reinterpret_cast<const struct sockaddr*>(&addr)]
                         (auto& hnd){
-                            if(std::get<stream_ptr>(hnd)==ptr)
+                            auto& ptr = std::get<stream_ptr>(hnd);
+                            if(!wp.owner_before(ptr))
                                 cb(hnd, addr, addrlen, _protocol);
-                            return std::get<stream_ptr>(hnd)==ptr;
+                            return !wp.owner_before(ptr);
                         }
                     );
                 }

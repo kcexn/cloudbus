@@ -47,6 +47,7 @@ namespace io{
                 using buffer_type = std::shared_ptr<socket_message>;
                 using buffers_type = std::vector<buffer_type>;
                 using native_handle_type = int;
+                static constexpr native_handle_type BAD_SOCKET = -1;
                 static constexpr size_type MIN_BUFSIZE = 32*1024;
 
                 sockbuf();

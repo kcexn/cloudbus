@@ -88,8 +88,7 @@ namespace cloudbus {
             const handles_type& streams() const { return _streams; }
             handle_type& make();
             handle_type& make(int domain, int type, int protocol, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out));
-            handle_type& make(native_handle_type sockfd);
-            handle_type& make(native_handle_type sockfd, bool connected);
+            handle_type& make(native_handle_type sockfd, bool connected=false);
 
             handles_type::const_iterator erase(handles_type::const_iterator it);
             handles_type::iterator erase(handles_type::iterator it);

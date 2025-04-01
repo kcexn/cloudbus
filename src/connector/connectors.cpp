@@ -90,12 +90,12 @@ namespace cloudbus {
             case config::URL:
             {
                 auto&[host, protocol] = std::get<config::URL>(address);
-                _south.emplace_back(host, protocol);
+                _south.emplace_back(protocol, host);
                 return 0;
             }
             case config::URN:
                 if(auto& urn = std::get<config::URN>(address); !urn.empty()){
-                    _south.emplace_back(urn);
+                    _south.emplace_back("urn", urn);
                     return 0;
                 }
             default:

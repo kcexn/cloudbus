@@ -183,24 +183,12 @@ namespace cloudbus {
                             }
                         );
                     }
-                    std::swap(*put++, *ev);
+                    if(ev->revents)
+                        std::swap(*put++, *ev);
                 }
             }
             events.resize(put-events.begin());
-            handled += Base::_handle(events);
-            auto&[dnsfd, dnsev] = resolver().channel_handle();
-            if(dnsfd != ARES_SOCKET_BAD){
-                event_mask mask = 0;
-                if(dnsev){
-                    if(dnsev & resolver_type::READABLE)
-                        mask |= POLLIN;
-                    if(dnsev & resolver_type::WRITABLE)
-                        mask |= POLLOUT;
-                    triggers().set(dnsfd, mask);
-                }
-                triggers().clear(dnsfd, ~mask);
-            }
-            return handled;
+            return handled + Base::_handle(events);
         }
         int connector::_route(marshaller_type::north_format& buf, const north_type& interface, const north_type::handle_type& stream, event_mask& revents){
             constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
@@ -223,7 +211,8 @@ namespace cloudbus {
                                 head.eid = conn->uuid;
                                 s->write(reinterpret_cast<const char*>(&head), sizeof(head));
                                 stream_write(*s, buf.seekg(0), p);
-                                triggers().set(s->native_handle(), POLLOUT);
+                                if(auto sockfd = s->native_handle(); sockfd >= 0)
+                                    triggers().set(sockfd, POLLOUT);
                             }
                         } else conn = --connections().erase(conn);
                     }
@@ -337,9 +326,14 @@ namespace cloudbus {
                         const std::string& protocol
                     ){
                         auto&[sfd, ssp] = hnd;
-                        if(!sfd){
+                        if(sfd < 0){
                             if(protocol == "TCP" || protocol == "UNIX")
-                                sfd = socket(addr->sa_family, SOCK_STREAM, 0);
+                            {
+                                if( (sfd = socket(addr->sa_family, SOCK_STREAM, 0)) < 0 )
+                                {
+                                    throw std::runtime_error("Unable to create socket.");
+                                }
+                            }
                             else throw std::invalid_argument("Unsupported transport protocol.");
                             sfd = set_flags(sfd);
                             ssp->native_handle() = sfd;
@@ -348,7 +342,8 @@ namespace cloudbus {
                         triggers.set(sfd, (POLLIN | POLLOUT));
                     }
                 );
-                /* resolver().resolve(sbd, nullptr, nullptr, nullptr); */
+                if(sbd.addresses().empty())
+                    resolver().resolve(sbd);
                 if(mode() == FULL_DUPLEX){
                     if((eid.clock_seq_reserved & messages::CLOCK_SEQ_MAX) == messages::CLOCK_SEQ_MAX)
                         eid.clock_seq_reserved &= ~messages::CLOCK_SEQ_MAX;

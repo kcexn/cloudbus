@@ -16,12 +16,14 @@
 #include "dns.hpp"
 #include <mutex>
 #include <cstring>
+#include <unistd.h>
 namespace cloudbus {
     namespace dns {
         extern "C" {
             static void ares_socket_cb(void *data, ares_socket_t socket_fd, int readable, int writable){
                 auto *hnd = static_cast<resolver_base::socket_handle*>(data);
                 auto&[sockfd, sockstate] = *hnd;
+                //if readable is 0 and writable is 0 then socket_fd is closed.
                 sockfd = socket_fd;
                 sockstate = 0;
                 if(readable)
@@ -34,8 +36,17 @@ namespace cloudbus {
                 auto *args = static_cast<argument_type*>(arg);
                 auto&[interface, hint_ptr] = *args;
                 delete hint_ptr;
+                int ttl = -1;
+                interface_base::addresses_type addresses;
                 switch(status){
                     case ARES_SUCCESS:
+                        for(auto *node=result->nodes; node != nullptr; node=node->ai_next){
+                            auto&[addr, addrlen] = addresses.emplace_back();
+                            addrlen = node->ai_addrlen;
+                            std::memcpy(&addr, node->ai_addr, addrlen);
+                            ttl = (ttl < 0) ? node->ai_ttl : std::min(ttl, node->ai_ttl);
+                        }
+                        interface.addresses(std::move(addresses), interface_base::duration_type(ttl));
                         ares_freeaddrinfo(result);
                         break;
                     default:
@@ -99,17 +110,23 @@ namespace cloudbus {
             _opts.sock_state_cb_data = &_handle;
             initialize_ares_channel(&_channel, &_opts, ARES_OPT_SOCK_STATE_CB | ARES_OPT_TIMEOUTMS | ARES_OPT_ROTATE);
         }
-        resolver_base::duration_type resolver_base::resolve(
-            interface_base& interface,
-            const char *hostname,
-            const char *port,
-            const struct ares_addrinfo_hints *hints
-        ){
+        resolver_base::duration_type resolver_base::resolve(interface_base& interface){
             using argument_type = std::tuple<interface_base&, struct ares_addrinfo_hints*>;
-            struct ares_addrinfo_hints *hint_ptr = new struct ares_addrinfo_hints;
-            std::memcpy(hint_ptr, hints, sizeof(struct ares_addrinfo_hints));
-            argument_type *args = new argument_type{interface, hint_ptr};
-            ares_getaddrinfo(_channel, hostname, port, hint_ptr, ares_addrinfo_cb, args);
+            struct ares_addrinfo_hints *hints = new struct ares_addrinfo_hints;
+            std::memset(hints, 0, sizeof(struct ares_addrinfo_hints));
+            hints->ai_family = AF_INET;
+            if(interface.protocol() == "TCP")
+                hints->ai_socktype = SOCK_STREAM;
+            argument_type *args = new argument_type{interface, hints};
+            auto delim = interface.uri().find(':');
+            ares_getaddrinfo(
+                _channel,
+                interface.uri().substr(0, delim).c_str(),
+                interface.uri().substr(delim+1).c_str(),
+                hints,
+                ares_addrinfo_cb,
+                args
+            );
             return set_timeout();
         }
         resolver_base::duration_type resolver_base::process_event(){

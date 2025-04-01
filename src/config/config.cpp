@@ -152,6 +152,13 @@ namespace cloudbus{
             *len = sizeof(struct sockaddr_in6);
             return 0;
         }
+        static address_type make_url(const std::string_view& host, std::string&& p){
+            auto it = std::find(host.begin(), host.end(), ':');
+            if(++it == host.end())
+                return address_type();
+            while(std::isdigit(*it++) && it < host.end());
+            return (it==host.end()) ? address_type(url{host, std::move(p)}) : address_type();
+        }
         /* unix:///<PATH> */
         /* tcp://<IP>:<PORT> */
         static address_type make_address(const std::string& line, std::string&& p){
@@ -178,7 +185,7 @@ namespace cloudbus{
                             return address_type();
                         return address_type{std::move(address)};
                     case HOSTNAME:
-                        return address_type{url{std::string(host), std::move(protocol)}};
+                        return make_url(host, std::move(protocol));
                     default:
                         return address_type();
                 }

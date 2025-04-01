@@ -16,14 +16,21 @@
 #include "dns.hpp"
 #include <mutex>
 #include <cstring>
-#include <unistd.h>
 namespace cloudbus {
     namespace dns {
+        using addrinfo_args = std::tuple<interface_base&, struct ares_addrinfo_hints*>;
         extern "C" {
             static void ares_socket_cb(void *data, ares_socket_t socket_fd, int readable, int writable){
-                auto *hnd = static_cast<resolver_base::socket_handle*>(data);
-                auto&[sockfd, sockstate] = *hnd;
-                //if readable is 0 and writable is 0 then socket_fd is closed.
+                auto *hnds = static_cast<resolver_base::socket_handles*>(data);
+                auto it = std::find_if(
+                        hnds->begin(),
+                        hnds->end(),
+                    [&](const auto& hnd){
+                        return socket_fd == std::get<ares_socket_t>(hnd);
+                    }
+                );
+                auto& hnd = (it == hnds->end()) ? hnds->emplace_back() : *it;
+                auto&[sockfd, sockstate] = hnd;
                 sockfd = socket_fd;
                 sockstate = 0;
                 if(readable)
@@ -32,8 +39,7 @@ namespace cloudbus {
                     sockstate |= resolver_base::WRITABLE;
             }
             static void ares_addrinfo_cb(void *arg, int status, int timeouts, struct ares_addrinfo *result){
-                using argument_type = std::tuple<interface_base&, struct ares_addrinfo_hints*>;
-                auto *args = static_cast<argument_type*>(arg);
+                auto *args = static_cast<addrinfo_args*>(arg);
                 auto&[interface, hint_ptr] = *args;
                 delete hint_ptr;
                 int ttl = -1;
@@ -101,23 +107,22 @@ namespace cloudbus {
             }
         }
         resolver_base::resolver_base():
-            _handle{ARES_SOCKET_BAD, 0}, _timeout{clock_type::now(), -1},
+            _handles{}, _timeout{clock_type::now(), -1},
             _channel{}, _opts{}
         {
             initialize_ares_library();
             _opts.timeout = 500;
             _opts.sock_state_cb = ares_socket_cb;
-            _opts.sock_state_cb_data = &_handle;
+            _opts.sock_state_cb_data = &_handles;
             initialize_ares_channel(&_channel, &_opts, ARES_OPT_SOCK_STATE_CB | ARES_OPT_TIMEOUTMS | ARES_OPT_ROTATE);
         }
         resolver_base::duration_type resolver_base::resolve(interface_base& interface){
-            using argument_type = std::tuple<interface_base&, struct ares_addrinfo_hints*>;
             struct ares_addrinfo_hints *hints = new struct ares_addrinfo_hints;
             std::memset(hints, 0, sizeof(struct ares_addrinfo_hints));
             hints->ai_family = AF_INET;
             if(interface.protocol() == "TCP")
                 hints->ai_socktype = SOCK_STREAM;
-            argument_type *args = new argument_type{interface, hints};
+            addrinfo_args *args = new addrinfo_args{interface, hints};
             auto delim = interface.uri().find(':');
             ares_getaddrinfo(
                 _channel,
@@ -129,10 +134,10 @@ namespace cloudbus {
             );
             return set_timeout();
         }
-        resolver_base::duration_type resolver_base::process_event(){
+        resolver_base::duration_type resolver_base::process_event(const socket_handle& hnd){
             ares_socket_t readfd=ARES_SOCKET_BAD, writefd=ARES_SOCKET_BAD;
-            auto&[sockfd, sockev] = _handle;
-            auto&[time, interval] = _timeout;
+            const auto&[sockfd, sockev] = hnd;
+            const auto&[time, interval] = _timeout;
             if(clock_type::now() < time+interval){
                 if(sockev & READABLE)
                     readfd = sockfd;

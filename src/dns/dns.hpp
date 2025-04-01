@@ -25,6 +25,7 @@ namespace cloudbus {
         {
             public:
                 using socket_handle = std::tuple<ares_socket_t, std::uint16_t>;
+                using socket_handles = std::vector<socket_handle>;
                 using clock_type = std::chrono::steady_clock;
                 using time_point = clock_type::time_point;
                 using duration_type = std::chrono::milliseconds;
@@ -34,10 +35,10 @@ namespace cloudbus {
                     WRITABLE = 1 << 2
                 };
                 resolver_base();
-                socket_handle& channel_handle() { return _handle; }
+                socket_handles& handles() { return _handles; }
                 const timeout_type& timeout() const { return _timeout; }
                 duration_type resolve(interface_base& interface);
-                duration_type process_event();
+                duration_type process_event(const socket_handle& hnd);
                 ~resolver_base();
 
                 resolver_base(const resolver_base& other) = delete;
@@ -48,7 +49,7 @@ namespace cloudbus {
             private:
                 duration_type set_timeout();
 
-                socket_handle _handle;
+                socket_handles _handles;
                 timeout_type _timeout;
                 ares_channel _channel;
                 ares_options _opts;
@@ -76,38 +77,47 @@ namespace cloudbus {
             protected:
                 virtual size_type _handle(events_type& events) override {
                     size_type handled = 0;
-                    if(auto&[sockfd, sockev] = channel_handle();
-                        sockfd != ARES_SOCKET_BAD
-                    ){
+                    for(auto hit=handles().begin(); hit < handles().end(); ++hit){
+                        auto& hnd = *hit;
+                        auto&[sockfd, sockev] = hnd;
+                        event_mask set=0, unset=0;
                         auto cit = std::find_if(
                                 events.cbegin(),
                                 events.cend(),
                             [&](const auto& event){
-                                if(event.fd==sockfd && event.revents && ++handled)
-                                    process_event();
+                                if(event.fd==sockfd){
+                                    set = event.events;
+                                    if(event.revents && ++handled)
+                                        process_event(hnd);
+                                }
                                 return event.fd==sockfd;
                             }
                         );
                         if(cit == events.cend()){
                             auto&[time, interval] = timeout();
                             if(clock_type::now() > time+interval && ++handled)
-                                process_event();
+                                process_event(hnd);
                         } else cit=events.erase(cit);
-                        event_mask mask = 0;
-                        if(sockev){
-                            if(sockev & READABLE)
-                                mask |= POLLIN;
-                            if(sockev & WRITABLE)
-                                mask |= POLLOUT;
-                            this->triggers().set(sockfd, mask);
+                        if(!sockev){
+                            this->triggers().clear(sockfd);
+                            hit = --handles().erase(hit);
+                        } else {
+                            if( (sockev & READABLE) && !(set & POLLIN) )
+                                set |= POLLIN;
+                            if( !(sockev & READABLE) && (set & POLLIN) )
+                                unset |= POLLIN;
+                            if( (sockev & WRITABLE) &&  !(set & POLLOUT) )
+                                set |= POLLOUT;
+                            if( !(sockev & WRITABLE) && (set & POLLOUT) )
+                                unset |= POLLOUT;
+                            if(set)
+                                this->triggers().set(sockfd, set);
+                            if(unset)
+                                this->triggers().clear(sockfd, unset);
                         }
-                        this->triggers().clear(sockfd, ~mask);
-                        if(!mask)
-                            sockfd=ARES_SOCKET_BAD;
                     }
                     return handled;
                 }
-
         };
     }
 }

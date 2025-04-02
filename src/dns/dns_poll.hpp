@@ -40,13 +40,13 @@ namespace cloudbus {
                     for(auto hit=handles().begin(); hit < handles().end(); ++hit){
                         auto& hnd = *hit;
                         auto&[sockfd, sockev] = hnd;
-                        event_mask set=0, unset=0;
+                        event_mask curr=0, set=0, unset=0;
                         auto cit = std::find_if(
                                 events.cbegin(),
                                 events.cend(),
                             [&](const auto& event){
                                 if(event.fd==sockfd){
-                                    set = event.events;
+                                    curr = event.events;
                                     if(event.revents && ++handled)
                                         process_event(hnd);
                                 }
@@ -62,13 +62,13 @@ namespace cloudbus {
                             this->triggers().clear(sockfd);
                             hit = --handles().erase(hit);
                         } else {
-                            if( (sockev & READABLE) && !(set & POLLIN) )
+                            if( (sockev & READABLE) && !(curr & POLLIN) )
                                 set |= POLLIN;
-                            if( !(sockev & READABLE) && (set & POLLIN) )
+                            if( !(sockev & READABLE) && (curr & POLLIN) )
                                 unset |= POLLIN;
-                            if( (sockev & WRITABLE) &&  !(set & POLLOUT) )
+                            if( (sockev & WRITABLE) && !(curr & POLLOUT) )
                                 set |= POLLOUT;
-                            if( !(sockev & WRITABLE) && (set & POLLOUT) )
+                            if( !(sockev & WRITABLE) && (curr & POLLOUT) )
                                 unset |= POLLOUT;
                             if(set)
                                 this->triggers().set(sockfd, set);

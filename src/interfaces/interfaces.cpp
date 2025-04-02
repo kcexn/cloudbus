@@ -18,12 +18,13 @@
 namespace cloudbus {
     static constexpr std::size_t SHRINK_THRESHOLD = 4096;
     const interface_base::address_type interface_base::NULLADDR = interface_base::address_type{};
-    interface_base::address_type interface_base::make_address(const struct sockaddr *addr, socklen_t addrlen){
+    interface_base::address_type interface_base::make_address(const struct sockaddr *addr, socklen_t addrlen, const ttl_type& ttl){
         auto address = address_type();
-        auto& [ifaddr, len] = address;
+        auto& [ifaddr, len, ttl_] = address;
         len = addrlen;
         std::memset(&ifaddr, 0, sizeof(addr));
         std::memcpy(&ifaddr, addr, addrlen);
+        ttl_ = ttl;
         return address;
     }
     interface_base::handle_type interface_base::make_handle(){
@@ -46,10 +47,10 @@ namespace cloudbus {
     ):
         _uri{uri}, _protocol{protocol},
         _addresses{}, _streams{}, _pending{},
-        _timeout{clock_type::now(), ttl}, _idx{0}
+        _idx{0}
     {
         if(addr != nullptr && addrlen >= sizeof(sa_family_t))
-            _addresses.push_back(make_address(addr, addrlen));
+            _addresses.push_back(make_address(addr, addrlen, std::make_tuple(clock_type::now(), ttl)));
         else throw std::invalid_argument(
             "interface_base::interface_base(const std::string& uri, "
             "const struct sockaddr *addr, socklen_t addrlen, const "
@@ -61,23 +62,20 @@ namespace cloudbus {
     interface_base::interface_base(
         const addresses_type& addresses,
         const std::string& protocol,
-        const std::string& uri,
-        const duration_type& ttl
+        const std::string& uri
     ):
         _uri{uri}, _protocol{protocol},
         _addresses{addresses}, _streams{}, _pending{},
-        _timeout{clock_type::now(), ttl}, _idx{0}
+        _idx{0}
     {}
     interface_base::interface_base(
         addresses_type&& addresses,
         const std::string& protocol,
-        const std::string& uri,
-        const duration_type& ttl
+        const std::string& uri
     ):
         _uri{uri}, _protocol{protocol},
         _addresses{std::move(addresses)},
         _streams{}, _pending{},
-        _timeout{clock_type::now(), ttl},
         _idx{0}
     {}
     interface_base::interface_base(interface_base&& other) noexcept:
@@ -89,15 +87,13 @@ namespace cloudbus {
         swap(*this, other);
         return *this;
     }
-    const interface_base::addresses_type& interface_base::addresses(const addresses_type& addrs, const duration_type& ttl){
-        _timeout = std::make_tuple(clock_type::now(), ttl);
+    const interface_base::addresses_type& interface_base::addresses(const addresses_type& addrs){
         _addresses = addrs;
         _addresses.shrink_to_fit();
         _resolve_callbacks();
         return _addresses;
     }
-    const interface_base::addresses_type& interface_base::addresses(addresses_type&& addrs, const duration_type& ttl){
-        _timeout = std::make_tuple(clock_type::now(), ttl);
+    const interface_base::addresses_type& interface_base::addresses(addresses_type&& addrs){
         _addresses = std::move(addrs);
         _addresses.shrink_to_fit();
         _resolve_callbacks();
@@ -169,14 +165,10 @@ namespace cloudbus {
     }
     void interface_base::_resolve_callbacks(){
         constexpr duration_type HYST_WND{300};
-        auto&[time, ttl] = _timeout;
-        const auto currtime = clock_type::now();
-        if(ttl.count() >= 0 && currtime >= time+ttl+HYST_WND)
-            return _expire_addresses();
-        if(!_addresses.empty()){
+        if(expire_addresses(clock_type::now()-HYST_WND)){
             for(auto&[wp, cb]: _pending){
                 if(!wp.expired()){
-                    const auto&[addr, addrlen] = next();
+                    const auto&[addr, addrlen, ttl] = next();
                     std::find_if(
                             _streams.begin(),
                             _streams.end(),
@@ -191,13 +183,16 @@ namespace cloudbus {
                 }
             }
             _pending.clear();
-            if(ttl.count() >= 0 && currtime >= time+ttl)
-                return _expire_addresses();
+            expire_addresses();
         }
     }
-    void interface_base::_expire_addresses(){
-        _addresses.clear();
-        _timeout = std::make_tuple(clock_type::now(), duration_type(-1));
+    std::size_t interface_base::expire_addresses(const time_point& t){
+        for(auto it=_addresses.begin(); it < _addresses.end(); ++it){
+            const auto&[time, interval] = std::get<ttl_type>(*it);
+            if(interval.count() > -1 && t > time+interval)
+                it = --_addresses.erase(it);
+        }
+        return _addresses.size();
     }
 
     void swap(interface_base& lhs, interface_base& rhs) noexcept {
@@ -206,6 +201,5 @@ namespace cloudbus {
         swap(lhs._addresses, rhs._addresses);
         swap(lhs._idx, rhs._idx);
         swap(lhs._streams, rhs._streams);
-        swap(lhs._timeout, rhs._timeout);
     }
 }

@@ -39,20 +39,22 @@ namespace cloudbus {
                     sockstate |= resolver_base::WRITABLE;
             }
             static void ares_addrinfo_cb(void *arg, int status, int timeouts, struct ares_addrinfo *result){
+                using addresses_type =interface_base::addresses_type;
+                using clock_type = interface_base::clock_type;
+                using duration_type = interface_base::duration_type;
                 auto *args = static_cast<addrinfo_args*>(arg);
                 auto&[interface, hint_ptr] = *args;
                 delete hint_ptr;
-                int ttl = -1;
-                interface_base::addresses_type addresses;
+                addresses_type addresses;
                 switch(status){
                     case ARES_SUCCESS:
                         for(auto *node=result->nodes; node != nullptr; node=node->ai_next){
-                            auto&[addr, addrlen] = addresses.emplace_back();
+                            auto&[addr, addrlen, ttl] = addresses.emplace_back();
+                            ttl = std::make_tuple(clock_type::now(), duration_type(node->ai_ttl));
                             addrlen = node->ai_addrlen;
                             std::memcpy(&addr, node->ai_addr, addrlen);
-                            ttl = (ttl < 0) ? node->ai_ttl : std::min(ttl, node->ai_ttl);
                         }
-                        interface.addresses(std::move(addresses), interface_base::duration_type(ttl));
+                        interface.addresses(std::move(addresses));
                         ares_freeaddrinfo(result);
                         break;
                     default:

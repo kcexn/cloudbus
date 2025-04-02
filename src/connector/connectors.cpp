@@ -106,7 +106,7 @@ namespace cloudbus {
 
     connector_base::~connector_base(){
         for(auto& n: north())
-            for(const auto&[addr, addrlen]: n.addresses())
+            for(const auto&[addr, addrlen, ttl]: n.addresses())
                 if(addr.ss_family == AF_UNIX)
                     unlink(reinterpret_cast<const struct sockaddr_un*>(&addr)->sun_path);
     }

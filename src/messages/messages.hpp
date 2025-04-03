@@ -32,7 +32,8 @@ namespace cloudbus{
         constexpr std::uint16_t CLOCK_SEQ_MAX = 0x3F;
         uuid make_uuid_v4();
         uuid make_uuid_v7();
-        int uuid_cmpnode(const uuid *lhs, const uuid *rhs);
+        int uuidcmp_node(const uuid *lhs, const uuid *rhs);
+        int uuidcmp(const uuid *lhs, const uuid *rhs);
         bool operator==(const uuid& lhs, const uuid& rhs);
         bool operator!=(const uuid& lhs, const uuid& rhs);
 

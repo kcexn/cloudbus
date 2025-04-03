@@ -85,7 +85,7 @@ namespace cloudbus{
         ){
             const std::streamsize pos = MAX_BUFSIZE-len;
             for(auto conn=connections.begin(); conn < connections.end(); ++conn){
-                if(!messages::uuid_cmpnode(&conn->uuid, &uuid)){
+                if(!messages::uuidcmp_node(&conn->uuid, &uuid)){
                     if(auto s = conn->south.lock()){
                         if(s->fail())
                             continue;
@@ -201,7 +201,7 @@ namespace cloudbus{
                 std::size_t connected = 0;
                 for(auto c=connections().begin(); c < connections().end(); ++c){
                     if(auto s = c->south.lock()){
-                        if(!messages::uuid_cmpnode(&c->uuid, eid) &&
+                        if(!messages::uuidcmp_node(&c->uuid, eid) &&
                             ++connected &&
                             c->state < connection_type::CLOSED
                         ){
@@ -245,7 +245,7 @@ namespace cloudbus{
                 const auto rem = buf.len()->length - pos;
                 std::vector<char> padding;
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){
-                    if(!messages::uuid_cmpnode(&conn->uuid, eid) && !conn->south.owner_before(ssp)){
+                    if(!messages::uuidcmp_node(&conn->uuid, eid) && !conn->south.owner_before(ssp)){
                         if(conn->state == connection_type::CLOSED){
                             if(type->op == messages::STOP)
                                 conn = connections().erase(conn);
@@ -407,7 +407,7 @@ namespace cloudbus{
             connections_type states;
             for(auto& c: connections()){
                 if(!c.north.owner_before(nsp)){
-                    auto it = std::find_if(states.begin(), states.end(), [&](auto& sc){ return !messages::uuid_cmpnode(&sc.uuid, &c.uuid); });
+                    auto it = std::find_if(states.begin(), states.end(), [&](auto& sc){ return !messages::uuidcmp_node(&sc.uuid, &c.uuid); });
                     if(it == states.end())
                         states.push_back(c);
                     else if(c.state < it->state)
@@ -421,7 +421,7 @@ namespace cloudbus{
             };
             for(auto conn = connections().begin(); conn < connections().end(); ++conn){
                 if(!conn->north.owner_before(nsp)){
-                    auto it = std::find_if(states.cbegin(), states.cend(), [&](const auto& sc){ return !messages::uuid_cmpnode(&sc.uuid, &conn->uuid); });
+                    auto it = std::find_if(states.cbegin(), states.cend(), [&](const auto& sc){ return !messages::uuidcmp_node(&sc.uuid, &conn->uuid); });
                     if(it == states.cend()) continue;
                     switch(auto s = conn->south.lock(); it->state){
                         case connection_type::HALF_OPEN:

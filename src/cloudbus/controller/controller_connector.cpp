@@ -242,7 +242,7 @@ namespace cloudbus {
                 const auto rem = buf.len()->length - pos;
                 const auto time = connection_type::clock_type::now();
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){
-                    if(!messages::uuid_cmpnode(&conn->uuid, eid) &&
+                    if(!messages::uuidcmp_node(&conn->uuid, eid) &&
                             !conn->south.owner_before(ssp)
                     ){
                         if(auto n = conn->north.lock()){
@@ -430,7 +430,7 @@ namespace cloudbus {
             connections_type states;
             for(auto& c: connections()){
                 if(!c.north.owner_before(nsp)){
-                    auto it = std::find_if(states.begin(), states.end(), [&](auto& sc){ return !messages::uuid_cmpnode(&sc.uuid, &c.uuid); });
+                    auto it = std::find_if(states.begin(), states.end(), [&](auto& sc){ return !messages::uuidcmp_node(&sc.uuid, &c.uuid); });
                     if(it == states.end())
                         states.push_back(c);
                     else if(c.state < it->state)
@@ -444,7 +444,7 @@ namespace cloudbus {
             };
             for(auto conn=connections().begin(); conn < connections().end(); ++conn){
                 if(auto n = conn->north.lock(); n && n==nsp){
-                    auto it = std::find_if(states.cbegin(), states.cend(), [&](const auto& sc){ return !messages::uuid_cmpnode(&sc.uuid, &conn->uuid); });
+                    auto it = std::find_if(states.cbegin(), states.cend(), [&](const auto& sc){ return !messages::uuidcmp_node(&sc.uuid, &conn->uuid); });
                     if(it == states.cend()) continue;
                     switch(auto s = conn->south.lock(); it->state){
                         case connection_type::HALF_OPEN:

@@ -191,10 +191,10 @@ namespace cloudbus{
                                 triggers().set(sockfd, POLLOUT);
                             if(!rem && (type->flags & messages::ABORT))
                             {
-                                s->setstate(std::ios_base::badbit);
+                                s->setstate(s->badbit);
                                 for(int i=0; i<2; ++i)
                                     state_update(*conn, *type, time);
-                                buf.setstate(std::ios_base::eofbit);
+                                buf.setstate(buf.eofbit);
                                 return eof ? -1 : 0;
                             }
                             if(conn->state != connection_type::CLOSED && pos > seekpos){
@@ -208,7 +208,7 @@ namespace cloudbus{
                                 connections().erase(conn);
                         } else connections().erase(conn);
                         if(!rem)
-                            buf.setstate(std::ios_base::eofbit);
+                            buf.setstate(buf.eofbit);
                         return eof ? -1 : 0;
                     }
                 }
@@ -223,7 +223,7 @@ namespace cloudbus{
                     } else return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                 }
                 if(!rem)
-                    buf.setstate(std::ios_base::eofbit);
+                    buf.setstate(buf.eofbit);
             }
             return eof ? -1 : 0;
         }
@@ -343,7 +343,7 @@ namespace cloudbus{
         int connector::_north_pollout_handler(const north_type::handle_type& stream, event_mask& revents){
             auto&[nfd, nsp] = stream;
             if(revents & (POLLERR | POLLNVAL))
-                nsp->setstate(std::ios_base::badbit);
+                nsp->setstate(nsp->badbit);
             if(nsp->flush().bad())
                 return -1;
             if(nsp->tellp() == 0)
@@ -445,7 +445,7 @@ namespace cloudbus{
         int connector::_south_pollout_handler(const south_type::handle_type& stream, event_mask& revents){
             auto&[sfd, ssp] = stream;
             if(revents & (POLLERR | POLLNVAL))
-                ssp->setstate(std::ios_base::badbit);
+                ssp->setstate(ssp->badbit);
             if(ssp->flush().bad())
                 return -1;
             if(ssp->tellp() == 0)

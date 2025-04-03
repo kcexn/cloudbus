@@ -57,15 +57,10 @@ namespace cloudbus{
             } else return uuid{};
         }
         int uuidcmp_node(const uuid *lhs, const uuid *rhs){
-            auto *left = reinterpret_cast<const char*>(lhs) + offsetof(uuid, node);
-            auto *right = reinterpret_cast<const char*>(rhs) + offsetof(uuid, node);
-            return std::memcmp(left, right, sizeof(uuid)-offsetof(uuid, node));
-        }
-        int uuidcmp(const uuid *lhs, const uuid *rhs){
-            return std::memcmp(lhs, rhs, sizeof(uuid));
+            return std::memcmp(lhs->node, rhs->node, sizeof(lhs->node));
         }
         bool operator==(const uuid& lhs, const uuid& rhs){
-            return !uuidcmp(&lhs, &rhs);
+            return !std::memcmp(&lhs, &rhs, sizeof(lhs));
         }
         bool operator!=(const uuid& lhs, const uuid& rhs){
             return !(lhs == rhs);

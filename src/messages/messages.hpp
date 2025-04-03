@@ -33,7 +33,6 @@ namespace cloudbus{
         uuid make_uuid_v4();
         uuid make_uuid_v7();
         int uuidcmp_node(const uuid *lhs, const uuid *rhs);
-        int uuidcmp(const uuid *lhs, const uuid *rhs);
         bool operator==(const uuid& lhs, const uuid& rhs);
         bool operator!=(const uuid& lhs, const uuid& rhs);
 

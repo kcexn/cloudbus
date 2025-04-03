@@ -1,6 +1,6 @@
 cloudbusconfdir = @sysconfdir@/cloudbus
-dist_cloudbusconf_DATA = controller.ini.orig segment.ini.orig
-cloudbusconf_DATA = controller.ini.orig segment.ini.orig
+dist_cloudbusconf_DATA = conf/controller.ini.orig conf/segment.ini.orig
+cloudbusconf_DATA = conf/controller.ini.orig conf/segment.ini.orig
 SOURCEDIR = src
 AM_CXXFLAGS = -DCONFDIR=\"$(cloudbusconfdir)\" -O3
 SUBDIRS = $(SOURCEDIR)

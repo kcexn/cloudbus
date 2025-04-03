@@ -35,6 +35,7 @@ COMMON_CPPHEADERS = config/config.hpp \
 	manager/manager.hpp \
 	manager.hpp \
 	dns/dns.hpp \
-	dns.hpp
+	dns/dns_poll.hpp \
+	dns.hpp 
     
 libcbutils_a_SOURCES = $(COMMON_CPPSOURCES) $(COMMON_CPPHEADERS)

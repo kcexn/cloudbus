@@ -183,9 +183,11 @@ namespace cloudbus{
                 const auto rem = buf.len()->length - pos;
                 const auto time = connection_type::clock_type::now();
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){
-                    if(conn->uuid == *eid && !conn->north.owner_before(nsp)){
+                    if(conn->south.expired()){
+                        conn = --connections().erase(conn);
+                    } else if(conn->uuid == *eid && !conn->north.owner_before(nsp)){
                         if(auto s = conn->south.lock()){
-                            if(auto sockfd = s->native_handle(); sockfd >= 0)
+                            if(auto sockfd = s->native_handle(); sockfd != s->BAD_SOCKET)
                                 triggers().set(sockfd, POLLOUT);
                             if(!rem && (type->flags & messages::ABORT))
                             {
@@ -230,7 +232,9 @@ namespace cloudbus{
             const auto p = buf.tellp();
             if(const auto eof = ssp->eof(); eof || p > 0){
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){
-                    if(!conn->south.owner_before(ssp)){
+                    if(conn->north.expired()){
+                        conn = --connections().erase(conn);
+                    } else if(!conn->south.owner_before(ssp)){
                         if(auto n = conn->north.lock()){
                             messages::msgtype t = {messages::DATA, 0};
                             if(eof) t.op = messages::STOP;
@@ -264,7 +268,7 @@ namespace cloudbus{
                     const std::string& protocol
                 ){
                     auto&[sfd, ssp] = hnd;
-                    if(sfd < 0){
+                    if(sfd == ssp->BAD_SOCKET){
                         if(protocol == "TCP" || protocol == "UNIX")
                         {
                             if( (sfd = socket(addr->sa_family, SOCK_STREAM, 0)) < 0 )

@@ -204,14 +204,16 @@ namespace cloudbus {
                 const auto time = connection_type::clock_type::now();
                 std::size_t connected = 0;
                 for(auto conn=connections().begin(); conn < connections().end(); ++conn){
-                    if(!conn->north.owner_before(nsp)){
+                    if(conn->south.expired()){
+                        conn = --connections().erase(conn);
+                    } else if(!conn->north.owner_before(nsp)){
                         if(auto s = conn->south.lock()){
                             if(++connected && conn->state != connection_type::CLOSED){
                                 state_update(*conn, head.type, time);
                                 head.eid = conn->uuid;
                                 s->write(reinterpret_cast<const char*>(&head), sizeof(head));
                                 stream_write(*s, buf.seekg(0), p);
-                                if(auto sockfd = s->native_handle(); sockfd >= 0)
+                                if(auto sockfd = s->native_handle(); sockfd != s->BAD_SOCKET)
                                     triggers().set(sockfd, POLLOUT);
                             }
                         } else conn = --connections().erase(conn);
@@ -242,7 +244,9 @@ namespace cloudbus {
                 const auto rem = buf.len()->length - pos;
                 const auto time = connection_type::clock_type::now();
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){
-                    if(!messages::uuidcmp_node(&conn->uuid, eid) &&
+                    if(conn->north.expired()){
+                        conn = --connections().erase(conn);
+                    } else if(!messages::uuidcmp_node(&conn->uuid, eid) &&
                             !conn->south.owner_before(ssp)
                     ){
                         if(auto n = conn->north.lock()){
@@ -326,7 +330,7 @@ namespace cloudbus {
                         const std::string& protocol
                     ){
                         auto&[sfd, ssp] = hnd;
-                        if(sfd < 0){
+                        if(sfd == ssp->BAD_SOCKET){
                             if(protocol == "TCP" || protocol == "UNIX")
                             {
                                 if( (sfd = socket(addr->sa_family, SOCK_STREAM, 0)) < 0 )

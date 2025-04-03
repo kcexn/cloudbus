@@ -200,11 +200,13 @@ namespace cloudbus{
                 const auto time = connector::connection_type::clock_type::now();
                 std::size_t connected = 0;
                 for(auto c=connections().begin(); c < connections().end(); ++c){
-                    if(auto s = c->south.lock()){
-                        if(!messages::uuidcmp_node(&c->uuid, eid) &&
-                            ++connected &&
-                            c->state < connection_type::CLOSED
-                        ){
+                    if(c->south.expired()){
+                        c = --connections().erase(c);
+                    } else if(!messages::uuidcmp_node(&c->uuid, eid) &&
+                        ++connected &&
+                        c->state < connection_type::CLOSED
+                    ){
+                        if(auto s = c->south.lock()){
                             *eid = c->uuid;
                             stream_write(*s, buf.seekg(seekpos), pos-seekpos);
                             if(auto sockfd = s->native_handle(); sockfd >= 0)
@@ -220,8 +222,8 @@ namespace cloudbus{
                                 padding.resize(rem);
                                 s->write(padding.data(), padding.size());
                             }
-                        }
-                    } else c = --connections().erase(c);
+                        } else c = --connections().erase(c);
+                    }
                 }
                 if(!eof && !connected && (type->op & messages::INIT)){
                     if(auto status = north_connect(interface, nsp, buf)){
@@ -245,7 +247,11 @@ namespace cloudbus{
                 const auto rem = buf.len()->length - pos;
                 std::vector<char> padding;
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){
-                    if(!messages::uuidcmp_node(&conn->uuid, eid) && !conn->south.owner_before(ssp)){
+                    if(conn->north.expired()){
+                        conn = --connections().erase(conn);
+                    } else if(!messages::uuidcmp_node(&conn->uuid, eid) &&
+                            !conn->south.owner_before(ssp)
+                    ){
                         if(conn->state == connection_type::CLOSED){
                             if(type->op == messages::STOP)
                                 conn = connections().erase(conn);
@@ -321,7 +327,7 @@ namespace cloudbus{
                         const std::string& protocol
                     ){
                         auto&[sfd, ssp] = hnd;
-                        if(sfd < 0){
+                        if(sfd == ssp->BAD_SOCKET){
                             if(protocol == "TCP" || protocol == "UNIX")
                             {
                                 if( (sfd = socket(addr->sa_family, SOCK_STREAM, 0)) < 0 )

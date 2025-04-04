@@ -112,32 +112,86 @@ To run either of these at startup you will need to write a systemd service unit.
 **Cloudbus is not production ready**, so I do not recommend you do this.
 
 ## Configuring Cloudbus
-Configuration files for the cloudbus controller and segment will be installed into `${prefix}/etc/cloudbus` and are called `controller.ini` and `segment.ini` respectively.
-Controllers and segments use the same configuration format:
+Cloudbus is designed to be configured in terms of user-defined services. Each component of cloudbus will bind 
+to a local address on the host for each service that is defined. Each component of cloudbus will have one 
+or more backends defined for each service. Cloudbus connects to all backends defined on a service using one-to-N 
+fanout communication channels. To configure round-robin load balancing, backends need to be defined using 
+a hostname and round-robin load-balancing is applied to the addresses supplied by DNS. 
+
+Configuration files for the cloudbus controller and segment will be installed into `${prefix}/etc/cloudbus` and 
+are called `controller.ini` and `segment.ini` respectively. Controllers and segments use the same configuration 
+format:
 ```
 [Cloudbus]
 
 [<ServiceName>]
-bind=<ADDRESS>
-server=<ADDRESS>
-server=<ADDRESS>
-mode=(half duplex | full duplex)
+bind=<PROTOCOL>://<IP ADDRESS>:<PORT>
+backend=<PROTOCOL>://(<IP ADDRESS> | <HOSTNAME>):<PORT>
+backend=<PROTOCOL>://(<IP ADDRESS> | <HOSTNAME>):<PORT>
+mode=(half_duplex | full_duplex)
 
 [<ServiceName>]
-bind=<ADDRESS>
-server=<ADDRESS>
+bind=<PROTOCOL>://<IP ADDRESS>:<PORT>
+backend=<PROTOCOL>://(<IP ADDRESS> | <HOSTNAME>):<PORT>
 ...
 
 ```
+Where \<ServiceName\> is an arbitrarily chosen human readable name to assign 
+to each service, \<PROTOCOL\> can be one of:
+- tcp
+- unix
 
-Each service on a cloudbus segment can currently only be assigned one backend server. For more granular load balancing on a segment, you will need to use an L4 load-balancer.
+\<IP ADDRESS\> is either an IPv4 or an IPv6 address enclosed in square brackets
+e.g.:
+- IPv4 address: 127.0.0.1
+- IPv6 address: [::1]
 
-Each service on a cloudbus controller supports more than one assigned backend server. By default, controllers will simultaneously connect to every backend server in the list in half-duplex mode.
-For full duplex mode, the service mode should be set to the string "full duplex" (no quotation marks, case insensitive).
+\<HOSTNAME\> is a domain name and \<PORT\> is an ephemeral port number. 
+Backends for each service can take either a \<HOSTNAME\> as an argument or an 
+\<IP ADDRESS\>. 
 
-Services with only one backend server defined default to one-to-one full duplex communication. Servers that send data back to the client on a half-duplex one-to-N connection will latch the session 
-into one-to-one full-duplex mode (i.e., client sends data to N servers in half duplex mode -> server N sends data back to client (perhaps an error) -> bus closes remaining N-1 half-duplex connections -> session 
-is now in one-to-one full duplex mode).
+Services defined on Cloudbus controllers can be assigned multiple backend addresses, but each backend address 
+must be a Cloudbus segment. Controllers are designed to connect to all backend segments defined on each service in 
+a one-to-N fashion. By default, controllers will make this connection in half-duplex mode, and any segment that 
+replies with data to the controller will latch the session into one-to-one full-duplex mode. For example, a 
+half-duplex session may have the following behavior:
+1. Controller sends data to N backend segments.
+2. backend 1 replies to the controller with data.
+3. The controller forwards this data back to the user.
+4. The controller then closes the connection to backends 2 through N so that no further data can be 
+sent to or received from them.
+5. The session is now in one-to-one full-duplex mode.
+
+To configure round-robin load balancing on a Cloudbus controller, a single backend should be assigned to the 
+service using a hostname, and multiple addresses should be assigned to the hostname in DNS. Round-robin 
+load-balancing will be applied to the addresses returned by DNS. To configure Cloudbus controllers for one-to-N 
+full-duplex communication the service mode should be set to "full_duplex" (no quotation marks, case insensitive). 
+In full-duplex mode, all data sent by the client is duplicated across all the backends defined in the service, 
+and all data sent by the backends is multiplexed back to the client. Currently, Cloudbus doesn't provide any 
+synchronization mechanisms for this kind of communication so care should be taken to make messages from each 
+backend distinguishable at the application layer.
+
+Each service on a Cloudbus segment can only be assigned one backend. For more granular load balancing, round-robin 
+load-balancing based on DNS hostname resolution can be applied, or a layer 4 load-balancer should be used.
+
+### Example Configuration:
+#### Simple Service with One Backend:
+**Controller configuration:**
+```
+[Cloudbus]
+
+[Simple Service]
+bind=unix:///var/run/simple_controller.sock
+backend=tcp://192.168.1.2:8082
+```
+**Segment configuration:**
+```
+[Cloudbus]
+
+[Simple Service]
+bind=tcp://0.0.0.0:8082
+backend=unix:///var/run/simple_service.sock
+```
 
 ## Features and Limitations
 Cloudbus currently supports:

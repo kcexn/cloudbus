@@ -46,13 +46,13 @@ namespace cloudbus {
                 if(k == "BIND"){
                     if(auto nfd = make_north(config::make_address(value)); nfd < 0)
                         throw std::invalid_argument("Invalid bind address.");
-                } else if(k == "SERVER"){
+                } else if(k == "BACKEND"){
                     if(make_south(config::make_address(value)))
-                        throw std::invalid_argument("Invalid server address.");
+                        throw std::invalid_argument("Invalid backend address.");
                 } else if(k == "MODE"){
                     std::string v = value;
                     std::transform(v.begin(), v.end(), v.begin(), [](const unsigned char c){ return std::toupper(c); });
-                    if(v == "FULL DUPLEX")
+                    if(v == "FULL_DUPLEX")
                         _mode = FULL_DUPLEX;
                 }
             }

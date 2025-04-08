@@ -118,7 +118,4 @@ $ deactivate
 And finally, you may logout of your gcloud session with `gcloud auth revoke <ACCOUNT>`.
 
 ## Results:
-Latencies (ms):
-mean: 30
-median: 29
-p95: 31
+Latencies (ms): mean=30, median=29, p95=31

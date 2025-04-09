@@ -8,6 +8,9 @@ Compute Engine (GCE) because that is what I am most familiar with. Other network
 like AWS EC2, private clouds (e.g., OpenStack), or traditional networks are not currently 
 supported.
 
+## Results:
+Latencies (ms): mean=31, median=29, p99=82
+
 ## Benchmarking on Google Compute Engine with Gcloud CLI:
 ### Building the Test Infrastructure
 First you may need to authenticate the gcloud CLI by running `gcloud auth login` and following 
@@ -86,7 +89,6 @@ Execute the tests by running:
 $ COMMAND="/usr/bin/sh -c 'jmeter -n -t Single\ Server\ Benchmark.jmx \
 -Jof=./results.csv \
 -Jhost=${SERVER_NAME}.${SERVER_ZONE} \
--Jthreads=3 \
 -Jrequests=1000 \
 -Jduration=30'" && \
 gcloud compute ssh ${CLIENT_NAME} \
@@ -116,6 +118,3 @@ Optionally, you may remove the environment variables set by `.gce-environment` w
 $ deactivate
 ```
 And finally, you may logout of your gcloud session with `gcloud auth revoke <ACCOUNT>`.
-
-## Results:
-Latencies (ms): mean=30, median=29, p95=31

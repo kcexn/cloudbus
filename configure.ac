@@ -1,13 +1,13 @@
 AC_PREREQ([2.71])
-AC_INIT([cloudbus], [0.0.2], [kevin.exton@pm.me])
+AC_INIT([cloudbus], [0.0.3], [kevin.exton@pm.me])
 AC_SEARCH_LIBS(
 	[ares_version], [cares],
-		[],
-		[AC_MSG_ERROR([Version >= 1.18.1 of libcares and its development headers must be installed to build cloudbus.])]
+	[],
+	[AC_MSG_ERROR([Version >= 1.18.1 of libcares and its development headers must be installed to build cloudbus.])]
 )
 AC_CHECK_HEADERS(
 	[ares.h], [],
-		[AC_MSG_ERROR([development headeres for libcares version >= 1.81.1 must be installed to build cloudbus.])]
+	[AC_MSG_ERROR([development headeres for libcares version >= 1.81.1 must be installed to build cloudbus.])]
 )
 AM_INIT_AUTOMAKE([-Wall subdir-objects foreign])
 : ${CXXFLAGS=""} AC_PROG_CXX

@@ -16,5 +16,7 @@ AC_PROG_RANLIB
 AC_CONFIG_FILES([
     Makefile
     src/Makefile
+    conf/systemd/controller.service
+    conf/systemd/segment.service
 ])
 AC_OUTPUT

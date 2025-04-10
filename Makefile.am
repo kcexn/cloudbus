@@ -1,6 +1,8 @@
 cloudbusconfdir = @sysconfdir@/cloudbus
+systemdconfdir = "${cloudbusconfdir}"/systemd
 dist_cloudbusconf_DATA = conf/controller.ini.orig conf/segment.ini.orig
 cloudbusconf_DATA = conf/controller.ini.orig conf/segment.ini.orig
+systemdconf_DATA = conf/systemd/controller.service conf/systemd/segment.service
 SOURCEDIR = src
 AM_CXXFLAGS = -DCONFDIR=\"$(cloudbusconfdir)\" -O3
 SUBDIRS = $(SOURCEDIR)
@@ -29,8 +31,12 @@ segment_SOURCES = $(SEGMENT_CPPSOURCES) $(SEGMENT_CPPHEADERS)
 segment_CXXFLAGS = -D COMPILE_SEGMENT $(AM_CXXFLAGS)
 
 install-data-hook:
-	cd $(DESTDIR)$(cloudbusconfdir) && cp -np segment.ini.orig segment.ini && \
-	cp -np controller.ini.orig controller.ini && rm segment.ini.orig controller.ini.orig
+	pushd $(DESTDIR)$(cloudbusconfdir) && cp -np segment.ini.orig segment.ini && \
+	cp -np controller.ini.orig controller.ini && rm segment.ini.orig controller.ini.orig && \
+	popd && ln -s $(DESTDIR)$(systemdconfdir)/controller.service /etc/systemd/system/controller.service && \
+	ln -s $(DESTDIR)$(systemdconfdir)/segment.service /etc/systemd/system/segment.service
 
 uninstall-local:
-	rm -rf $(DESTDIR)$(cloudbusconfdir)
+	rm -rf $(DESTDIR)$(cloudbusconfdir) \
+		/etc/systemd/system/controller.service \
+		/etc/systemd/system/segment.service

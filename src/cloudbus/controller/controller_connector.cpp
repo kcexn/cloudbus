@@ -291,7 +291,7 @@ namespace cloudbus {
                                     // This is a very awkward way to do this, but I have implemented it like this to keep
                                     // open the option of implementing UDP transport. With unreliable transports, it is
                                     // necessary to retry control messages until after the remote end sends back an ACK.
-                                    if(c->uuid==*eid && !c->south.owner_before(ssp)){
+                                    if(c->uuid==*eid && c->south.owner_before(ssp)){
                                         if(auto sp = c->south.lock()){
                                             sp->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
                                             triggers().set(sp->native_handle(), POLLOUT);

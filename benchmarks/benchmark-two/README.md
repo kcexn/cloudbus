@@ -2,11 +2,10 @@
 This benchmark measures the performance of the cloudbus components when bridging traffic across different regions. 
 As it is a single web-server configuration, the results may be compared against the results in benchmark-one. 
 Compared to the configuration in benchmark-one, Cloudbus adds to additional network hops, one from the client to the controller, 
-then one more from the controller to the segment. Despite this, there is no signiciant measurable penalty to the use of Cloudbus in 
-GCE.
+then one more from the controller to the segment. Despite this, the penalty for using Cloudbus can be managed.
 
 ## Results:
-Latencies (ms): mean=30, median=30, p99=32
+Latencies (ms): mean=31, median=31, p99=34
 
 ## Benchmarking on Google Compute Engine with Gcloud CLI:
 ### Building the Test Infrastructure
@@ -103,7 +102,7 @@ gcloud compute ssh "${SEGMENT_NAME}" \
 #### Install and Configure Cloudbus on the Controller and the Segment
 Copy the cloudbus distribution:
 ```
-$ CLOUDBUS_PATH='./cloudbus-0.0.2.tar.gz' && \
+$ CLOUDBUS_PATH='./cloudbus-0.0.3.tar.gz' && \
 gcloud compute scp "${CLOUDBUS_PATH}" \
     "${CONTROLLER_NAME}":~ \
     --zone="${CLIENT_ZONE}" && \
@@ -113,8 +112,8 @@ gcloud compute scp "${CLOUDBUS_PATH}" \
 ```
 Install cloudbus:
 ```
-$ COMMAND="/usr/bin/sh -c 'tar -zxvf cloudbus-0.0.2.tar.gz && \
-    cd cloudbus-0.0.2 && \
+$ COMMAND="/usr/bin/sh -c 'tar -zxvf cloudbus-0.0.3.tar.gz && \
+    cd cloudbus-0.0.3 && \
     ./configure && \
     make && \
     sudo make install'" && \
@@ -143,8 +142,8 @@ backend=tcp://<SERVER_NAME>.<SERVER_ZONE>:80
 $ gcloud compute scp conf/controller.ini "${CONTROLLER_NAME}":~ \
     --zone="${CLIENT_ZONE}" && \
 gcloud compute scp conf/segment.ini "${SEGMENT_NAME}":~ \
-    --zone="${SERVER_ZONE}"
-$ gcloud compute ssh "${CONTROLLER_NAME}" \
+    --zone="${SERVER_ZONE}" && \
+gcloud compute ssh "${CONTROLLER_NAME}" \
     --zone="${CLIENT_ZONE}" \
     --command="/usr/bin/sh -c 'sudo mv controller.ini /usr/local/etc/cloudbus/'" && \
 gcloud compute ssh "${SEGMENT_NAME}" \
@@ -162,20 +161,20 @@ gcloud compute scp "${BENCHMARK_PATH}" \
 ```
 
 ### Execute the HTTP Tests:
-In separate shells, start the controller and segment binaries:
+Start the controller and segment binaries:
 ```
 $ gcloud compute ssh "${CONTROLLER_NAME}" \
     --zone="${CLIENT_ZONE}" \
-    --command="/usr/bin/sh -c controller"
-$ gcloud compute ssh "${SEGMENT_NAME}" \
+    --command="/usr/bin/sh -c 'sudo systemctl enable controller && sudo systemctl start controller'" && \
+gcloud compute ssh "${SEGMENT_NAME}" \
     --zone="${SERVER_ZONE}" \
-    --command="/usr/bin/sh -c segment"
+    --command="/usr/bin/sh -c 'sudo systemctl enable segment && sudo systemctl start segment'"
 ```
 Then execute the tests by running:
 ```
 $ COMMAND="/usr/bin/sh -c 'jmeter -n -t Single\ Server\ Benchmark.jmx \
     -Jof=./results.csv \
-    -Jhost="${CONTROLLER_NAME}.${CLIENT_ZONE}" \
+    -Jhost=${CONTROLLER_NAME}.${CLIENT_ZONE} \
     -Jport=8080 \
     -Jrequests=1000 \
     -Jduration=30'" && \

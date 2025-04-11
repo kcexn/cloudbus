@@ -38,28 +38,31 @@ namespace cloudbus{
             }
             return buf;
         }
-        static bool stream_copy(std::ostream& os, std::istream& is){
-            std::array<char, 256> _buf;
-            constexpr std::streamsize hdrlen = sizeof(messages::msgheader);
-            std::streamsize maxlen = UINT16_MAX - hdrlen;
-            while(auto gcount = is.readsome(_buf.data(), std::min(maxlen, static_cast<std::streamsize>(_buf.max_size())))){
-                os.write(_buf.data(), gcount);
-                maxlen -= gcount;
+        static std::ostream& stream_copy(std::ostream& os, std::istream& is){
+            constexpr std::streamsize HDRLEN = sizeof(messages::msgheader), BUFLEN=256;
+            std::streamsize maxlen = UINT16_MAX - HDRLEN;
+            std::array<char, BUFLEN> buf;
+            while(auto gcount = is.readsome(buf.data(), std::min(maxlen, BUFLEN))){
+                if(os.write(buf.data(), gcount).bad())
+                    return os;
+                if(!(maxlen-=gcount))
+                    return os;
             }
-            return is.eof();
+            return os;
         }
 
         marshaller::north_buffers::iterator marshaller::_unmarshal(const north_type::handle_type& stream){
-            auto& nsp = std::get<north_type::stream_ptr>(stream);
+            using stream_ptr = north_type::stream_ptr;
+            auto& nsp = std::get<stream_ptr>(stream);
             for(auto it = north().begin(); it < north().end(); ++it){
                 auto&[n, buf] = *it;
-                if(!n.owner_before(nsp)){
+                if(n.expired()) {
+                    it = --north().erase(it);
+                } else if (n.lock() == nsp) {
                     if(xmsg_read(buf, *nsp).bad())
                         return north().end();
                     return it;
                 }
-                if(n.expired())
-                    it = --north().erase(it);
             }
             auto&[ptr, buf] = north().emplace_back();
             ptr = nsp;
@@ -67,19 +70,19 @@ namespace cloudbus{
             return --north().end();
         }
         marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_type& stream){
-            auto& ssp = std::get<south_type::stream_ptr>(stream);
+            using stream_ptr = south_type::stream_ptr;
+            auto& ssp = std::get<stream_ptr>(stream);
             for(auto it = south().begin(); it < south().end(); ++it){
                 auto&[s, buf] = *it;
-                if(!s.owner_before(ssp)){
-                    auto& buf = std::get<south_format>(*it);
+                if(s.expired()) {
+                    it = --south().erase(it);
+                } else if(s.lock() == ssp) {
                     if(buf.tellg() == buf.tellp()){
                         buf.seekg(0);
                         stream_copy(buf.seekp(0), *ssp);
                     }
                     return it;
                 }
-                if(s.expired())
-                    it = --south().erase(it);
             }
             auto&[ptr, buf] = south().emplace_back();
             ptr = ssp;

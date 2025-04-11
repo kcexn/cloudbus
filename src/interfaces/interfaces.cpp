@@ -32,7 +32,8 @@ namespace cloudbus {
     }
     interface_base::handle_type interface_base::make_handle(int domain, int type, int protocol, std::ios_base::openmode which){
         auto s = std::make_shared<stream_type>(domain, type, protocol, which);
-        return std::make_tuple(s->native_handle(), s);
+        auto fd = s->native_handle();
+        return std::make_tuple(fd, std::move(s));
     }
     interface_base::handle_type interface_base::make_handle(int sockfd, bool connected){
         return std::make_tuple(sockfd, std::make_shared<stream_type>(sockfd, connected));
@@ -100,19 +101,19 @@ namespace cloudbus {
         return _addresses;
     }
     interface_base::handle_type& interface_base::make(){
-        _streams.emplace_back(make_handle());
+        _streams.push_back(make_handle());
         if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();
     }
     interface_base::handle_type& interface_base::make(int domain, int type, int protocol, std::ios_base::openmode which){
-        _streams.emplace_back(make_handle(domain, type, protocol, which));
+        _streams.push_back(make_handle(domain, type, protocol, which));
         if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();
     }
     interface_base::handle_type& interface_base::make(native_handle_type sockfd, bool connected){
-        _streams.emplace_back(make_handle(sockfd, connected));
+        _streams.push_back(make_handle(sockfd, connected));
         if(_streams.capacity() > SHRINK_THRESHOLD)
             _streams.shrink_to_fit();
         return _streams.back();

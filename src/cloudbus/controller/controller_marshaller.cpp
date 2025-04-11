@@ -53,15 +53,15 @@ namespace cloudbus{
             auto& nsp = std::get<north_type::stream_ptr>(stream);
             for(auto it = north().begin(); it < north().end(); ++it){
                 auto&[n, buf] = *it;
-                if(!n.owner_before(nsp)){
+                if(n.expired()) {
+                    it = --north().erase(it);
+                } else if (n.lock() == nsp) {
                     if(buf.tellg() == buf.tellp()){
                         buf.seekg(0);
                         stream_copy(buf.seekp(0), *nsp);
                     }
                     return it;
                 }
-                if(n.expired())
-                    it = --north().erase(it);
             }
             auto&[ptr, buf] = north().emplace_back();
             ptr = nsp;
@@ -72,13 +72,13 @@ namespace cloudbus{
             auto& ssp = std::get<south_type::stream_ptr>(stream);
             for(auto it = south().begin(); it < south().end(); ++it){
                 auto&[s, buf] = *it;
-                if(!s.owner_before(ssp)){
+                if(s.expired()) {
+                    it = --south().erase(it);
+                } else if(s.lock() == ssp) {
                     if(xmsg_read(buf, *ssp).bad())
                         return south().end();
                     return it;
                 }
-                if(s.expired())
-                    it = --south().erase(it);
             }
             auto&[ptr, buf] = south().emplace_back();
             ptr = ssp;

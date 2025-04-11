@@ -193,9 +193,6 @@ namespace cloudbus{
                                 buf.setstate(buf.eofbit);
                                 return eof ? -1 : 0;
                             }
-                            std::cout << "segment: north_route: "
-                                << "pre-write state: " << conn->state
-                                << std::endl;
                             if(conn->state != connection_type::CLOSED && pos > seekpos){
                                 buf.seekg(seekpos);
                                 if(!_north_write(s, buf))
@@ -203,9 +200,6 @@ namespace cloudbus{
                             }
                             if(!rem)
                                 state_update(*conn, *type, time);
-                            std::cout << "segment: north_route: "
-                                << "post-write state: " << conn->state
-                                << std::endl;
                         } else conn = --connections().erase(conn);
                         if(!rem)
                             buf.setstate(buf.eofbit);
@@ -217,7 +211,6 @@ namespace cloudbus{
                     seekpos==HDRLEN && pos > HDRLEN
                 ){
                     buf.seekg(HDRLEN);
-                    std::cout << "segment: north_connect" << std::endl;
                     if(auto status = north_connect(interface, nsp, buf)){
                         if(status < 0)
                             return -1;
@@ -239,15 +232,11 @@ namespace cloudbus{
                         if(auto n = conn->north.lock()){
                             messages::msgtype t = {messages::DATA, 0};
                             if(eof) t.op = messages::STOP;
-                            std::cout << "segment: south_route: eof: " << eof
-                                << " tellp: " << p
-                                << " pre-write state: " << conn->state << std::endl;
                             buf.seekg(0);
                             triggers().set(n->native_handle(), POLLOUT);
                             if(!_south_write(n, *conn, buf))
                                 return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
                             state_update(*conn, t, connection_type::clock_type::now());
-                            std::cout << "segment: south_route: post-write state: " << conn->state << std::endl;
                             if(eof)
                                 triggers().clear(sfd, POLLIN);
                             if(conn->state == connection_type::CLOSED)

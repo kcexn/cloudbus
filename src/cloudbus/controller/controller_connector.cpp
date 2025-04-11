@@ -209,26 +209,17 @@ namespace cloudbus {
                     } else if(conn->north.lock() == nsp){
                         if(auto s = conn->south.lock()){
                             if(++connected && conn->state != connection_type::CLOSED){
-                                std::cout << "controller: north_write pre-write state: " 
-                                    << conn->state 
-                                    << " native_handle: " << s->native_handle()
-                                    << std::endl;
                                 head.eid = conn->uuid;
                                 s->write(reinterpret_cast<const char*>(&head), sizeof(head));
                                 stream_write(*s, buf.seekg(0), p);
                                 if(auto sockfd = s->native_handle(); sockfd != s->BAD_SOCKET)
                                     triggers().set(sockfd, POLLOUT);
                                 state_update(*conn, head.type, time);
-                                std::cout << "controller: north_write post-write state: "
-                                    << conn->state 
-                                    << " native_handle: " << s->native_handle()
-                                    << std::endl;
                             }
                         } else conn = --connections().erase(conn);
                     }
                 }
                 if(!eof && !connected){
-                    std::cout << "controller: north_connect" << std::endl;
                     if(auto status = north_connect(interface, nsp, buf)){
                         if(status < 0)
                             return -1;
@@ -271,10 +262,7 @@ namespace cloudbus {
                             }
                             if(mode()==FULL_DUPLEX && rem && !eof)
                                 break;
-                            triggers().set(n->native_handle(), POLLOUT);
-                            std::cout << "controller: south_route: eof: " << eof
-                                << " type->op: " << static_cast<int>(type->op)
-                                << " pre-write state: " << conn->state << std::endl;                            
+                            triggers().set(n->native_handle(), POLLOUT);                           
                             if(pos > seekpos){
                                 buf.seekg(seekpos);
                                 if(!_south_write(n, buf))
@@ -285,10 +273,7 @@ namespace cloudbus {
                                 state_update(*conn, *type, time);
                                 if(type->flags & messages::ABORT)
                                     state_update(*conn, *type, time);
-                            }
-                            std::cout << "controller: south_route: eof: " << eof
-                                << " type->op: " << static_cast<int>(type->op)
-                                << " post-write state: " << conn->state << std::endl;                             
+                            }                      
                             if(mode() == HALF_DUPLEX &&
                                     prev == connection_type::HALF_OPEN &&
                                     conn->state == connection_type::OPEN &&

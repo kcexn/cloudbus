@@ -301,8 +301,10 @@ namespace cloudbus {
                 }
                 if(!rem){
                     buf.setstate(buf.eofbit);
-                    if(conn == connections().end()){
-                        ssp->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
+                    if(conn==connections().end() &&
+                        !(type->op==messages::STOP)
+                    ){
+                        ssp->write(reinterpret_cast<char*>(&stop), sizeof(stop));
                         triggers().set(ssp->native_handle(), POLLOUT);
                     }
                 }

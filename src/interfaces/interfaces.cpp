@@ -20,11 +20,20 @@ namespace cloudbus {
     const interface_base::address_type interface_base::NULLADDR = interface_base::address_type{};
     interface_base::address_type interface_base::make_address(const struct sockaddr *addr, socklen_t addrlen, const ttl_type& ttl){
         auto address = address_type();
-        auto& [ifaddr, len, ttl_] = address;
+        auto&[ifaddr, len, ttl_] = address;
         len = addrlen;
         std::memset(&ifaddr, 0, sizeof(addr));
         std::memcpy(&ifaddr, addr, addrlen);
         ttl_ = ttl;
+        return address;
+    }
+    interface_base::address_type interface_base::make_address(const struct sockaddr *addr, socklen_t addrlen, ttl_type&& ttl){
+        auto address = address_type();
+        auto&[ifaddr, len, ttl_] = address;
+        len = addrlen;
+        std::memset(&ifaddr, 0, sizeof(addr));
+        std::memcpy(&ifaddr, addr, addrlen);
+        ttl_ = std::move(ttl);
         return address;
     }
     interface_base::handle_type interface_base::make_handle(){
@@ -200,8 +209,10 @@ namespace cloudbus {
     void swap(interface_base& lhs, interface_base& rhs) noexcept {
         using std::swap;
         swap(lhs._uri, rhs._uri);
+        swap(lhs._protocol, rhs._protocol);
         swap(lhs._addresses, rhs._addresses);
-        swap(lhs._idx, rhs._idx);
         swap(lhs._streams, rhs._streams);
+        swap(lhs._pending, rhs._pending);
+        swap(lhs._idx, rhs._idx);
     }
 }

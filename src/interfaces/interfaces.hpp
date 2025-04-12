@@ -50,6 +50,7 @@ namespace cloudbus {
 
             static const address_type NULLADDR;
             static address_type make_address(const struct sockaddr *addr, socklen_t addrlen, const ttl_type& ttl);
+            static address_type make_address(const struct sockaddr *addr, socklen_t addrlen, ttl_type&& ttl);
             static handle_type make_handle();
             static handle_type make_handle(int domain, int type, int protocol, std::ios_base::openmode which);
             static handle_type make_handle(native_handle_type sockfd, bool connected=false);

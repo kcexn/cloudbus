@@ -171,17 +171,17 @@ namespace cloudbus{
             const auto eof = nsp->eof();
             if(const auto *type = buf.type()){
                 const auto *eid = buf.eid();
-                const std::streamsize pos=buf.tellp();
+                const std::streamsize pos=buf.tellp(), gpos=buf.tellg();
                 const std::streamsize seekpos =
-                    (buf.tellg() <= HDRLEN)
+                    (gpos <= HDRLEN)
                         ? HDRLEN
-                        : static_cast<std::streamsize>(buf.tellg());
+                        : gpos;
                 const auto rem = buf.len()->length - pos;
                 const auto time = connection_type::clock_type::now();
                 for(auto conn = connections().begin(); conn < connections().end(); ++conn){
-                    if(conn->south.expired()){
+                    if(conn->south.expired()) {
                         conn = --connections().erase(conn);
-                    } else if(conn->uuid == *eid && conn->north.lock() == nsp){
+                    } else if(conn->uuid == *eid && conn->north.lock() == nsp) {
                         if(auto s = conn->south.lock()){
                             if(auto sockfd = s->native_handle(); sockfd != s->BAD_SOCKET)
                                 triggers().set(sockfd, POLLOUT);

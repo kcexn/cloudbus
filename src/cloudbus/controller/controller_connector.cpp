@@ -256,10 +256,9 @@ namespace cloudbus {
                         conn->south.lock()==ssp
                     ){
                         if(auto n = conn->north.lock()){
-                            if(
-                                conn->state == connection_type::HALF_CLOSED &&
+                            if(conn->state == connection_type::HALF_CLOSED &&
                                 !n->eof() && !(type->flags & messages::ABORT)
-                            ){
+                            ){ 
                                 break;
                             }
                             if(mode()==FULL_DUPLEX && rem && !eof)

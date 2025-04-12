@@ -5,7 +5,7 @@ Compared to the configuration in benchmark-one, Cloudbus adds to additional netw
 then one more from the controller to the segment. Despite this, the penalty for using Cloudbus can be managed.
 
 ## Results:
-Latencies (ms): mean=34, median=30, p99=77
+Latencies (ms): mean=32, median=30, p99=74
 
 ## Benchmarking on Google Compute Engine with Gcloud CLI:
 ### Building the Test Infrastructure
@@ -70,7 +70,9 @@ We will use NGINX and we install it by running:
 ```
 $ gcloud compute ssh "${SERVER_NAME}" \
     --zone="${SERVER_ZONE}" \
-    --command="/usr/bin/sh -c 'sudo apt-get update && sudo apt-get install nginx'"
+    --command="/usr/bin/sh -c 'sudo apt-get update && \
+        sudo apt-get upgrade && \
+        sudo apt-get install nginx'"
 ```
 and following the prompts.
 
@@ -80,6 +82,7 @@ We will use Apache Jmeter. We can install it by running:
 $ gcloud compute ssh "${CLIENT_NAME}" \
     --zone="${CLIENT_ZONE}" \
     --command="/usr/bin/sh -c 'sudo apt-get update && \
+    sudo apt-get upgrade && \
     sudo apt-get install default-jre && \
     (wget https://dlcdn.apache.org//jmeter/binaries/apache-jmeter-5.6.3.tgz -O - | sudo tar -zxvf - -C /opt/) && \
     sudo ln -s /opt/apache-jmeter-5.6.3/bin/jmeter /usr/bin/jmeter'"
@@ -92,11 +95,13 @@ Install build tools and cloudbus dependencies on the controller and segment node
 $ gcloud compute ssh "${CONTROLLER_NAME}" \
     --zone="${CLIENT_ZONE}" \
     --command="/usr/bin/sh -c 'sudo apt-get update && \
-    sudo apt-get install build-essential libc-ares-dev'" && \
+        sudo apt-get upgrade && \
+        sudo apt-get install build-essential libc-ares-dev'" && \
 gcloud compute ssh "${SEGMENT_NAME}" \
     --zone="${SERVER_ZONE}" \
     --command="/usr/bin/sh -c 'sudo apt-get update && \
-    sudo apt-get install build-essential libc-ares-dev'"
+        sudo apt-get upgrade && \
+        sudo apt-get install build-essential libc-ares-dev'"
 ```
 
 #### Install and Configure Cloudbus on the Controller and the Segment

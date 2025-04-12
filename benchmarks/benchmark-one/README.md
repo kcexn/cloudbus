@@ -9,7 +9,7 @@ like AWS EC2, private clouds (e.g., OpenStack), or traditional networks are not 
 supported.
 
 ## Results:
-Latencies (ms): mean=29, median=29, p99=31
+Latencies (ms): mean=30, median=29, p99=32
 
 ## Benchmarking on Google Compute Engine with Gcloud CLI:
 ### Building the Test Infrastructure
@@ -57,8 +57,8 @@ gcloud compute instances create ${SERVER_NAME} \
 We will use NGINX and we install it by running:
 ```
 $ gcloud compute ssh ${SERVER_NAME} \
---zone=${SERVER_ZONE} \
---command="/usr/bin/sh -c 'sudo apt-get update && sudo apt-get install nginx'"
+    --zone=${SERVER_ZONE} \
+    --command="/usr/bin/sh -c 'sudo apt-get update && sudo apt-get install nginx'"
 ```
 and following the prompts.
 
@@ -66,11 +66,11 @@ and following the prompts.
 We will use Apache Jmeter. We can install it by running:
 ```
 $ gcloud compute ssh ${CLIENT_NAME} \
---zone=${CLIENT_ZONE} \
---command="/usr/bin/sh -c 'sudo apt-get update && \
-sudo apt-get install default-jre && \
-(wget https://dlcdn.apache.org//jmeter/binaries/apache-jmeter-5.6.3.tgz -O - | sudo tar -zxvf - -C /opt/) && \
-sudo ln -s /opt/apache-jmeter-5.6.3/bin/jmeter /usr/bin/jmeter'"
+    --zone=${CLIENT_ZONE} \
+    --command="/usr/bin/sh -c 'sudo apt-get update && \
+    sudo apt-get install default-jre && \
+    (wget https://dlcdn.apache.org//jmeter/binaries/apache-jmeter-5.6.3.tgz -O - | sudo tar -zxvf - -C /opt/) && \
+    sudo ln -s /opt/apache-jmeter-5.6.3/bin/jmeter /usr/bin/jmeter'"
 ```
 and following the prompts.
 
@@ -79,8 +79,8 @@ Copy the Jmeter JMX benchmark to the test client by running:
 ```
 $ BENCHMARK_PATH='./Single Server Benchmark.jmx' && \
 gcloud compute scp "${BENCHMARK_PATH}" \
-${CLIENT_NAME}:~ \
---zone=${CLIENT_ZONE}
+    ${CLIENT_NAME}:~ \
+    --zone=${CLIENT_ZONE}
 ```
 
 ### Execute the HTTP Tests:
@@ -89,6 +89,7 @@ Execute the tests by running:
 $ COMMAND="/usr/bin/sh -c 'jmeter -n -t Single\ Server\ Benchmark.jmx \
     -Jof=./results.csv \
     -Jhost=${SERVER_NAME}.${SERVER_ZONE} \
+    -Jthreads=2 \
     -Jrequests=1000 \
     -Jduration=30'" && \
 gcloud compute ssh ${CLIENT_NAME} \

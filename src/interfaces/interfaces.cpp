@@ -176,9 +176,10 @@ namespace cloudbus {
                         [&, addr=reinterpret_cast<const struct sockaddr*>(&addr)]
                         (auto& hnd){
                             auto& ptr = std::get<stream_ptr>(hnd);
-                            if(!wp.owner_before(ptr))
+                            auto sp = wp.lock();
+                            if(sp == ptr)
                                 cb(hnd, addr, addrlen, _protocol);
-                            return !wp.owner_before(ptr);
+                            return sp == ptr;
                         }
                     );
                 }

@@ -78,6 +78,7 @@ namespace cloudbus {
 
             std::string& uri() { return _uri; }
             std::string& protocol() { return _protocol; }
+            std::size_t npending() const { return _pending.size(); }
 
             const addresses_type& addresses() const { return _addresses; }
             const addresses_type& addresses(const addresses_type& addrs);

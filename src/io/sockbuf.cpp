@@ -105,9 +105,9 @@ namespace io{
             auto&[address, len] = _buffers.back()->addr;
             len = addrlen;
             std::memcpy(&address, addr, addrlen);
-            while(!_connected && connect(_socket, addr, addrlen)){
-                _errno = errno;
-                switch(_errno){
+            auto *addrp = reinterpret_cast<const struct sockaddr*>(&address);
+            while( !_connected && !(_errno=0) && connect(_socket, addrp, addrlen) ){
+                switch(_errno = errno){
                     case EINTR: continue;
                     case EISCONN:
                         _connected = true;
@@ -226,43 +226,35 @@ namespace io{
             if(!buflen && cbuf.empty())
                 return 0;
             sendbuf.iov_len = std::min(buflen, MIN_BUFSIZE);
-            while(auto len = sendmsg(_socket, &header, MSG_DONTWAIT | MSG_NOSIGNAL)){
-                if(len < 0){
-                    _errno = errno;
-                    switch(_errno){
-                        case EISCONN:
-                            _connected = true;
-                            header.msg_name = nullptr;
-                            header.msg_namelen = 0;
-                        case EINTR: continue;
-                        default:
-                            base = sendbuf.iov_base;
-                            sendbuf.iov_base = data;
-                            sendbuf.iov_len = (buf==_buffers.back()) ? iov_len : buflen;
-                            _resizewbuf(buf, base, buflen);
-                            switch(_errno){
-                                /* case EAGAIN: */
-                                case EWOULDBLOCK: return 0;
-                                default: return -1;
-                            }
+            ssize_t len = 0;
+            while( !(_errno=0) && (len=sendmsg(_socket, &header, MSG_DONTWAIT | MSG_NOSIGNAL)) ){
+                if(len > 0){
+                    if(header.msg_control){
+                        header.msg_control = nullptr;
+                        header.msg_controllen = 0;
+                        cbuf.clear();
+                        cbuf.shrink_to_fit();
                     }
+                    if(!(buflen-=len))
+                        break;
+                    sendbuf.iov_base = static_cast<char*>(sendbuf.iov_base)+len;
+                    sendbuf.iov_len = std::min(buflen, MIN_BUFSIZE);
+                } else switch(_errno = errno){
+                    case EISCONN:
+                        _connected = true;
+                        header.msg_name = nullptr;
+                        header.msg_namelen = 0;
+                    case EINTR: continue;
+                    default:
+                        goto EXIT;
                 }
-                if(header.msg_control){
-                    header.msg_control = nullptr;
-                    header.msg_controllen = 0;
-                    cbuf.clear();
-                    cbuf.shrink_to_fit();
-                }
-                if(!(buflen-=len))
-                    break;
-                sendbuf.iov_base = reinterpret_cast<char*>(sendbuf.iov_base)+len;
-                sendbuf.iov_len = std::min(buflen, MIN_BUFSIZE);
             }
+        EXIT:
             base = sendbuf.iov_base;
             sendbuf.iov_base = data;
             sendbuf.iov_len = (buf==_buffers.back()) ? iov_len : buflen;
             _resizewbuf(buf, base, buflen);
-            return 0;
+            return (!_errno || _errno==EWOULDBLOCK) ? 0 : -1;
         }
         int sockbuf::sync() {
             auto it = ++_buffers.begin();
@@ -275,9 +267,8 @@ namespace io{
                         case ENOTCONN:
                             if(address.ss_family == AF_UNSPEC)
                                 return 0;
-                            while(connect(_socket, reinterpret_cast<const struct sockaddr*>(&address), addrlen)){
-                                _errno = errno;
-                                switch(_errno){
+                            while(!(_errno=0) && connect(_socket, reinterpret_cast<const struct sockaddr*>(&address), addrlen)){
+                                switch(_errno = errno){
                                     case EINTR: continue;
                                     case EISCONN:
                                         _connected = true;
@@ -342,29 +333,28 @@ namespace io{
                 return 0;
             recvbuf.iov_base = egptr();
             recvbuf.iov_len = buflen;
-            while(auto len = recvmsg(_socket, &header, MSG_DONTWAIT)){
+            ssize_t len = 0;
+            while( !(_errno=0) && (len = recvmsg(_socket, &header, MSG_DONTWAIT)) ){
                 if(len < 0){
-                    _errno = errno;
-                    switch(_errno){
-                        case EINTR: continue;
+                    switch(_errno = errno){
+                        case EINTR:
+                            continue;
                         default:
-                            recvbuf.iov_base = data;
-                            recvbuf.iov_len = iov_len;
-                            switch(_errno){
-                                /* case EAGAIN: */
-                                case EWOULDBLOCK: return 0;
-                                default: return -1;
-                            }
+                            goto EXIT;
                     }
                 }
                 setg(eback(), gptr(), egptr()+len);
-                recvbuf.iov_base = data;
-                recvbuf.iov_len = iov_len;
-                return 0;
+                break;
             }
+        EXIT:
             recvbuf.iov_base = data;
             recvbuf.iov_len = iov_len;
-            return header.msg_control ? 0 : -1;
+            /* end-of-file */
+            if(!len && !header.msg_control)
+                return -1;
+            if(_errno && _errno != EWOULDBLOCK)
+                return -1;
+            return 0;
         }
         std::streamsize sockbuf::showmanyc() {
             if(egptr()==gptr() && _recv())
@@ -390,7 +380,8 @@ namespace io{
         sockbuf::~sockbuf(){
             for(auto& buf: _buffers)
                 std::free(buf->data.iov_base);
-            if(_socket > 2) close(_socket);
+            if(_socket > BAD_SOCKET)
+                close(_socket);
         }
     }
 }

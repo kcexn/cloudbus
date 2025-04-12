@@ -265,16 +265,16 @@ namespace cloudbus{
                     auto&[sockfd, sptr] = hnd;
                     if(sockfd == sptr->BAD_SOCKET){
                         if(protocol == "TCP" || protocol == "UNIX")
-                            assert((sockfd = socket(addr->sa_family, SOCK_STREAM, 0)) > -1);
+                            assert( (sockfd=socket(addr->sa_family, SOCK_STREAM, 0)) > -1 );
                         else throw std::invalid_argument("Unsupported transport protocol.");
-                        sockfd = set_flags(sockfd);
-                        sptr->native_handle() = sockfd;
+                        sptr->native_handle() = set_flags(sockfd);
                         sptr->connectto(addr, addrlen);
                     }
                     triggers.set(sockfd, (POLLIN | POLLOUT));
                 }
             );
-            if(sbd.addresses().empty())
+            /* Address resolution only on the first pending connect. */
+            if(sbd.addresses().empty() && sbd.npending()==1)
                 resolver().resolve(sbd);
             const auto cur = connection_type::clock_type::now();
             connections().push_back(
@@ -331,7 +331,7 @@ namespace cloudbus{
                 triggers().set(sockfd, POLLIN);
             }
             revents &= ~(POLLIN | POLLHUP);
-            return (-sockfd == EWOULDBLOCK) ? 0 : -1;
+            return (sockfd == -EWOULDBLOCK) ? 0 : -1;
         }
         int connector::_north_pollout_handler(const north_type::handle_type& stream, event_mask& revents){
             auto&[nfd, nsp] = stream;

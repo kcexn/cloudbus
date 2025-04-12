@@ -13,6 +13,7 @@
 *   You should have received a copy of the GNU Affero General Public License along with Cloudbus.
 *   If not, see <https://www.gnu.org/licenses/>.
 */
+#include <iostream>
 #include <cstdint>
 #pragma once
 #ifndef CLOUDBUS_MESSAGE_TYPES
@@ -35,6 +36,7 @@ namespace cloudbus{
         int uuidcmp_node(const uuid *lhs, const uuid *rhs);
         bool operator==(const uuid& lhs, const uuid& rhs);
         bool operator!=(const uuid& lhs, const uuid& rhs);
+        std::ostream& operator<<(std::ostream& os, const uuid& gid);
 
         // Message structures.
         typedef struct {

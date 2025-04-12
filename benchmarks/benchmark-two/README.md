@@ -5,7 +5,7 @@ Compared to the configuration in benchmark-one, Cloudbus adds to additional netw
 then one more from the controller to the segment. Despite this, the penalty for using Cloudbus can be managed.
 
 ## Results:
-Latencies (ms): mean=31, median=31, p99=34
+Latencies (ms): mean=34, median=30, p99=77
 
 ## Benchmarking on Google Compute Engine with Gcloud CLI:
 ### Building the Test Infrastructure
@@ -115,7 +115,7 @@ Install cloudbus:
 $ COMMAND="/usr/bin/sh -c 'tar -zxvf cloudbus-0.0.3.tar.gz && \
     cd cloudbus-0.0.3 && \
     ./configure && \
-    make && \
+    make -j3 && \
     sudo make install'" && \
 gcloud compute ssh "${CONTROLLER_NAME}" \
     --zone="${CLIENT_ZONE}" \
@@ -124,7 +124,6 @@ gcloud compute ssh "${SEGMENT_NAME}" \
     --zone="${SERVER_ZONE}" \
     --command="${COMMAND}"
 ```
-
 Configure cloudbus:
 ```
 $ cat conf/controller.ini
@@ -176,6 +175,7 @@ $ COMMAND="/usr/bin/sh -c 'jmeter -n -t Single\ Server\ Benchmark.jmx \
     -Jof=./results.csv \
     -Jhost=${CONTROLLER_NAME}.${CLIENT_ZONE} \
     -Jport=8080 \
+    -Jthreads=2 \
     -Jrequests=1000 \
     -Jduration=30'" && \
 gcloud compute ssh "${CLIENT_NAME}" \

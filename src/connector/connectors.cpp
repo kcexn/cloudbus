@@ -30,10 +30,8 @@ namespace cloudbus {
     }
     connector_base::connector_base(
         const config::configuration::section& section,
-        resolver_base& resolver,
         int mode
     ):
-        _resolver{resolver},
         _north{}, _south{}, _connections{},
         _mode{mode}, _drain{0}
     {

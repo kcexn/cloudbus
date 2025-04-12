@@ -73,6 +73,7 @@ namespace cloudbus{
             const std::uint8_t *last = first + sizeof(gid);
             std::array<char, 2> buf = {0};
             std::size_t delim = 4;
+            std::string id;
             for(auto *cur=first; cur < last; ++cur){
                 auto[ptr, ec] = std::to_chars(buf.data(), buf.data()+buf.max_size(), *cur, HEX);
                 if(ec != std::errc()){
@@ -80,15 +81,15 @@ namespace cloudbus{
                     return os;
                 }
                 auto len = ptr-buf.data();
-                os.write(zeroes, buf.max_size()-len).write(buf.data(), len);
+                id.append(zeroes, buf.max_size()-len).append(buf.data(), len);
                 if(cur-first == delim){
-                    os.write("-", 1);
+                    id.push_back('-');
                     if(delim == offsetof(uuid, node))
                         delim += 6;
                     else delim += 2;
                 }
             }
-            return os;
+            return os.write(id.c_str(), id.size());
         }
     }
 }

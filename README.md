@@ -67,7 +67,7 @@ Download the [latest release](https://github.com/kcexn/cloudbus/releases/latest)
 and extract it into a local directory.
 ```
 $ URL=https://github.com/kcexn/cloudbus/releases/download && \
-    LATEST=0.0.2 && \
+    LATEST=0.0.4 && \
     wget ${URL}/v${LATEST}/cloudbus-${LATEST}.tar.gz -O - | tar -zxvf - && \
     cd cloudbus-${LATEST}
 ```

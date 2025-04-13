@@ -179,18 +179,14 @@ namespace cloudbus {
             for(auto&[wp, cb]: _pending){
                 if(!wp.expired()){
                     const auto&[addr, addrlen, ttl] = next();
-                    std::find_if(
-                            _streams.begin(),
-                            _streams.end(),
-                        [&, addr=reinterpret_cast<const struct sockaddr*>(&addr)]
-                        (auto& hnd){
-                            auto& ptr = std::get<stream_ptr>(hnd);
-                            auto sp = wp.lock();
-                            if(sp == ptr)
-                                cb(hnd, addr, addrlen, _protocol);
-                            return sp == ptr;
+                    const auto *addrp = reinterpret_cast<const struct sockaddr*>(&addr);
+                    for(auto& hnd: _streams){
+                        const auto& ptr = std::get<stream_ptr>(hnd);
+                        if(wp.lock() == ptr){
+                            cb(hnd, addrp, addrlen, _protocol);
+                            break;
                         }
-                    );
+                    }
                 }
             }
             _pending.clear();

@@ -1,5 +1,5 @@
 AC_PREREQ([2.71])
-AC_INIT([cloudbus], [0.0.3], [kevin.exton@pm.me])
+AC_INIT([cloudbus], [0.0.4], [kevin.exton@pm.me])
 AC_SEARCH_LIBS(
 	[ares_version], [cares],
 	[],

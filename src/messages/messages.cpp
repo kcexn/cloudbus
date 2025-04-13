@@ -24,25 +24,26 @@ namespace cloudbus{
         static constexpr std::uint16_t VARIANT = 0x80;
         uuid make_uuid_v4(){
             constexpr std::uint16_t UUID_VERSION = 0x4000;
+            uuid tmp{};
             if(std::ifstream urnd("/dev/urandom", urnd.in | urnd.binary);
-                    urnd.good()
+                urnd.good()
             ){
-                uuid tmp;
                 urnd.read(reinterpret_cast<char*>(&tmp), sizeof(uuid));
                 tmp.time_high_version &= TIME_HIGH_MAX;
                 tmp.time_high_version |= UUID_VERSION;
                 tmp.clock_seq_reserved &= CLOCK_SEQ_MAX;
                 tmp.clock_seq_reserved |= VARIANT;
                 return tmp;
-            } else return uuid{};
+            }
+            return tmp;
         }
         uuid make_uuid_v7(){
             constexpr std::uint16_t UUID_VERSION = 0x7000;
             constexpr std::uint64_t TIME_LOW_MASK = UINT32_MAX, TIME_MID_MASK = UINT16_MAX;
+            uuid tmp{};
             if(std::ifstream urnd("/dev/urandom", urnd.in | urnd.binary);
-                    urnd.good()
+                urnd.good()
             ){
-                uuid tmp;
                 auto timepoint = std::chrono::system_clock::now().time_since_epoch();
                 std::uint64_t ms_count = std::chrono::duration_cast<std::chrono::milliseconds>(
                                             timepoint).count();
@@ -54,8 +55,8 @@ namespace cloudbus{
                 tmp.time_high_version |= UUID_VERSION;
                 tmp.clock_seq_reserved &= CLOCK_SEQ_MAX;
                 tmp.clock_seq_reserved |= VARIANT;
-                return tmp;
-            } else return uuid{};
+            }
+            return tmp;
         }
         int uuidcmp_node(const uuid *lhs, const uuid *rhs){
             return std::memcmp(lhs->node, rhs->node, sizeof(lhs->node));
@@ -68,26 +69,32 @@ namespace cloudbus{
         }     
         std::ostream& operator<<(std::ostream& os, const uuid& gid){
             constexpr int HEX=16;
+            constexpr std::size_t NODE_OFF=offsetof(uuid,node);
+            constexpr std::size_t STRSIZE=2*sizeof(gid)+4;
             const char *zeroes = "00";
             const std::uint8_t *first = reinterpret_cast<const std::uint8_t*>(&gid);
             const std::uint8_t *last = first + sizeof(gid);
-            std::array<char, 2> buf = {0};
-            std::size_t delim = 4;
+            std::array<char, 2> buf = {};
             std::string id;
+            id.reserve(STRSIZE);
+            std::size_t delim = 4;
             for(auto *cur=first; cur < last; ++cur){
-                auto[ptr, ec] = std::to_chars(buf.data(), buf.data()+buf.max_size(), *cur, HEX);
+                if(cur-first == delim){
+                    id.push_back('-');
+                    delim += (delim==NODE_OFF) ? 6 : 2;
+                }
+                auto[ptr, ec] = std::to_chars(
+                    buf.data(),
+                    buf.data() + buf.max_size(),
+                    *cur, HEX
+                );
                 if(ec != std::errc()){
                     os.setstate(os.failbit);
                     return os;
                 }
                 auto len = ptr-buf.data();
-                id.append(zeroes, buf.max_size()-len).append(buf.data(), len);
-                if(cur-first == delim){
-                    id.push_back('-');
-                    if(delim == offsetof(uuid, node))
-                        delim += 6;
-                    else delim += 2;
-                }
+                id.append(zeroes, buf.max_size()-len);
+                id.append(buf.data(), len);
             }
             return os.write(id.c_str(), id.size());
         }

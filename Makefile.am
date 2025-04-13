@@ -31,12 +31,10 @@ segment_SOURCES = $(SEGMENT_CPPSOURCES) $(SEGMENT_CPPHEADERS)
 segment_CXXFLAGS = -D COMPILE_SEGMENT $(AM_CXXFLAGS)
 
 install-data-hook:
-	pushd $(DESTDIR)$(cloudbusconfdir) && cp -np segment.ini.orig segment.ini && \
-	cp -np controller.ini.orig controller.ini && rm segment.ini.orig controller.ini.orig && \
-	popd && ln -s $(DESTDIR)$(systemdconfdir)/controller.service /etc/systemd/system/controller.service && \
-	ln -s $(DESTDIR)$(systemdconfdir)/segment.service /etc/systemd/system/segment.service
+	pushd $(DESTDIR)$(cloudbusconfdir) && \
+    cp -np segment.ini.orig segment.ini && \
+	cp -np controller.ini.orig controller.ini && \
+    rm segment.ini.orig controller.ini.orig
 
 uninstall-local:
-	rm -rf $(DESTDIR)$(cloudbusconfdir) \
-		/etc/systemd/system/controller.service \
-		/etc/systemd/system/segment.service
+	rm -rf $(DESTDIR)$(cloudbusconfdir)

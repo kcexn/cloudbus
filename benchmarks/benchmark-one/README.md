@@ -9,7 +9,7 @@ like AWS EC2, private clouds (e.g., OpenStack), or traditional networks are not 
 supported.
 
 ## Results:
-Latencies (ms): mean=30, median=29, p99=32
+Latencies (ms): mean=29, median=29, p99=32
 
 ## Benchmarking on Google Compute Engine with Gcloud CLI:
 ### Building the Test Infrastructure
@@ -58,7 +58,9 @@ We will use NGINX and we install it by running:
 ```
 $ gcloud compute ssh ${SERVER_NAME} \
     --zone=${SERVER_ZONE} \
-    --command="/usr/bin/sh -c 'sudo apt-get update && sudo apt-get install nginx'"
+    --command="/usr/bin/sh -c 'sudo apt-get update && \
+        sudo apt-get upgrade && \
+        sudo apt-get install nginx'"
 ```
 and following the prompts.
 
@@ -68,9 +70,10 @@ We will use Apache Jmeter. We can install it by running:
 $ gcloud compute ssh ${CLIENT_NAME} \
     --zone=${CLIENT_ZONE} \
     --command="/usr/bin/sh -c 'sudo apt-get update && \
-    sudo apt-get install default-jre && \
-    (wget https://dlcdn.apache.org//jmeter/binaries/apache-jmeter-5.6.3.tgz -O - | sudo tar -zxvf - -C /opt/) && \
-    sudo ln -s /opt/apache-jmeter-5.6.3/bin/jmeter /usr/bin/jmeter'"
+        sudo apt-get upgrade && \
+        sudo apt-get install default-jre && \
+        (wget https://dlcdn.apache.org//jmeter/binaries/apache-jmeter-5.6.3.tgz -O - | sudo tar -zxvf - -C /opt/) && \
+        sudo ln -s /opt/apache-jmeter-5.6.3/bin/jmeter /usr/bin/jmeter'"
 ```
 and following the prompts.
 
@@ -89,19 +92,20 @@ Execute the tests by running:
 $ COMMAND="/usr/bin/sh -c 'jmeter -n -t Single\ Server\ Benchmark.jmx \
     -Jof=./results.csv \
     -Jhost=${SERVER_NAME}.${SERVER_ZONE} \
-    -Jthreads=2 \
-    -Jrequests=1000 \
-    -Jduration=30'" && \
-gcloud compute ssh ${CLIENT_NAME} \
-    --zone=${CLIENT_ZONE} \
+    -Jport=80 \
+    -Jthreads=6 \
+    -Jrequests=10000 \
+    -Jduration=180'" && \
+gcloud compute ssh "${CLIENT_NAME}" \
+    --zone="${CLIENT_ZONE}" \
     --command="${COMMAND}"
 ```
 Then retrieve the test artifacts by running:
 ```
 $ ARTIFACTS_PATH='./artifacts/' && \
 gcloud compute scp ${CLIENT_NAME}:~/results.csv \
-"${ARTIFACTS_PATH}" \
---zone=${CLIENT_ZONE}
+    "${ARTIFACTS_PATH}" \
+    --zone=${CLIENT_ZONE}
 ```
 
 ### Tearing Down the Test Infrastructure

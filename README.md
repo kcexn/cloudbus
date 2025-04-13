@@ -94,7 +94,7 @@ $ ./configure --help
 for more.
 
 ## Running Cloudbus
-Currently, to run cloudbus you just execute the binary from your shell by typing:
+To run cloudbus you just execute the binary from your shell by typing:
 ```
 $ segment
 ```
@@ -102,14 +102,20 @@ or
 ```
 $ controller
 ```
-Cloudbus doesn't automatically run as a daemon yet (this will be implemented eventually). You can run either of these binaries in the background by relying on your shells 
-job control mechanism to background their execution, i.e:
+To run Cloudbus as a daemon on systems using systemd, create a symlink to the provided systemd service units.
+Then enable and start the cloudbus components using systemctl. You will need to do this 
+as the root user:
 ```
-$ segment &
-$ controller &
+# SYSTEMD_PATH=/etc/systemd/system
+# PREFIX=/usr/local
+# ln -s ${PREFIX}/etc/cloudbus/systemd/controller.service ${SYSTEMD_PATH}/controller.service
+# ln -s ${PREFIX}/etc/cloudbus/systemd/segment.service ${SYSTEMD_PATH}/segment.service
+# systemctl enable controller segment
+# systemctl start controller segment
 ```
-To run either of these at startup you will need to write a systemd service unit. 
-**Cloudbus is not production ready**, so I do not recommend you do this.
+If you have changed the PREFIX at `configure` time, then PREFIX needs to be set to the path you have configured.
+
+_Cloudbus currently does not support daemonization on systems that do not use systemd._
 
 ## Configuring Cloudbus
 Cloudbus is designed to be configured in terms of user-defined services. Each component of cloudbus will bind 
@@ -191,6 +197,18 @@ backend=tcp://192.168.1.2:8082
 [Simple Service]
 bind=tcp://0.0.0.0:8082
 backend=unix:///var/run/simple_service.sock
+```
+
+### Uninstalling Cloudbus
+In the directory where you have unpacked the distribution files run (as root):
+```
+# make uninstall
+```
+If you have symlinked the provided systemd service units and are running cloudbus as a 
+daemon then you will also need to run (as root):
+```
+# systemctl stop segment controller
+# systemctl disable segment controller
 ```
 
 ## Features and Limitations

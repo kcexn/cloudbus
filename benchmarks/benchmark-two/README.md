@@ -1,11 +1,12 @@
 # Cloudbus Benchmark: Single Web Server
 This benchmark measures the performance of the cloudbus components when bridging traffic across different regions. 
 As it is a single web-server configuration, the results may be compared against the results in benchmark-one. 
-Compared to the configuration in benchmark-one, Cloudbus adds to additional network hops, one from the client to the controller, 
-then one more from the controller to the segment. Despite this, the penalty for using Cloudbus can be managed.
+Compared to the configuration in benchmark-one, Cloudbus adds two additional network hops, one from the client to the controller, 
+then one more from the controller to the segment. Each additional network hop requires us to resolve an additional DNS query. 
+Despite this, the penalty for using Cloudbus can be managed.
 
 ## Results:
-Latencies (ms): mean=32, median=30, p99=74
+Latencies (ms): mean=31, median=29, p99=73
 
 ## Benchmarking on Google Compute Engine with Gcloud CLI:
 ### Building the Test Infrastructure
@@ -82,10 +83,10 @@ We will use Apache Jmeter. We can install it by running:
 $ gcloud compute ssh "${CLIENT_NAME}" \
     --zone="${CLIENT_ZONE}" \
     --command="/usr/bin/sh -c 'sudo apt-get update && \
-    sudo apt-get upgrade && \
-    sudo apt-get install default-jre && \
-    (wget https://dlcdn.apache.org//jmeter/binaries/apache-jmeter-5.6.3.tgz -O - | sudo tar -zxvf - -C /opt/) && \
-    sudo ln -s /opt/apache-jmeter-5.6.3/bin/jmeter /usr/bin/jmeter'"
+        sudo apt-get upgrade && \
+        sudo apt-get install default-jre && \
+        (wget https://dlcdn.apache.org//jmeter/binaries/apache-jmeter-5.6.3.tgz -O - | sudo tar -zxvf - -C /opt/) && \
+        sudo ln -s /opt/apache-jmeter-5.6.3/bin/jmeter /usr/bin/jmeter'"
 ```
 and following the prompts.
 
@@ -119,7 +120,7 @@ Install cloudbus:
 ```
 $ COMMAND="/usr/bin/sh -c 'tar -zxvf cloudbus-0.0.3.tar.gz && \
     cd cloudbus-0.0.3 && \
-    ./configure && \
+    ./configure CXXFLAGS='-flto' && \
     make -j3 && \
     sudo make install'" && \
 gcloud compute ssh "${CONTROLLER_NAME}" \
@@ -167,12 +168,18 @@ gcloud compute scp "${BENCHMARK_PATH}" \
 ### Execute the HTTP Tests:
 Start the controller and segment binaries:
 ```
-$ gcloud compute ssh "${CONTROLLER_NAME}" \
+$ PREFIX='/usr/local/etc/cloudbus/systemd' && \
+SYSTEM_PREFIX='/etc/systemd/system' && \
+gcloud compute ssh "${CONTROLLER_NAME}" \
     --zone="${CLIENT_ZONE}" \
-    --command="/usr/bin/sh -c 'sudo systemctl enable controller && sudo systemctl start controller'" && \
+    --command="/usr/bin/sh -c 'sudo ln -s ${PREFIX}/controller.service ${SYSTEM_PREFIX}/controller.service &&\
+        sudo systemctl enable controller &&\
+        sudo systemctl start controller'" && \
 gcloud compute ssh "${SEGMENT_NAME}" \
     --zone="${SERVER_ZONE}" \
-    --command="/usr/bin/sh -c 'sudo systemctl enable segment && sudo systemctl start segment'"
+    --command="/usr/bin/sh -c 'sudo ln -s ${PREFIX}/segment.service ${SYSTEM_PREFIX}/segment.service &&\
+        sudo systemctl enable segment &&\
+        sudo systemctl start segment'"
 ```
 Then execute the tests by running:
 ```
@@ -180,9 +187,9 @@ $ COMMAND="/usr/bin/sh -c 'jmeter -n -t Single\ Server\ Benchmark.jmx \
     -Jof=./results.csv \
     -Jhost=${CONTROLLER_NAME}.${CLIENT_ZONE} \
     -Jport=8080 \
-    -Jthreads=2 \
-    -Jrequests=1000 \
-    -Jduration=30'" && \
+    -Jthreads=6 \
+    -Jrequests=10000 \
+    -Jduration=180'" && \
 gcloud compute ssh "${CLIENT_NAME}" \
     --zone="${CLIENT_ZONE}" \
     --command="${COMMAND}"

@@ -301,9 +301,7 @@ namespace cloudbus {
                 }
                 if(!rem){
                     buf.setstate(buf.eofbit);
-                    if(conn==connections().end() &&
-                        !(type->op==messages::STOP)
-                    ){
+                    if(conn==connections().end()){
                         ssp->write(reinterpret_cast<char*>(&stop), sizeof(stop));
                         triggers().set(ssp->native_handle(), POLLOUT);
                     }

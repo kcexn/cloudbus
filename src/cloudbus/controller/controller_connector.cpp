@@ -192,10 +192,10 @@ namespace cloudbus {
             auto&[nfd, nsp] = stream;
             const auto eof = nsp->eof();
             if(const auto p = buf.tellp(); eof || p > 0){
-                messages::msgheader head;
-                head.len = messages::msglen{1, static_cast<std::uint16_t>(p+HDRLEN)};
-                head.version = messages::msgversion{0,0};
-                head.type = messages::msgtype{eof ? messages::STOP : messages::DATA, 0};
+                messages::msgheader head = {
+                    {}, {1, static_cast<std::uint16_t>(p+HDRLEN)},
+                    {0,0}, {eof ? messages::STOP : messages::DATA, 0}
+                };
                 if(write_prepare(connections(), nsp, p) != connections().cend())
                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                 const auto time = connection_type::clock_type::now();

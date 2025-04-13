@@ -18,6 +18,7 @@
 #include <string_view>
 #include <charconv>
 #include <cctype>
+#include <cstdint>
 #include <cstring>
 #include <cstddef>
 #include <sys/socket.h>

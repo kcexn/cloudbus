@@ -29,7 +29,7 @@ namespace cloudbus {
         return fd;
     }
     connector_base::connector_base(
-        const config::configuration::section& section,
+        const config::section& section,
         int mode
     ):
         _north{}, _south{}, _connections{},

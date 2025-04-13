@@ -55,7 +55,7 @@ namespace cloudbus {
             static handle_type make_handle(int domain, int type, int protocol, std::ios_base::openmode which);
             static handle_type make_handle(native_handle_type sockfd, bool connected=false);
 
-            interface_base(const std::string& protocol=std::string(), const std::string& url=std::string()):
+            explicit interface_base(const std::string& protocol=std::string(), const std::string& url=std::string()):
                 interface_base(addresses_type(), protocol, url){}
             explicit interface_base(
                 const struct sockaddr *addr,

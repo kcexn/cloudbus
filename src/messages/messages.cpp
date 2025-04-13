@@ -77,7 +77,7 @@ namespace cloudbus{
             std::array<char, 2> buf = {};
             std::string id;
             id.reserve(STRSIZE);
-            std::size_t delim = 4;
+            int delim = 4;
             for(auto *cur=first; cur < last; ++cur){
                 if(cur-first == delim){
                     id.push_back('-');

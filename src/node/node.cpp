@@ -56,7 +56,7 @@ namespace cloudbus{
         auto it = std::find_if(
                 events.begin(),
                 events.end(),
-            [&notify_pipe](auto& event){
+            [&notify_pipe](const auto& event){
                 return event.fd==notify_pipe;
             }
         );

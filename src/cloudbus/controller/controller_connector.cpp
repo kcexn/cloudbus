@@ -94,7 +94,11 @@ namespace cloudbus {
             connector::events_type::iterator& put
         ){
             triggers.set(sockfd, POLLIN);
-            auto it = std::find_if(events.begin(), events.end(), [&](auto& e){ return e.fd == sockfd; });
+            auto it = std::find_if(events.begin(), events.end(),
+                [&](const auto& e){
+                    return e.fd == sockfd;
+                }
+            );
             if(it == events.end()){
                 auto goff=ev-events.begin(), poff=put-events.begin();
                 events.emplace_back(connector::event_type{sockfd, POLLIN, POLLIN});
@@ -232,7 +236,7 @@ namespace cloudbus {
         }
         int connector::_route(marshaller_type::south_format& buf, const south_type& interface, const south_type::handle_type& stream, event_mask& revents){
             constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
-            auto&[sfd, ssp] = stream;
+            const auto&[sfd, ssp] = stream;
             const auto eof = ssp->eof();
             if(const auto *type = buf.type()){
                 const auto *eid = buf.eid();
@@ -328,8 +332,14 @@ namespace cloudbus {
                     ){
                         auto&[sfd, ssp] = hnd;
                         if(sfd == ssp->BAD_SOCKET){
-                            if(protocol == "TCP" || protocol == "UNIX")
-                                assert( (sfd=socket(addr->sa_family, SOCK_STREAM, 0)) > -1 );
+                            if( (protocol == "TCP" || protocol == "UNIX") &&
+                                (sfd=socket(addr->sa_family, SOCK_STREAM, 0)) < 0
+                            ){
+                                throw std::system_error(
+                                    std::error_code(errno, std::system_category()), 
+                                    "Unable to create a new socket."
+                                );
+                            }
                             else throw std::invalid_argument("Unsupported transport protocol.");
                             ssp->native_handle() = set_flags(sfd);
                             ssp->connectto(addr, addrlen);
@@ -439,11 +449,6 @@ namespace cloudbus {
         }
         void connector::_north_state_handler(north_type& interface, const north_type::handle_type& stream, event_mask& revents){
             const auto&[nfd, nsp] = stream;
-            const auto time = connection_type::clock_type::now();
-            messages::msgheader stop = {
-                {},{1, sizeof(stop)},
-                {0,0},{messages::STOP, 0}
-            };
             switch(session_state(connections(), nsp)){
                 case connection_type::CLOSED:
                     for(auto conn=connections().begin(); conn != connections().end(); ++conn){

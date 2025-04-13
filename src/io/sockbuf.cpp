@@ -47,11 +47,11 @@ namespace io{
                 auto&[from, len] = buf->addr;
                 len = sizeof(from);
                 std::memset(&from, 0, sizeof(from));
-                auto& recvbuf = buf->data;
-                if( !(recvbuf.iov_base = std::malloc(MIN_BUFSIZE)) )
+                auto& recvbuf_ = buf->data;
+                if( !(recvbuf_.iov_base = std::malloc(MIN_BUFSIZE)) )
                     throw std::runtime_error("Unable to allocate space in receive buffer.");
-                recvbuf.iov_len = MIN_BUFSIZE;
-                char *data = reinterpret_cast<char*>(recvbuf.iov_base);
+                recvbuf_.iov_len = MIN_BUFSIZE;
+                char *data = reinterpret_cast<char*>(recvbuf_.iov_base);
                 setg(data, data, data);
             }
             if(_which & std::ios_base::out){
@@ -59,11 +59,11 @@ namespace io{
                 auto&[to, len] = buf->addr;
                 std::memset(&to, 0, sizeof(to));
                 len = 0;
-                auto& sendbuf = buf->data;
-                if( !(sendbuf.iov_base = std::malloc(MIN_BUFSIZE)) )
+                auto& sendbuf_ = buf->data;
+                if( !(sendbuf_.iov_base = std::malloc(MIN_BUFSIZE)) )
                     throw std::runtime_error("Unable to allocate space in send buffer.");
-                sendbuf.iov_len = MIN_BUFSIZE;
-                char *data = reinterpret_cast<char*>(sendbuf.iov_base);
+                sendbuf_.iov_len = MIN_BUFSIZE;
+                char *data = reinterpret_cast<char*>(sendbuf_.iov_base);
                 setp(data, data+MIN_BUFSIZE);
             }
         }
@@ -95,11 +95,11 @@ namespace io{
                 auto& piov = _buffers.back()->data;
                 piov.iov_len = pptr()-pbase();
                 _buffers.push_back(std::make_shared<socket_message>());
-                auto& sendbuf = _buffers.back()->data;
-                if( !(sendbuf.iov_base = std::malloc(MIN_BUFSIZE)) )
+                auto& sendbuf_ = _buffers.back()->data;
+                if( !(sendbuf_.iov_base = std::malloc(MIN_BUFSIZE)) )
                     throw std::runtime_error("Unable to allocate space in send buffer.");
-                sendbuf.iov_len = MIN_BUFSIZE;
-                char *data = reinterpret_cast<char*>(sendbuf.iov_base);
+                sendbuf_.iov_len = MIN_BUFSIZE;
+                char *data = reinterpret_cast<char*>(sendbuf_.iov_base);
                 setp(data, data+MIN_BUFSIZE);
             }
             auto&[address, len] = _buffers.back()->addr;
@@ -162,10 +162,10 @@ namespace io{
             return pos;
         }
         void sockbuf::_resizewbuf(const buffer_type& buf, void *base, std::size_t buflen){
-            auto& sendbuf = buf->data;
+            auto& sendbuf_ = buf->data;
             if(base){
                 if(buflen)
-                    std::memmove(sendbuf.iov_base, base, buflen);
+                    std::memmove(sendbuf_.iov_base, base, buflen);
                 if(buf==_buffers.back()){
                     setp(pbase(), epptr());
                     pbump(buflen);
@@ -174,14 +174,14 @@ namespace io{
             if(buf==_buffers.back()){
                 std::streamsize putlen = pptr()-pbase();
                 if(std::size_t size=MIN_BUFSIZE*(putlen/MIN_BUFSIZE+1);
-                        sendbuf.iov_len != size)
+                        sendbuf_.iov_len != size)
                 {
-                    if( !(sendbuf.iov_base=std::realloc(sendbuf.iov_base, size)) )
+                    if( !(sendbuf_.iov_base=std::realloc(sendbuf_.iov_base, size)) )
                         throw std::runtime_error("Unable to allocate space for send buffer.");
-                    char *data = reinterpret_cast<char*>(sendbuf.iov_base);
+                    char *data = reinterpret_cast<char*>(sendbuf_.iov_base);
                     setp(data, data+size);
                     pbump(putlen);
-                    sendbuf.iov_len=size;
+                    sendbuf_.iov_len=size;
                 }
             }
         }
@@ -204,12 +204,12 @@ namespace io{
                 header.msg_name = &address;
                 header.msg_namelen = addrlen;
             }
-            auto& sendbuf = buf->data;
-            void *data = sendbuf.iov_base, *base = nullptr;
-            std::size_t iov_len = sendbuf.iov_len;
+            auto& sendbuf_ = buf->data;
+            void *data = sendbuf_.iov_base, *base = nullptr;
+            std::size_t iov_len = sendbuf_.iov_len;
             std::size_t buflen = (buf==_buffers.back()) ? pptr()-pbase() : iov_len;
             if(buflen){
-                header.msg_iov = &sendbuf;
+                header.msg_iov = &sendbuf_;
                 header.msg_iovlen = 1;
             } else {
                 header.msg_iov = nullptr;
@@ -225,7 +225,7 @@ namespace io{
             }
             if(!buflen && cbuf.empty())
                 return 0;
-            sendbuf.iov_len = std::min(buflen, MIN_BUFSIZE);
+            sendbuf_.iov_len = std::min(buflen, MIN_BUFSIZE);
             ssize_t len = 0;
             while( !(_errno=0) && (len=sendmsg(_socket, &header, MSG_DONTWAIT | MSG_NOSIGNAL)) ){
                 if(len > 0){
@@ -237,8 +237,8 @@ namespace io{
                     }
                     if(!(buflen-=len))
                         break;
-                    sendbuf.iov_base = static_cast<char*>(sendbuf.iov_base)+len;
-                    sendbuf.iov_len = std::min(buflen, MIN_BUFSIZE);
+                    sendbuf_.iov_base = static_cast<char*>(sendbuf_.iov_base)+len;
+                    sendbuf_.iov_len = std::min(buflen, MIN_BUFSIZE);
                 } else switch(_errno = errno){
                     case EISCONN:
                         _connected = true;
@@ -250,9 +250,9 @@ namespace io{
                 }
             }
         EXIT:
-            base = sendbuf.iov_base;
-            sendbuf.iov_base = data;
-            sendbuf.iov_len = (buf==_buffers.back()) ? iov_len : buflen;
+            base = sendbuf_.iov_base;
+            sendbuf_.iov_base = data;
+            sendbuf_.iov_len = (buf==_buffers.back()) ? iov_len : buflen;
             _resizewbuf(buf, base, buflen);
             return (!_errno || _errno==EWOULDBLOCK) ? 0 : -1;
         }
@@ -310,12 +310,12 @@ namespace io{
             auto&[address, addrlen] = buf->addr;
             header.msg_name = &address;
             header.msg_namelen = addrlen;
-            auto& recvbuf = buf->data;
-            void *data = recvbuf.iov_base;
-            std::size_t iov_len = recvbuf.iov_len;
+            auto& recvbuf_ = buf->data;
+            void *data = recvbuf_.iov_base;
+            std::size_t iov_len = recvbuf_.iov_len;
             std::size_t buflen = iov_len-(egptr()-eback());
             if(buflen){
-                header.msg_iov = &recvbuf;
+                header.msg_iov = &recvbuf_;
                 header.msg_iovlen = 1;
             } else {
                 header.msg_iov = nullptr;
@@ -331,8 +331,8 @@ namespace io{
             }
             if(!buflen && cbuf.empty())
                 return 0;
-            recvbuf.iov_base = egptr();
-            recvbuf.iov_len = buflen;
+            recvbuf_.iov_base = egptr();
+            recvbuf_.iov_len = buflen;
             ssize_t len = 0;
             while( !(_errno=0) && (len = recvmsg(_socket, &header, MSG_DONTWAIT)) ){
                 if(len < 0){
@@ -347,8 +347,8 @@ namespace io{
                 break;
             }
         EXIT:
-            recvbuf.iov_base = data;
-            recvbuf.iov_len = iov_len;
+            recvbuf_.iov_base = data;
+            recvbuf_.iov_len = iov_len;
             /* end-of-file */
             if(!len && !header.msg_control)
                 return -1;

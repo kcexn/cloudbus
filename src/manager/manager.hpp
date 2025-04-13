@@ -30,7 +30,7 @@ namespace cloudbus {
             using threads_type = std::list<thread_type>;
             static volatile std::sig_atomic_t signal;
 
-            manager_base(const config::configuration& config);
+            explicit manager_base(const config::configuration& config);
 
             const config_type& config() const { return _config; }
             void start(node_type& node);
@@ -64,7 +64,7 @@ namespace cloudbus {
             using service_type = std::tuple<std::string, node_type>;
             using services_type = std::list<service_type>;
 
-            basic_manager(const config_type& config):
+            explicit basic_manager(const config_type& config):
                 Base(config), _services{}
             {
                 for(const auto& section: config.sections()){

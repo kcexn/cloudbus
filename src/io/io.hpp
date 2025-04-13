@@ -127,7 +127,7 @@ namespace io {
             using interest_list = std::vector<interest_type>;
             static const size_type npos = traits_type::npos;
 
-            basic_trigger(poller_type& poller): _poller{poller}{}
+            explicit basic_trigger(poller_type& poller): _poller{poller}{}
 
             size_type set(native_handle_type handle, trigger_type trigger){
                 for(auto&[hnd, trig]: _list){
@@ -206,7 +206,7 @@ namespace io {
             using event_mask = typename trigger_type::event_mask;
             using size_type = typename trigger_type::size_type;
 
-            basic_handler(trigger_type& triggers):
+            explicit basic_handler(trigger_type& triggers):
                 _triggers{triggers}{}
 
             size_type handle(events_type& events) { return _handle(events); }

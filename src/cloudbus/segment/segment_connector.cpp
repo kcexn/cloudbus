@@ -94,7 +94,11 @@ namespace cloudbus{
             connector::events_type::iterator& put
         ){
             triggers.set(sockfd, POLLIN);
-            auto it = std::find_if(events.begin(), events.end(), [&](auto& e){ return e.fd == sockfd; });
+            auto it = std::find_if(events.begin(), events.end(),
+                [&](const auto& e){
+                    return e.fd == sockfd;
+                }
+            );
             if(it == events.end()){
                 auto goff=ev-events.begin(), poff=put-events.begin();
                 events.emplace_back(connector::event_type{sockfd, POLLIN, POLLIN});
@@ -264,8 +268,14 @@ namespace cloudbus{
                 ){
                     auto&[sockfd, sptr] = hnd;
                     if(sockfd == sptr->BAD_SOCKET){
-                        if(protocol == "TCP" || protocol == "UNIX")
-                            assert( (sockfd=socket(addr->sa_family, SOCK_STREAM, 0)) > -1 );
+                        if( (protocol == "TCP" || protocol == "UNIX") &&
+                            (sockfd=socket(addr->sa_family, SOCK_STREAM, 0)) < 0
+                        ){
+                            throw std::system_error(
+                                std::error_code(errno, std::system_category()),
+                                "Unable to create a new socket."
+                            );
+                        }
                         else throw std::invalid_argument("Unsupported transport protocol.");
                         sptr->native_handle() = set_flags(sockfd);
                         sptr->connectto(addr, addrlen);

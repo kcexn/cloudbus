@@ -53,7 +53,7 @@ namespace cloudbus{
 
         marshaller::north_buffers::iterator marshaller::_unmarshal(const north_type::handle_type& stream){
             using stream_ptr = north_type::stream_ptr;
-            auto& nsp = std::get<stream_ptr>(stream);
+            const auto& nsp = std::get<stream_ptr>(stream);
             for(auto it = north().begin(); it < north().end(); ++it){
                 auto&[n, buf] = *it;
                 if(n.expired()) {
@@ -71,7 +71,7 @@ namespace cloudbus{
         }
         marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_type& stream){
             using stream_ptr = south_type::stream_ptr;
-            auto& ssp = std::get<stream_ptr>(stream);
+            const auto& ssp = std::get<stream_ptr>(stream);
             for(auto it = south().begin(); it < south().end(); ++it){
                 auto&[s, buf] = *it;
                 if(s.expired()) {

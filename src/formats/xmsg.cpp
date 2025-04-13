@@ -44,32 +44,32 @@ namespace cloudbus{
             Base::swap(other);
         }
         uuid *xmsgbuf::eid() noexcept {
-            std::size_t len = pptr()-pbase();
-            if(len >= sizeof(uuid))
+            std::size_t len_ = pptr()-pbase();
+            if(len_ >= sizeof(uuid))
                 return static_cast<uuid*>(bufptr);
             return nullptr;
         }
         msglen *xmsgbuf::len() noexcept {
             constexpr std::size_t OFF = offsetof(msgheader, len);
             char *base = static_cast<char*>(bufptr);
-            std::size_t len = pptr()-pbase();
-            if(len >= OFF + sizeof(msglen))
+            std::size_t len_ = pptr()-pbase();
+            if(len_ >= OFF + sizeof(msglen))
                 return reinterpret_cast<msglen*>(base+OFF);
             return nullptr;
         }
         msgversion *xmsgbuf::version() noexcept{
             constexpr std::size_t OFF = offsetof(msgheader, version);
             char *base = static_cast<char*>(bufptr);
-            std::size_t len = pptr()-pbase();
-            if(len >= OFF + sizeof(msgversion))
+            std::size_t len_ = pptr()-pbase();
+            if(len_ >= OFF + sizeof(msgversion))
                 return reinterpret_cast<msgversion*>(base+OFF);
             return nullptr;
         }
         msgtype *xmsgbuf::type() noexcept{
             constexpr std::size_t OFF = offsetof(msgheader, type);
             char *base = static_cast<char*>(bufptr);
-            std::size_t len = pptr()-pbase();
-            if(len >= OFF + sizeof(msgtype))
+            std::size_t len_ = pptr()-pbase();
+            if(len_ >= OFF + sizeof(msgtype))
                 return reinterpret_cast<msgtype*>(base+OFF);
             return nullptr;
         }

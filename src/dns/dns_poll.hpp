@@ -24,7 +24,7 @@ namespace cloudbus {
         {
             public:
                 using Base = resolver_base;
-                basic_resolver(trigger_type& triggers):
+                explicit basic_resolver(trigger_type& triggers):
                     handler_type(triggers), Base(){}
                 virtual ~basic_resolver() = default;
 

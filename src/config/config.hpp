@@ -32,13 +32,13 @@ namespace cloudbus{
         /* tcp://<IP>:<PORT> */
         address_type make_address(const std::string& line);
 
+        struct section {
+            using kvp = std::tuple<std::string, std::string>;
+            std::string heading;
+            std::vector<kvp> config;
+        };
         class configuration {
             public:
-                struct section {
-                    using kvp = std::tuple<std::string, std::string>;
-                    std::string heading;
-                    std::vector<kvp> config;
-                };
                 configuration();
                 configuration(const configuration& other);
                 configuration(configuration&& other) noexcept;

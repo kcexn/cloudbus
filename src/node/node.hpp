@@ -52,7 +52,7 @@ namespace cloudbus{
             using Base = node_base;
             using connector_type = ConnectorT;
 
-            basic_node(const config::configuration::section& section):
+            explicit basic_node(const config::section& section):
                 _connector(triggers(), section){}
 
             connector_type& connector() { return _connector; }

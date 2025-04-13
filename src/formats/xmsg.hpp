@@ -26,7 +26,7 @@ namespace cloudbus{
                 static constexpr std::size_t BUFINC = 4*1024;
                 using Base = std::streambuf;
 
-                xmsgbuf(const std::size_t& buflen=BUFINC);
+                explicit xmsgbuf(const std::size_t& buflen=BUFINC);
                 xmsgbuf(xmsgbuf&& other) noexcept;
                 xmsgbuf& operator=(xmsgbuf&& other) noexcept;
 

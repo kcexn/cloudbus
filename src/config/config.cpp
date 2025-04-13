@@ -223,8 +223,8 @@ namespace cloudbus{
             return *this;
         }
 
-        std::istream& operator>>(std::istream& is, configuration& config){
-            auto& sections = config._sections;
+        std::istream& operator>>(std::istream& is, configuration& conf){
+            auto& sections = conf._sections;
             sections.clear();
             std::string line;
             while(std::getline(is, line)){

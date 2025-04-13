@@ -53,7 +53,7 @@ namespace cloudbus {
 
             enum modes {HALF_DUPLEX, FULL_DUPLEX};
 
-            explicit connector_base(const config::configuration::section& section, int mode=HALF_DUPLEX);
+            explicit connector_base(const config::section& section, int mode=HALF_DUPLEX);
 
             interface_base::native_handle_type make_north(const config::address_type& address);
             int make_south(const config::address_type& address);
@@ -88,7 +88,7 @@ namespace cloudbus {
             using events_type = typename HandlerT::events_type;
             using resolver_type = dns::basic_resolver<HandlerT>;
 
-            connector_handler(trigger_type& triggers, const config::configuration::section& section):
+            connector_handler(trigger_type& triggers, const config::section& section):
                 HandlerT(triggers), Base(section), _resolver{triggers}
             {
                 const auto& hnd = north().front().streams().front();
@@ -152,7 +152,7 @@ namespace cloudbus {
 
             basic_connector(
                 trigger_type& triggers,
-                const config::configuration::section& section
+                const config::section& section
             ):
                 HandlerBase(triggers, section),
                 MarshallerBase()

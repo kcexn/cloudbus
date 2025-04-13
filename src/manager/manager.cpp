@@ -46,7 +46,7 @@ namespace cloudbus {
         pipe_type p;
         if(pipe(p.data()))
             throw std::runtime_error("Unable to open pipe.");
-        for(auto& hnd: p)
+        for(const auto& hnd: p)
             set_flags(hnd);
         mask_handlers();
         _threads.emplace_back(p, std::thread([](node_type& n, int noticefd){

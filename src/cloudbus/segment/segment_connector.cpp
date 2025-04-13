@@ -14,7 +14,6 @@
 *   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "segment_connector.hpp"
-#include <cassert>
 #include <sys/un.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -268,15 +267,13 @@ namespace cloudbus{
                 ){
                     auto&[sockfd, sptr] = hnd;
                     if(sockfd == sptr->BAD_SOCKET){
-                        if( (protocol == "TCP" || protocol == "UNIX") &&
-                            (sockfd=socket(addr->sa_family, SOCK_STREAM, 0)) < 0
-                        ){
-                            throw std::system_error(
-                                std::error_code(errno, std::system_category()),
-                                "Unable to create a new socket."
-                            );
-                        }
-                        else throw std::invalid_argument("Unsupported transport protocol.");
+                        if(protocol == "TCP" || protocol == "UNIX") {
+                            if( (sockfd=socket(addr->sa_family, SOCK_STREAM, 0)) < 0 )
+                                throw std::system_error(
+                                    std::error_code(errno, std::system_category()),
+                                    "Unable to create a new socket."
+                                );
+                        } else throw std::invalid_argument("Unsupported transport protocol.");
                         sptr->native_handle() = set_flags(sockfd);
                         sptr->connectto(addr, addrlen);
                     }

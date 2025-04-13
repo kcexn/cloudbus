@@ -15,7 +15,6 @@
 */
 #include "controller_connector.hpp"
 #include <tuple>
-#include <cassert>
 #include <sys/un.h>
 #include <fcntl.h>
 namespace cloudbus {
@@ -332,15 +331,13 @@ namespace cloudbus {
                     ){
                         auto&[sfd, ssp] = hnd;
                         if(sfd == ssp->BAD_SOCKET){
-                            if( (protocol == "TCP" || protocol == "UNIX") &&
-                                (sfd=socket(addr->sa_family, SOCK_STREAM, 0)) < 0
-                            ){
-                                throw std::system_error(
-                                    std::error_code(errno, std::system_category()), 
-                                    "Unable to create a new socket."
-                                );
-                            }
-                            else throw std::invalid_argument("Unsupported transport protocol.");
+                            if(protocol == "TCP" || protocol == "UNIX") {
+                                if( (sfd=socket(addr->sa_family, SOCK_STREAM, 0)) < 0 )
+                                    throw std::system_error(
+                                        std::error_code(errno, std::system_category()), 
+                                        "Unable to create a new socket."
+                                    );
+                            } else throw std::invalid_argument("Unsupported transport protocol.");
                             ssp->native_handle() = set_flags(sfd);
                             ssp->connectto(addr, addrlen);
                         }

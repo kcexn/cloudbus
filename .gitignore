@@ -13,6 +13,7 @@ config.status
 configure
 depcomp
 compile
+test-driver
 missing
 INSTALL
 install-sh

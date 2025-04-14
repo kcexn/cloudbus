@@ -1,4 +1,3 @@
-
 ARFLAGS = cr
 AM_CXXFLAGS = -O3
 noinst_LIBRARIES = libcbutils.a

@@ -20,7 +20,7 @@
   `${PREFIX}/etc/cloudbus`. To make components search the working directory for 
   configuration configure the `CONFDIR` compiler flag to be explicitly unset. i.e.:
   ```
-  ./configure CXXFLAGS='-UCONFDIR'
+  $ ./configure CXXFLAGS='-UCONFDIR'
   ```
 
 * This can be combined with VPATH builds to nicely separate out any development 

@@ -1,4 +1,4 @@
-name: build
+name: tests
 
 on:
   push:
@@ -21,3 +21,5 @@ jobs:
       run: ./configure
     - name: make
       run: make -j3
+    - name: make check
+      run: make check

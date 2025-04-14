@@ -1,4 +1,5 @@
 ![build](https://github.com/kcexn/cloudbus/actions/workflows/build.yml/badge.svg)
+![tests](https://github.com/kcexn/cloudbus/actions/workflows/tests.yml/badge.svg)
 
 # Cloudbus: Session-layer Control for Network Services
 Cloudbus is a framework of distributed network proxies that aims to support application 

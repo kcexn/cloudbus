@@ -5,7 +5,7 @@ cloudbusconf_DATA = conf/controller.ini.orig conf/segment.ini.orig
 systemdconf_DATA = conf/systemd/controller.service conf/systemd/segment.service
 SOURCEDIR = src
 AM_CXXFLAGS = -DCONFDIR=\"$(cloudbusconfdir)\" -O3
-SUBDIRS = $(SOURCEDIR)
+SUBDIRS = $(SOURCEDIR) tests
 bin_PROGRAMS = controller segment
 
 LDADD = $(SOURCEDIR)/libcbutils.a

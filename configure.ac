@@ -1,5 +1,12 @@
 AC_PREREQ([2.71])
 AC_INIT([cloudbus], [0.0.4], [kevin.exton@pm.me])
+AC_ARG_ENABLE([tests],
+	[AS_HELP_STRING([--enable-tests],
+		[enable development tests (default=no)])],
+	[enable_tests="$enableval"],
+	[enable_tests=no])
+AM_CONDITIONAL([ENABLE_TESTS],
+	[test "x$enable_tests" = "xyes"])
 AC_SEARCH_LIBS(
 	[ares_version], [cares],
 	[],

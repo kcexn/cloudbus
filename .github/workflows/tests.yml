@@ -18,7 +18,7 @@ jobs:
     - name: reconf
       run: autoreconf -i
     - name: configure
-      run: ./configure
+      run: ./configure --enable-tests
     - name: make
       run: make -j3
     - name: make check

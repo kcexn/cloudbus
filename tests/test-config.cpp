@@ -4,7 +4,7 @@
 #include <sstream>
 #include <iostream>
 
-static int test_ingest_config(const std::string& path){
+static int test_ingest_config(){
     using namespace cloudbus;
     config::configuration conf;
     std::stringstream ss;
@@ -36,7 +36,7 @@ static int test_ingest_config(const std::string& path){
 int main(int argc, char **argv){
     int rc = TEST_PASS;
     #ifdef TEST_SRCDIR
-        if(rc = test_ingest_config(std::string(TEST_SRCDIR).append("/data/config.ini")))
+        if(rc = test_ingest_config())
             return rc;
     #else
         return TEST_ERROR;

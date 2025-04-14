@@ -23,6 +23,12 @@
   $ ./configure CXXFLAGS='-UCONFDIR'
   ```
 
+* Development tests are disabled by default so that software tests do not need to be 
+  included in the distributed tarball. Enable tests at configure time with:
+  ```
+  $ ./configure --enable-tests
+  ```
+
 * This can be combined with VPATH builds to nicely separate out any development 
   related configuration from configuration that will be bundled in the release 
   tarballs. i.e.:

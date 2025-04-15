@@ -257,32 +257,34 @@ namespace cloudbus{
             constexpr std::size_t SHRINK_THRESHOLD = 4096;
             auto& sbd = south().front();
             auto&[sfd, ssp] = sbd.make();
-            sbd.register_connect(
-                ssp,
-                [&triggers=triggers()](
-                    auto& hnd,
-                    const auto *addr,
-                    auto addrlen,
-                    const std::string& protocol
-                ){
-                    auto&[sockfd, sptr] = hnd;
-                    if(sockfd == sptr->BAD_SOCKET){
-                        if(protocol == "TCP" || protocol == "UNIX") {
-                            if( (sockfd=socket(addr->sa_family, SOCK_STREAM, 0)) < 0 )
-                                throw std::system_error(
-                                    std::error_code(errno, std::system_category()),
-                                    "Unable to create a new socket."
-                                );
-                        } else throw std::invalid_argument("Unsupported transport protocol.");
-                        sptr->native_handle() = set_flags(sockfd);
-                        sptr->connectto(addr, addrlen);
+            if(sfd == ssp->BAD_SOCKET){
+                sbd.register_connect(
+                    ssp,
+                    [&triggers=triggers()](
+                        auto& hnd,
+                        const auto *addr,
+                        auto addrlen,
+                        const std::string& protocol
+                    ){
+                        auto&[sockfd, sptr] = hnd;
+                        if(sockfd == sptr->BAD_SOCKET){
+                            if(protocol == "TCP" || protocol == "UNIX") {
+                                if( (sockfd=socket(addr->sa_family, SOCK_STREAM, 0)) < 0 )
+                                    throw std::system_error(
+                                        std::error_code(errno, std::system_category()),
+                                        "Unable to create a new socket."
+                                    );
+                            } else throw std::invalid_argument("Unsupported transport protocol.");
+                            sptr->native_handle() = set_flags(sockfd);
+                            sptr->connectto(addr, addrlen);
+                        }
+                        triggers.set(sockfd, (POLLIN | POLLOUT));
                     }
-                    triggers.set(sockfd, (POLLIN | POLLOUT));
-                }
-            );
-            /* Address resolution only on the first pending connect. */
-            if(sbd.addresses().empty() && sbd.npending()==1)
-                resolver().resolve(sbd);
+                );
+                /* Address resolution only on the first pending connect. */
+                if(sbd.addresses().empty() && sbd.npending()==1)
+                    resolver().resolve(sbd);
+            }
             const auto cur = connection_type::clock_type::now();
             connections().push_back(
                 (buf.type()->op == messages::STOP)

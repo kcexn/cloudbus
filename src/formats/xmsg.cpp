@@ -91,8 +91,9 @@ namespace cloudbus{
             if(auto *lp = len(); lp && lp->length == pptr()-pbase())
                 return Base::overflow(ch);
             bufsize += BUFINC;
-            if( !(bufptr=std::realloc(bufptr, bufsize)) )
-                return Base::overflow(ch);
+            if(auto *ptr = std::realloc(bufptr, bufsize))
+                bufptr = ptr;
+            else return Base::overflow(ch);
             char *base = static_cast<char*>(bufptr);
             setp(base, base+bufsize);
             pbump(poff);
@@ -134,8 +135,10 @@ namespace cloudbus{
             return pos;
         }
         xmsgbuf::~xmsgbuf(){
-            if(bufptr)
+            if(bufptr){
                 std::free(bufptr);
+                bufptr = nullptr;
+            }
         }
 
         xmsgstream::xmsgstream():

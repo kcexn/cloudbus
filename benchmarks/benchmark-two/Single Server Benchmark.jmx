@@ -10,6 +10,21 @@
       </elementProp>
     </TestPlan>
     <hashTree>
+      <PreciseThroughputTimer guiclass="TestBeanGUI" testclass="PreciseThroughputTimer" testname="Precise Throughput Timer" enabled="true">
+        <doubleProp>
+          <name>allowedThroughputSurplus</name>
+          <value>1.0</value>
+          <savedValue>0.0</savedValue>
+        </doubleProp>
+        <intProp name="batchSize">1</intProp>
+        <intProp name="batchThreadDelay">0</intProp>
+        <stringProp name="duration">${__P(duration, 15)}</stringProp>
+        <intProp name="exactLimit">10000</intProp>
+        <longProp name="randomSeed">0</longProp>
+        <stringProp name="throughput">${__P(requests, 30)}</stringProp>
+        <stringProp name="throughputPeriod">${__P(duration, 15)}</stringProp>
+      </PreciseThroughputTimer>
+      <hashTree/>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group" enabled="true">
         <stringProp name="ThreadGroup.on_sample_error">stopthread</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
@@ -48,21 +63,6 @@
           <stringProp name="HTTPSampler.implementation">Java</stringProp>
           <stringProp name="HTTPSampler.response_timeout">2000</stringProp>
         </HTTPSamplerProxy>
-        <hashTree/>
-        <PreciseThroughputTimer guiclass="TestBeanGUI" testclass="PreciseThroughputTimer" testname="Precise Throughput Timer" enabled="true">
-          <doubleProp>
-            <name>allowedThroughputSurplus</name>
-            <value>1.0</value>
-            <savedValue>0.0</savedValue>
-          </doubleProp>
-          <intProp name="batchSize">1</intProp>
-          <intProp name="batchThreadDelay">0</intProp>
-          <stringProp name="duration">${__P(duration, 15)}</stringProp>
-          <intProp name="exactLimit">10000</intProp>
-          <longProp name="randomSeed">0</longProp>
-          <stringProp name="throughput">${__P(requests, 30)}</stringProp>
-          <stringProp name="throughputPeriod">${__P(duration, 15)}</stringProp>
-        </PreciseThroughputTimer>
         <hashTree/>
         <ResultCollector guiclass="SimpleDataWriter" testclass="ResultCollector" testname="Simple Data Writer" enabled="true">
           <boolProp name="ResultCollector.error_logging">false</boolProp>

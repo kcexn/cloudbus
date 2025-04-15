@@ -6,7 +6,7 @@ then one more from the controller to the segment. Each additional network hop re
 Despite this, the penalty for using Cloudbus can be managed.
 
 ## Results:
-Latencies (ms): mean=31, median=29, p99=73
+Latencies (ms): mean=32, median=30, p99=84
 
 ## Benchmarking on Google Compute Engine with Gcloud CLI:
 ### Building the Test Infrastructure
@@ -72,8 +72,8 @@ We will use NGINX and we install it by running:
 $ gcloud compute ssh "${SERVER_NAME}" \
     --zone="${SERVER_ZONE}" \
     --command="/usr/bin/sh -c 'sudo apt-get update && \
-        sudo apt-get upgrade && \
-        sudo apt-get install nginx'"
+        sudo apt-get -y upgrade && \
+        sudo apt-get -y install nginx'"
 ```
 and following the prompts.
 
@@ -83,8 +83,8 @@ We will use Apache Jmeter. We can install it by running:
 $ gcloud compute ssh "${CLIENT_NAME}" \
     --zone="${CLIENT_ZONE}" \
     --command="/usr/bin/sh -c 'sudo apt-get update && \
-        sudo apt-get upgrade && \
-        sudo apt-get install default-jre && \
+        sudo apt-get -y upgrade && \
+        sudo apt-get -y install default-jre && \
         (wget https://dlcdn.apache.org//jmeter/binaries/apache-jmeter-5.6.3.tgz -O - | sudo tar -zxvf - -C /opt/) && \
         sudo ln -s /opt/apache-jmeter-5.6.3/bin/jmeter /usr/bin/jmeter'"
 ```
@@ -96,19 +96,20 @@ Install build tools and cloudbus dependencies on the controller and segment node
 $ gcloud compute ssh "${CONTROLLER_NAME}" \
     --zone="${CLIENT_ZONE}" \
     --command="/usr/bin/sh -c 'sudo apt-get update && \
-        sudo apt-get upgrade && \
-        sudo apt-get install build-essential libc-ares-dev'" && \
+        sudo apt-get -y upgrade && \
+        sudo apt-get -y install build-essential libc-ares-dev'" && \
 gcloud compute ssh "${SEGMENT_NAME}" \
     --zone="${SERVER_ZONE}" \
     --command="/usr/bin/sh -c 'sudo apt-get update && \
-        sudo apt-get upgrade && \
-        sudo apt-get install build-essential libc-ares-dev'"
+        sudo apt-get -y upgrade && \
+        sudo apt-get -y install build-essential libc-ares-dev'"
 ```
 
 #### Install and Configure Cloudbus on the Controller and the Segment
 Copy the cloudbus distribution:
 ```
-$ CLOUDBUS_PATH='./cloudbus-0.0.3.tar.gz' && \
+$ VERSION=0.0.4 && \
+CLOUDBUS_PATH="./cloudbus-${VERSION}.tar.gz" && \
 gcloud compute scp "${CLOUDBUS_PATH}" \
     "${CONTROLLER_NAME}":~ \
     --zone="${CLIENT_ZONE}" && \
@@ -118,9 +119,10 @@ gcloud compute scp "${CLOUDBUS_PATH}" \
 ```
 Install cloudbus:
 ```
-$ COMMAND="/usr/bin/sh -c 'tar -zxvf cloudbus-0.0.3.tar.gz && \
-    cd cloudbus-0.0.3 && \
-    ./configure CXXFLAGS='-flto' && \
+$ VERSION=0.0.4 && \
+COMMAND="/usr/bin/sh -c 'tar -zxvf cloudbus-${VERSION}.tar.gz && \
+    cd cloudbus-${VERSION} && \
+    ./configure CXXFLAGS=-flto && \
     make -j3 && \
     sudo make install'" && \
 gcloud compute ssh "${CONTROLLER_NAME}" \
@@ -183,13 +185,14 @@ gcloud compute ssh "${SEGMENT_NAME}" \
 ```
 Then execute the tests by running:
 ```
-$ COMMAND="/usr/bin/sh -c 'jmeter -n -t Single\ Server\ Benchmark.jmx \
-    -Jof=./results.csv \
-    -Jhost=${CONTROLLER_NAME}.${CLIENT_ZONE} \
-    -Jport=8080 \
-    -Jthreads=6 \
-    -Jrequests=10000 \
-    -Jduration=180'" && \
+$ COMMAND="/usr/bin/sh -c 'rm -f results.csv && \
+    jmeter -n -t Single\ Server\ Benchmark.jmx \
+        -Jof=./results.csv \
+        -Jhost=${CONTROLLER_NAME}.${CLIENT_ZONE} \
+        -Jport=8080 \
+        -Jthreads=256 \
+        -Jrequests=6000 \
+        -Jduration=240'" && \
 gcloud compute ssh "${CLIENT_NAME}" \
     --zone="${CLIENT_ZONE}" \
     --command="${COMMAND}"

@@ -110,10 +110,10 @@ namespace io{
                 switch(_errno = errno){
                     case EINTR: continue;
                     case EISCONN:
-                        _connected = true;
                     case EAGAIN:
                     case EALREADY:
                     case EINPROGRESS:
+                        _connected = true;
                         return _buffers.back();
                     default:
                         return buffer_type();
@@ -176,8 +176,9 @@ namespace io{
                 if(std::size_t size=MIN_BUFSIZE*(putlen/MIN_BUFSIZE+1);
                         sendbuf_.iov_len != size)
                 {
-                    if( !(sendbuf_.iov_base=std::realloc(sendbuf_.iov_base, size)) )
-                        throw std::runtime_error("Unable to allocate space for send buffer.");
+                    if(auto *ptr = std::realloc(sendbuf_.iov_base, size))
+                        sendbuf_.iov_base = ptr;
+                    else throw std::bad_alloc();
                     char *data = reinterpret_cast<char*>(sendbuf_.iov_base);
                     setp(data, data+size);
                     pbump(putlen);
@@ -240,6 +241,7 @@ namespace io{
                     sendbuf_.iov_base = static_cast<char*>(sendbuf_.iov_base)+len;
                     sendbuf_.iov_len = std::min(buflen, MIN_BUFSIZE);
                 } else switch(_errno = errno){
+                    case EALREADY:
                     case EISCONN:
                         _connected = true;
                         header.msg_name = nullptr;
@@ -276,6 +278,7 @@ namespace io{
                                     case EALREADY:
                                     case EAGAIN:
                                     case EINPROGRESS:
+                                        _connected = true;
                                         return 0;
                                     default:
                                         return -1;
@@ -289,7 +292,10 @@ namespace io{
                 if(buf->data.iov_len)
                     return 0;
                 if(++it != _buffers.end()){
-                    std::free(buf->data.iov_base);
+                    if(buf->data.iov_base){
+                        std::free(buf->data.iov_base);
+                        buf->data.iov_base = nullptr;
+                    }
                     it = _buffers.erase(--it);
                 }
             }
@@ -378,8 +384,12 @@ namespace io{
             return underflow();
         }
         sockbuf::~sockbuf(){
-            for(auto& buf: _buffers)
-                std::free(buf->data.iov_base);
+            for(auto& buf: _buffers){
+                if(buf->data.iov_base){
+                    std::free(buf->data.iov_base);
+                    buf->data.iov_base = nullptr;
+                }
+            }
             if(_socket > BAD_SOCKET)
                 close(_socket);
         }

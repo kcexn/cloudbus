@@ -7,6 +7,7 @@ AC_ARG_ENABLE([tests],
 	[enable_tests=no])
 AM_CONDITIONAL([ENABLE_TESTS],
 	[test "x$enable_tests" = "xyes"])
+AM_SILENT_RULES([yes])
 AC_SEARCH_LIBS(
 	[ares_version], [cares],
 	[],

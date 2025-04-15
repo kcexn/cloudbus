@@ -89,13 +89,14 @@ gcloud compute scp "${BENCHMARK_PATH}" \
 ### Execute the HTTP Tests:
 Execute the tests by running:
 ```
-$ COMMAND="/usr/bin/sh -c 'jmeter -n -t Single\ Server\ Benchmark.jmx \
-    -Jof=./results.csv \
-    -Jhost=${SERVER_NAME}.${SERVER_ZONE} \
-    -Jport=80 \
-    -Jthreads=6 \
-    -Jrequests=10000 \
-    -Jduration=180'" && \
+$ COMMAND="/usr/bin/sh -c 'rm -f results.csv && \
+    jmeter -n -t Single\ Server\ Benchmark.jmx \
+        -Jof=./results.csv \
+        -Jhost=${SERVER_NAME}.${SERVER_ZONE} \
+        -Jport=80 \
+        -Jthreads=256 \
+        -Jrequests=6000 \
+        -Jduration=240'" && \
 gcloud compute ssh "${CLIENT_NAME}" \
     --zone="${CLIENT_ZONE}" \
     --command="${COMMAND}"

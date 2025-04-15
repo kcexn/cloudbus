@@ -194,10 +194,11 @@ namespace cloudbus {
         }
     }
     std::size_t interface_base::expire_addresses(const time_point& t){
-        for(auto it=_addresses.begin(); it < _addresses.end(); ++it){
-            const auto&[time, interval] = std::get<ttl_type>(*it);
+        auto it = _addresses.begin();
+        while(it != _addresses.end()){
+            const auto&[time, interval] = std::get<ttl_type>(*it++);
             if(interval.count() > -1 && t > time+interval)
-                it = --_addresses.erase(it);
+                it = _addresses.erase(--it);
         }
         return _addresses.size();
     }

@@ -173,11 +173,11 @@ namespace cloudbus {
             const std::streamsize& tellp
         ){
             const std::streamsize pos = MAX_BUFSIZE-(tellp+sizeof(messages::msgheader));
-            auto conn=connections.cbegin();
-            while(conn != connections.cend()){
-                if(conn->south.expired()) {
-                    conn = connections.erase(conn);
-                } else if(auto cur=conn++; cur->north.lock() == np){
+            auto conn=connections.cbegin(), cur=conn;
+            while((cur=conn++) != connections.cend()) {
+                if(cur->south.expired()) {
+                    conn = connections.erase(cur);
+                } else if(cur->north.lock() == np) {
                     if(auto s = cur->south.lock()) {
                         if(s->fail())
                             continue;
@@ -190,7 +190,6 @@ namespace cloudbus {
             }
             return connections.cend();
         }
-        
         int connector::_route(marshaller_type::north_format& buf, const north_type& interface, const north_type::handle_type& stream, event_mask& revents){
             constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
             auto&[nfd, nsp] = stream;
@@ -204,11 +203,11 @@ namespace cloudbus {
                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                 const auto time = connection_type::clock_type::now();
                 std::size_t connected = 0;
-                auto conn = connections().begin();
-                while(conn != connections().end()){
-                    if(conn->south.expired()) {
-                        conn = connections().erase(conn);
-                    } else if(auto cur = conn++; cur->north.lock() == nsp){
+                auto conn = connections().begin(), cur=conn;
+                while((cur=conn++) != connections().end()){
+                    if(cur->south.expired()) {
+                        conn = connections().erase(cur);
+                    } else if(cur->north.lock() == nsp) {
                         if(auto s = cur->south.lock()) {
                             if(++connected && cur->state != connection_type::CLOSED){
                                 head.eid = cur->uuid;
@@ -252,15 +251,15 @@ namespace cloudbus {
                     *eid, {1, sizeof(stop)},
                     {0,0},{messages::STOP, messages::ABORT}
                 };
-                auto conn=connections().begin();
-                while(conn != connections().end()){
-                    if(conn->north.expired()){
-                        conn = connections().erase(conn);
-                    } else if(auto cur = conn++;
+                auto conn=connections().begin(), cur=conn;
+                while((cur=conn++) != connections().end()){
+                    if(cur->north.expired()){
+                        conn = connections().erase(cur);
+                    } else if(
                         !messages::uuidcmp_node(&cur->uuid, eid) &&
                         cur->south.lock()==ssp
                     ){
-                        if(auto n = cur->north.lock()){
+                        if(auto n = cur->north.lock()) {
                             if(cur->state == connection_type::HALF_CLOSED &&
                                 !n->eof() && !(type->flags & messages::ABORT)
                             ){ 
@@ -299,7 +298,7 @@ namespace cloudbus {
                                 }
                             }
                             break;
-                        }
+                        } else conn = connections().erase(cur);
                     }
                 }
                 if(!rem){
@@ -390,15 +389,16 @@ namespace cloudbus {
             };
             const auto time = connection_type::clock_type::now();
             const auto&[nfd, nsp] = stream;
-            auto conn = connections().begin();
-            while(conn != connections().end()) {
-                if(conn->south.expired()) {
-                    conn = connections().erase(conn);
-                } else if(auto cur = conn++; cur->north.lock() == nsp) {
+            auto conn = connections().begin(), cur=conn;
+            while((cur=conn++) != connections().end()) {
+                if(cur->south.expired()) {
+                    conn = connections().erase(cur);
+                } else if(cur->north.lock() == nsp) {
                     if(auto s = cur->south.lock()) {
                         triggers().set(s->native_handle(), POLLOUT);
-                        if(cur->state < connection_type::CLOSED &&
-                                (nsp->fail() || !nsp->eof())
+                        if(
+                            cur->state < connection_type::CLOSED &&
+                            (nsp->fail() || !nsp->eof())
                         ){
                             stop.eid = cur->uuid;
                             if(nsp->fail()){
@@ -455,9 +455,9 @@ namespace cloudbus {
             switch(session_state(connections(), nsp)){
                 case connection_type::CLOSED:
                 {
-                    auto conn = connections().begin();
-                    while(conn != connections().end()){
-                        if(auto cur=conn++; cur->north.lock()==nsp) {
+                    auto conn = connections().begin(), cur=conn;
+                    while((cur=conn++) != connections().end()){
+                        if(cur->north.lock()==nsp) {
                             if(auto s = cur->south.lock())
                                 triggers().set(s->native_handle(), POLLOUT);
                             conn = connections().erase(cur);
@@ -503,11 +503,11 @@ namespace cloudbus {
         void connector::_south_err_handler(south_type& interface, const south_type::handle_type& stream, event_mask& revents){
             const auto&[sfd, ssp] = stream;
             const auto time = connection_type::clock_type::now();
-            auto conn = connections().begin();
-            while(conn != connections().end()){
-                if(conn->north.expired()) {
-                    conn = connections().erase(conn);
-                } else if(auto cur=conn++; cur->south.lock()==ssp){
+            auto conn = connections().begin(), cur=conn;
+            while((cur=conn++) != connections().end()){
+                if(cur->north.expired()) {
+                    conn = connections().erase(cur);
+                } else if(cur->south.lock()==ssp){
                     if(auto n = cur->north.lock()) {
                         state_update(*cur, {messages::STOP, 0}, time);
                         triggers().set(n->native_handle(), POLLOUT);
@@ -540,9 +540,9 @@ namespace cloudbus {
         int connector::_south_state_handler(const south_type::handle_type& stream){
             std::size_t count = 0;
             const auto& ssp = std::get<south_type::stream_ptr>(stream);
-            auto conn = connections().begin();
-            while(conn != connections().end()){
-                if(auto cur=conn++; cur->south.lock()==ssp) {
+            auto conn = connections().begin(), cur=conn;
+            while((cur=conn++) != connections().end()){
+                if(cur->south.lock()==ssp) {
                     if(cur->state == connection_type::CLOSED)
                         conn = connections().erase(cur);
                     else ++count;

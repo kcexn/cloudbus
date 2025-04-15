@@ -54,15 +54,15 @@ namespace cloudbus{
         marshaller::north_buffers::iterator marshaller::_unmarshal(const north_type::handle_type& stream){
             using stream_ptr = north_type::stream_ptr;
             const auto& nsp = std::get<stream_ptr>(stream);
-            auto it = north().begin();
-            while(it != north().end()){
-                auto&[n, buf] = *it++;
+            auto it = north().begin(), cur=it;
+            while((cur=it++) != north().end()){
+                auto&[n, buf] = *cur;
                 if(n.expired()) {
-                    it = north().erase(--it);
+                    it = north().erase(cur);
                 } else if (n.lock() == nsp) {
                     if(xmsg_read(buf, *nsp).bad())
                         return north().end();
-                    return --it;
+                    return cur;
                 }
             }
             auto&[ptr, buf] = north().emplace_back();
@@ -73,17 +73,17 @@ namespace cloudbus{
         marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_type& stream){
             using stream_ptr = south_type::stream_ptr;
             const auto& ssp = std::get<stream_ptr>(stream);
-            auto it = south().begin();
-            while(it != south().end()){
-                auto&[s, buf] = *it++;
+            auto it = south().begin(), cur=it;
+            while((cur=it++) != south().end()){
+                auto&[s, buf] = *cur;
                 if(s.expired()) {
-                    it = south().erase(--it);
+                    it = south().erase(cur);
                 } else if(s.lock() == ssp) {
                     if(buf.tellg() == buf.tellp()){
                         buf.seekg(0);
                         stream_copy(buf.seekp(0), *ssp);
                     }
-                    return --it;
+                    return cur;
                 }
             }
             auto&[ptr, buf] = south().emplace_back();

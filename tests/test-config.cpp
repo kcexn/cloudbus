@@ -24,11 +24,12 @@ static int test_ingest_config() {
     using namespace cloudbus;
     SET_LOG_PREFIX("test_ingest_config()");
     config::configuration conf;
-    std::stringstream ss;
-    ss << "[Cloudbus]\n"
-        << "[Test Service]\n"
-        << "bind=unix:///var/run/test.sock\n"
-        << "backend=unix:///var/run/backend.sock\n";
+    std::stringstream ss{
+        "[Cloudbus]\n"
+        "[Test Service]\n"
+        "bind=unix:///var/run/test.sock\n"
+        "backend=unix:///var/run/backend.sock\n"
+    };
     ss >> conf;
     for(auto& section: conf.sections()){
         if(section.heading == "Cloudbus"){

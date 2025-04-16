@@ -59,5 +59,9 @@ static std::string prefix;
         << ":" << MSG       \
         << std::endl;       \
 }
+#define FAIL(MSG) {     \
+    ERROR_LOG(MSG);     \
+    return TEST_FAIL;   \
+}
 
 #endif

@@ -1,5 +1,5 @@
 AC_PREREQ([2.71])
-AC_INIT([cloudbus], [0.0.4], [kevin.exton@pm.me])
+AC_INIT([cloudbus], [0.1.0], [kevin.exton@pm.me])
 AC_ARG_ENABLE([tests],
 	[AS_HELP_STRING([--enable-tests],
 		[enable development tests (default=no)])],

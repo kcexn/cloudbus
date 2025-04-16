@@ -87,7 +87,7 @@ static int test_make_ipv4_address() {
     }
     auto *in_addr = reinterpret_cast<struct sockaddr_in*>(&addr_storage);
     if(in_addr->sin_port != htons(80)) {
-        ERROR_LOG("in_addr->sin_port != htons(80)")
+        ERROR_LOG("in_addr->sin_port != htons(80)");
         return TEST_FAIL;
     }
     char dst[INET_ADDRSTRLEN];
@@ -149,7 +149,7 @@ static int test_make_unix_address() {
     }
     auto *un_addr = reinterpret_cast<struct sockaddr_un*>(&addr_storage);
     if( std::strncmp(un_addr->sun_path, "/var/run/test.sock", sizeof(un_addr->sun_path)) ) {
-        ERROR_LOG("std::strncmp(un_addr->sun_path, \"/var/run/test.sock\", sizeof(un_addr->sun_path))")
+        ERROR_LOG("std::strncmp(un_addr->sun_path, \"/var/run/test.sock\", sizeof(un_addr->sun_path))");
         return TEST_FAIL;
     }
     return TEST_PASS;

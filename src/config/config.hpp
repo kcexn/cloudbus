@@ -28,10 +28,8 @@ namespace cloudbus{
         using socket_address = std::tuple<std::string, struct sockaddr_storage, socklen_t>;
         using url = std::tuple<std::string, std::string>;
         using address_type = std::variant<std::string, url, socket_address>;
-        /* unix:///<PATH> */
-        /* tcp://<IP>:<PORT> */
-        address_type make_address(const std::string& line);
 
+        address_type make_address(const std::string& line);
         struct section {
             using kvp = std::tuple<std::string, std::string>;
             std::string heading;

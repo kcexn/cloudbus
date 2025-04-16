@@ -50,10 +50,11 @@ namespace cloudbus{
             else return std::string_view(start, c - start);
         }
         static std::string_view _ipv6(const char *c, std::size_t len){
-            if(c == nullptr || *c != '[')
+            if(c == nullptr || *c++ != '[')
                 return std::string_view();
             const char *start = c;
-            for(; len-- > 0 && *c !=']'; ++c);
+            while(len-- > 0 && *c != ']')
+                ++c;
             if(len == SIZE_MAX)
                 return std::string_view();
             else return std::string_view(start, c-start);

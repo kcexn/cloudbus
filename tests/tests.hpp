@@ -47,11 +47,8 @@ static int status = TEST_PASS;
             return status;      \
     }                           \
 }
-#define SKIP(EXEC) {    \
-    status = TEST_SKIP; \
-    EXEC;               \
-}
-
+#define SKIP \
+    status = TEST_SKIP;
 
 static std::string prefix;
 #define SET_LOG_PREFIX(PREFIX) \

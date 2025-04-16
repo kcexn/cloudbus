@@ -14,7 +14,6 @@
 *   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "tests.hpp"
-#include "test-config.hpp"
 #include "../src/config.hpp"
 #include <sstream>
 #include <sys/socket.h>
@@ -173,7 +172,7 @@ static int test_make_url() {
     }
     return TEST_PASS;
 }
-int test_config() {
+int main(int argc, char **argv) {
     std::cout << "================================= TEST CONFIG ==================================" << std::endl;
     EXEC_TEST(test_ingest_config);
     EXEC_TEST(test_make_ipv4_address);

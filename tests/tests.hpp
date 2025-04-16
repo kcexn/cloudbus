@@ -34,13 +34,13 @@
 static int status = TEST_PASS;
 #define EXEC_TEST(FN) {         \
     if(status != TEST_SKIP)     \
-    status=FN();            \
+        status=FN();            \
     std::cout << #FN "():"      \
         << STRSTATUS(status)    \
         << std::endl;           \
     switch(status) {            \
         case TEST_SKIP:         \
-        status = TEST_PASS; \
+            status = TEST_PASS; \
         case TEST_PASS:         \
             break;              \
         default:                \

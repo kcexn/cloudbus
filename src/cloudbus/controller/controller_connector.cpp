@@ -270,9 +270,8 @@ namespace cloudbus {
                         !messages::uuidcmp_node(&cur->uuid, eid) &&
                         !(cur->south.owner_before(ssp) || ssp.owner_before(cur->south))
                     ){
-                        connections().resize(end-connections().begin());
-                        end = connections().end();
                         if(auto n = cur->north.lock()) {
+                            connections().resize(end-connections().begin());
                             if(rem && !eof)
                                 break;
                             if(cur->state == connection_type::CLOSED)

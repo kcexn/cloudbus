@@ -56,7 +56,7 @@ namespace cloudbus{
             while((cur=it++) != end){
                 auto&[n, buf] = *cur;
                 if(n.expired()) {
-                    std::swap(*cur, *(--end));
+                    *cur = std::move(*(--end));
                     it = cur;
                 } else if ( !(n.owner_before(nsp) || nsp.owner_before(n)) ) {
                     north().resize(end-north().begin());
@@ -80,7 +80,7 @@ namespace cloudbus{
             while((cur=it++) != end){
                 auto&[s, buf] = *cur;
                 if(s.expired()) {
-                    std::swap(*cur, *(--end));
+                    *cur = std::move(*(--end));
                     it=cur;
                 } else if( !(s.owner_before(ssp) || ssp.owner_before(s)) ) {
                     south().resize(end-south().begin());

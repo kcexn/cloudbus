@@ -184,7 +184,7 @@ namespace cloudbus{
                 auto conn = connections().begin(), cur=conn, end=connections().end();
                 while((cur=conn++) != end){
                     if(cur->south.expired()) {
-                        std::swap(*cur, *(--end));
+                        *cur = std::move(*(--end));
                         conn = cur;
                     } else if(cur->uuid == *eid && !(cur->north.owner_before(nsp) || nsp.owner_before(cur->north)) ) {
                         connections().resize(end-connections().begin());
@@ -235,7 +235,7 @@ namespace cloudbus{
                 auto conn = connections().begin(), cur=conn, end=connections().end();
                 while((cur=conn++) != end) {
                     if(cur->north.expired()) {
-                        std::swap(*cur, *(--end));
+                        *cur = std::move(*(--end));
                         conn = cur;
                     } else if( !(cur->south.owner_before(ssp) || ssp.owner_before(cur->south)) ) {
                         if(auto n = cur->north.lock()){
@@ -253,7 +253,7 @@ namespace cloudbus{
                                 return -1;
                             return 0;
                         } else {
-                            std::swap(*cur, *(--end));
+                            *cur = std::move(*(--end));
                             conn=cur;
                         }
                     }

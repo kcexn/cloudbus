@@ -137,9 +137,9 @@ namespace cloudbus {
         auto cit = std::find_if(
                 _streams.cbegin(),
                 _streams.cend(),
-            [&fd=std::get<native_handle_type>(handle)]
+            [&ptr=std::get<stream_ptr>(handle)]
             (const auto& hnd){
-                return std::get<native_handle_type>(hnd)==fd;
+                return std::get<stream_ptr>(hnd)==ptr;
             }
         );
         return erase(cit);
@@ -148,9 +148,9 @@ namespace cloudbus {
         auto it = std::find_if(
                 _streams.begin(),
                 _streams.end(),
-            [&fd=std::get<native_handle_type>(handle)]
+            [&ptr=std::get<stream_ptr>(handle)]
             (auto& hnd){
-                return std::get<native_handle_type>(hnd)==fd;
+                return std::get<stream_ptr>(hnd)==ptr;
             }
         );
         return erase(it);
@@ -182,7 +182,7 @@ namespace cloudbus {
                     const auto *addrp = reinterpret_cast<const struct sockaddr*>(&addr);
                     for(auto& hnd: _streams){
                         const auto& ptr = std::get<stream_ptr>(hnd);
-                        if(wp.lock() == ptr){
+                        if( !(ptr.owner_before(wp) || wp.owner_before(ptr)) ) {
                             cb(hnd, addrp, addrlen, _protocol);
                             break;
                         }

@@ -108,7 +108,7 @@ gcloud compute ssh "${SEGMENT_NAME}" \
 #### Install and Configure Cloudbus on the Controller and the Segment
 Copy the cloudbus distribution:
 ```
-$ VERSION=0.0.4 && \
+$ VERSION=0.1.0 && \
 CLOUDBUS_PATH="./cloudbus-${VERSION}.tar.gz" && \
 gcloud compute scp "${CLOUDBUS_PATH}" \
     "${CONTROLLER_NAME}":~ \
@@ -119,7 +119,7 @@ gcloud compute scp "${CLOUDBUS_PATH}" \
 ```
 Install cloudbus:
 ```
-$ VERSION=0.0.4 && \
+$ VERSION=0.1.0 && \
 COMMAND="/usr/bin/sh -c 'tar -zxvf cloudbus-${VERSION}.tar.gz && \
     cd cloudbus-${VERSION} && \
     ./configure CXXFLAGS=-flto && \
@@ -174,12 +174,12 @@ $ PREFIX='/usr/local/etc/cloudbus/systemd' && \
 SYSTEM_PREFIX='/etc/systemd/system' && \
 gcloud compute ssh "${CONTROLLER_NAME}" \
     --zone="${CLIENT_ZONE}" \
-    --command="/usr/bin/sh -c 'sudo ln -s ${PREFIX}/controller.service ${SYSTEM_PREFIX}/controller.service &&\
-        sudo systemctl enable controller &&\
+    --command="/usr/bin/sh -c 'sudo ln -s ${PREFIX}/controller.service ${SYSTEM_PREFIX}/controller.service && \
+        sudo systemctl enable controller && \
         sudo systemctl start controller'" && \
 gcloud compute ssh "${SEGMENT_NAME}" \
     --zone="${SERVER_ZONE}" \
-    --command="/usr/bin/sh -c 'sudo ln -s ${PREFIX}/segment.service ${SYSTEM_PREFIX}/segment.service &&\
+    --command="/usr/bin/sh -c 'sudo ln -s ${PREFIX}/segment.service ${SYSTEM_PREFIX}/segment.service && \
         sudo systemctl enable segment &&\
         sudo systemctl start segment'"
 ```

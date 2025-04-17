@@ -126,7 +126,7 @@ namespace cloudbus{
                                     const auto&[sockfd, nsp] = stream;
                                     if(sockfd == ev->fd && ev->revents & (POLLOUT | POLLERR))
                                         for(auto& c: connections())
-                                            if(c.north.lock() == nsp)
+                                            if( !(c.north.owner_before(nsp) || nsp.owner_before(c.north)) )
                                                 if(auto s = c.south.lock(); s && !s->eof())
                                                     ev = read_restart(s->native_handle(), triggers(), events, ev, put);
                                     return sockfd == ev->fd;
@@ -149,7 +149,7 @@ namespace cloudbus{
                                         const auto&[sockfd, ssp] = stream;
                                         if(sockfd==ev->fd && ev->revents & (POLLOUT | POLLERR))
                                             for(auto& c: connections())
-                                                if(c.south.lock() == ssp)
+                                                if( !(c.south.owner_before(ssp) || ssp.owner_before(c.south)) )
                                                     if(auto n = c.north.lock(); n && !n->eof())
                                                         ev = read_restart(n->native_handle(), triggers(), events, ev, put);
                                         return sockfd == ev->fd;
@@ -181,11 +181,13 @@ namespace cloudbus{
                         : gpos;
                 const auto rem = buf.len()->length - pos;
                 const auto time = connection_type::clock_type::now();
-                auto conn = connections().begin(), cur=conn;
-                while((cur=conn++) != connections().end()){
+                auto conn = connections().begin(), cur=conn, end=connections().end();
+                while((cur=conn++) != end){
                     if(cur->south.expired()) {
-                        conn = connections().erase(cur);
-                    } else if(cur->uuid == *eid && cur->north.lock() == nsp) {
+                        std::swap(*cur, *(--end));
+                        conn = cur;
+                    } else if(cur->uuid == *eid && !(cur->north.owner_before(nsp) || nsp.owner_before(cur->north)) ) {
+                        connections().resize(end-connections().begin());
                         if(auto s = cur->south.lock()){
                             if(auto sockfd = s->native_handle(); sockfd != s->BAD_SOCKET)
                                 triggers().set(sockfd, POLLOUT);
@@ -210,6 +212,7 @@ namespace cloudbus{
                         return eof ? -1 : 0;
                     }
                 }
+                connections().resize(end-connections().begin());
                 if(!eof && !buf.eof() &&
                     (type->flags & messages::INIT) &&
                     seekpos==HDRLEN && pos > HDRLEN
@@ -229,12 +232,14 @@ namespace cloudbus{
             auto&[sfd, ssp] = stream;
             const auto p = buf.tellp();
             if(const auto eof = ssp->eof(); eof || p > 0) {
-                auto conn = connections().begin(), cur=conn;
-                while((cur=conn++) != connections().end()) {
+                auto conn = connections().begin(), cur=conn, end=connections().end();
+                while((cur=conn++) != end) {
                     if(cur->north.expired()) {
-                        conn = connections().erase(cur);
-                    } else if(cur->south.lock() == ssp) {
+                        std::swap(*cur, *(--end));
+                        conn = cur;
+                    } else if( !(cur->south.owner_before(ssp) || ssp.owner_before(cur->south)) ) {
                         if(auto n = cur->north.lock()){
+                            connections().resize(end-connections().begin());
                             messages::msgtype t = {messages::DATA, 0};
                             if(eof) t.op = messages::STOP;
                             buf.seekg(0);
@@ -247,9 +252,13 @@ namespace cloudbus{
                             if(cur->state == connection_type::CLOSED)
                                 return -1;
                             return 0;
-                        } else conn = connections().erase(cur);
+                        } else {
+                            std::swap(*cur, *(--end));
+                            conn=cur;
+                        }
                     }
                 }
+                connections().resize(end-connections().begin());
                 return -1;
             }
             if(p == 0) return 0;
@@ -302,7 +311,7 @@ namespace cloudbus{
             while((cur=conn++) != connections().end()) {
                 if(cur->south.expired()) {
                     conn = connections().erase(cur);
-                } else if(cur->north.lock() == nsp) {
+                } else if( !(cur->north.owner_before(nsp) || nsp.owner_before(cur->north)) ) {
                     if(auto s = cur->south.lock()) {
                         state_update(*cur, {messages::STOP, 0}, time);
                         triggers().set(s->native_handle(), POLLOUT);
@@ -381,7 +390,7 @@ namespace cloudbus{
             while((cur=conn++) != connections().end()){
                 if(cur->north.expired()) {
                     conn = connections().erase(cur);
-                } else if(cur->south.lock() == ssp) {
+                } else if( !(cur->south.owner_before(ssp) || ssp.owner_before(cur->south)) ) {
                     if(auto n = cur->north.lock()) {
                         messages::msgheader stop{
                             cur->uuid, {1, sizeof(stop)},
@@ -441,7 +450,7 @@ namespace cloudbus{
             const auto&[sfd, ssp] = stream;
             auto conn = connections().begin(), cur=conn;
             while((cur=conn++) != connections().end()) {
-                if(cur->south.lock() == ssp) {
+                if( !(cur->south.owner_before(ssp) || ssp.owner_before(cur->south)) ) {
                     switch(cur->state){
                         case connection_type::CLOSED:
                             conn = connections().erase(cur);

@@ -52,12 +52,14 @@ namespace cloudbus{
         marshaller::north_buffers::iterator marshaller::_unmarshal(const north_type::handle_type& stream){
             using stream_ptr = north_type::stream_ptr;
             const auto& nsp = std::get<stream_ptr>(stream);
-            auto it=north().begin(), cur=it;
-            while((cur=it++) != north().end()){
+            auto it=north().begin(), cur=it, end=north().end();
+            while((cur=it++) != end){
                 auto&[n, buf] = *cur;
                 if(n.expired()) {
-                    it = north().erase(cur);
-                } else if (n.lock() == nsp) {
+                    std::swap(*cur, *(--end));
+                    it = cur;
+                } else if ( !(n.owner_before(nsp) || nsp.owner_before(n)) ) {
+                    north().resize(end-north().begin());
                     if(buf.tellg() == buf.tellp()){
                         buf.seekg(0);
                         stream_copy(buf.seekp(0), *nsp);
@@ -65,6 +67,7 @@ namespace cloudbus{
                     return cur;
                 }
             }
+            north().resize(end-north().begin());
             auto&[ptr, buf] = north().emplace_back();
             ptr = nsp;
             stream_copy(buf, *nsp);
@@ -73,17 +76,20 @@ namespace cloudbus{
         marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_type& stream){
             using stream_ptr = south_type::stream_ptr;
             const auto& ssp = std::get<stream_ptr>(stream);
-            auto it = south().begin(), cur=it;
-            while((cur=it++) != south().end()){
+            auto it=south().begin(), cur=it, end=south().end();
+            while((cur=it++) != end){
                 auto&[s, buf] = *cur;
                 if(s.expired()) {
-                    it = south().erase(cur);
-                } else if(s.lock() == ssp) {
+                    std::swap(*cur, *(--end));
+                    it=cur;
+                } else if( !(s.owner_before(ssp) || ssp.owner_before(s)) ) {
+                    south().resize(end-south().begin());
                     if(xmsg_read(buf, *ssp).bad())
                         return south().end();
                     return cur;
                 }
             }
+            south().resize(end-south().begin());
             auto&[ptr, buf] = south().emplace_back();
             ptr = ssp;
             xmsg_read(buf, *ssp);

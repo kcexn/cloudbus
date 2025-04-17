@@ -59,7 +59,7 @@ namespace cloudbus{
                 auto&[n, buf] = *cur;
                 if(n.expired()) {
                     it = north().erase(cur);
-                } else if (n.lock() == nsp) {
+                } else if ( !(n.owner_before(nsp) || nsp.owner_before(n)) ) {
                     if(xmsg_read(buf, *nsp).bad())
                         return north().end();
                     return cur;
@@ -78,7 +78,7 @@ namespace cloudbus{
                 auto&[s, buf] = *cur;
                 if(s.expired()) {
                     it = south().erase(cur);
-                } else if(s.lock() == ssp) {
+                } else if( !(s.owner_before(ssp) || ssp.owner_before(s)) ) {
                     if(buf.tellg() == buf.tellp()){
                         buf.seekg(0);
                         stream_copy(buf.seekp(0), *ssp);

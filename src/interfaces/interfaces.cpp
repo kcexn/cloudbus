@@ -57,7 +57,7 @@ namespace cloudbus {
     ):
         _uri{uri}, _protocol{protocol},
         _addresses{}, _streams{}, _pending{},
-        _idx{0}
+        _idx{0}, _options{}
     {
         if(addr != nullptr && addrlen >= sizeof(sa_family_t))
             _addresses.push_back(make_address(addr, addrlen, std::make_tuple(clock_type::now(), ttl)));
@@ -76,7 +76,7 @@ namespace cloudbus {
     ):
         _uri{uri}, _protocol{protocol},
         _addresses{addresses}, _streams{}, _pending{},
-        _idx{0}
+        _idx{0}, _options{}
     {}
     interface_base::interface_base(
         addresses_type&& addresses,
@@ -86,7 +86,7 @@ namespace cloudbus {
         _uri{uri}, _protocol{protocol},
         _addresses{std::move(addresses)},
         _streams{}, _pending{},
-        _idx{0}
+        _idx{0}, _options{}
     {}
     interface_base::interface_base(interface_base&& other) noexcept:
         interface_base()
@@ -211,5 +211,6 @@ namespace cloudbus {
         swap(lhs._streams, rhs._streams);
         swap(lhs._pending, rhs._pending);
         swap(lhs._idx, rhs._idx);
+        swap(lhs._options, rhs._options);
     }
 }

@@ -37,23 +37,42 @@ namespace cloudbus {
     {
         std::string heading = section.heading;
         std::transform(heading.begin(), heading.end(), heading.begin(), [](const unsigned char c){ return std::toupper(c); });
+        short dir=0;
+        interface_base::options_type soptions, noptions;
         if(heading != "CLOUDBUS"){
             for(const auto&[key, value]: section.config){
                 std::string k = key;
                 std::transform(k.begin(), k.end(), k.begin(), [](const unsigned char c){ return std::toupper(c); });
-                if(k == "BIND"){
+                if(k == "BIND") {
                     if(auto nfd = make_north(config::make_address(value)); nfd < 0)
                         throw std::invalid_argument("Invalid bind address.");
+                    dir = 1;
                 } else if(k == "BACKEND"){
                     if(make_south(config::make_address(value)))
                         throw std::invalid_argument("Invalid backend address.");
-                } else if(k == "MODE"){
+                    dir = -1;
+                } else if(k == "MODE") {
                     std::string v = value;
                     std::transform(v.begin(), v.end(), v.begin(), [](const unsigned char c){ return std::toupper(c); });
                     if(v == "FULL_DUPLEX")
                         _mode = FULL_DUPLEX;
+                } else {
+                    if(!dir)
+                        continue;
+                    if(dir > 0)
+                        noptions.emplace_back(k, value);
+                    if(dir < 0)
+                        soptions.emplace_back(k, value);
                 }
             }
+            if(north().empty())
+                throw std::invalid_argument("A service must be configued with a bind address.");
+            if(south().empty())
+                throw std::invalid_argument("A service must be configured with at least one backend.");
+            for(auto& n: north())
+                n.options() = noptions;
+            for(auto& s: south())
+                s.options() = soptions;
             if(_mode == FULL_DUPLEX && south().size() > messages::CLOCK_SEQ_MAX)
                 throw std::invalid_argument("The service fanout ratio will overflow the UUID clock_seq.");
         } else throw std::invalid_argument("A connector must be initialized with a service configuration.");

@@ -17,6 +17,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <netinet/tcp.h>
 namespace cloudbus{
     namespace segment {
         static constexpr std::streamsize MAX_BUFSIZE = 65536 * 4096; /* 256MiB */
@@ -270,7 +271,7 @@ namespace cloudbus{
             auto&[sfd, ssp] = sbd.make();
             sbd.register_connect(
                 ssp,
-                [&triggers=triggers()](
+                [&](
                     auto& hnd,
                     const auto *addr,
                     auto addrlen,
@@ -288,7 +289,7 @@ namespace cloudbus{
                         sptr->native_handle() = set_flags(sockfd);
                     }
                     sptr->connectto(addr, addrlen);
-                    triggers.set(sockfd, (POLLIN | POLLOUT));
+                    triggers().set(sockfd, (POLLIN | POLLOUT));
                 }
             );
             /* Address resolution only on the first pending connect. */
@@ -347,6 +348,18 @@ namespace cloudbus{
             int sockfd = -1, listenfd = std::get<native_handle_type>(stream);
             while( (sockfd = _accept(listenfd, nullptr, nullptr)) > -1 ){
                 interface.make(sockfd, true);
+                if(interface.protocol() == "TCP"){
+                    for(auto&[k,v] : interface.options()){
+                        if(k == "TCP_NODELAY"){
+                            int nodelay = 1;
+                            if(setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay)))
+                                throw std::system_error(
+                                    std::error_code(errno, std::system_category()),
+                                    "Unable to set TCP_NODELAY socket option."
+                                );
+                        }
+                    }
+                }
                 triggers().set(sockfd, POLLIN);
             }
             revents &= ~(POLLIN | POLLHUP);

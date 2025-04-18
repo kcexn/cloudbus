@@ -3,10 +3,10 @@ This benchmark measures the performance of the cloudbus components when bridging
 As it is a single web-server configuration, the results may be compared against the results in benchmark-one. 
 Compared to the configuration in benchmark-one, Cloudbus adds two additional network hops, one from the client to the controller, 
 then one more from the controller to the segment. Each additional network hop requires us to resolve an additional DNS query. 
-Despite this, the penalty for using Cloudbus can be managed.
+Despite this, the penalty for using Cloudbus is minimal.
 
 ## Results:
-Latencies (ms): mean=32, median=30, p99=84
+Latencies (ms): mean=27, median=30, p99=34
 
 ## Benchmarking on Google Compute Engine with Gcloud CLI:
 ### Building the Test Infrastructure
@@ -157,6 +157,10 @@ gcloud compute ssh "${SEGMENT_NAME}" \
     --zone="${SERVER_ZONE}" \
     --command="/usr/bin/sh -c 'sudo mv segment.ini /usr/local/etc/cloudbus/'"
 ```
+gcloud compute ssh ${CONTROLLER_NAME} --zone=${CLIENT_ZONE} \
+    --command="/usr/bin/sh -c 'sudo systemctl daemon-reload && sudo systemctl stop controller && sudo systemctl start controller'" && \
+gcloud compute ssh ${SEGMENT_NAME} --zone=${SERVER_ZONE} \
+    --command="/usr/bin/sh -c 'sudo systemctl daemon-reload && sudo systemctl stop segment && sudo systemctl start segment'"
 
 ### Configure the HTTP Tests:
 Copy the Jmeter JMX benchmark to the test client by running:

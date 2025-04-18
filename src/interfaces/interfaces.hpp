@@ -47,6 +47,8 @@ namespace cloudbus {
             using address_type = std::tuple<struct sockaddr_storage, socklen_t, ttl_type>;
             using addresses_type = std::vector<address_type>;
             using callback_type = std::function<void(handle_type& hnd, const struct sockaddr*, socklen_t, const std::string&)>;
+            using option_type = std::tuple<std::string, std::string>;
+            using options_type = std::vector<option_type>;
 
             static const address_type NULLADDR;
             static address_type make_address(const struct sockaddr *addr, socklen_t addrlen, const ttl_type& ttl);
@@ -79,6 +81,7 @@ namespace cloudbus {
 
             std::string& uri() { return _uri; }
             std::string& protocol() { return _protocol; }
+            options_type& options() { return _options; }
             std::size_t npending() const { return _pending.size(); }
 
             const addresses_type& addresses() const { return _addresses; }
@@ -114,6 +117,7 @@ namespace cloudbus {
             handles_type _streams;
             callbacks_type _pending;
             std::size_t _idx;
+            options_type _options;
 
             friend void swap(interface_base& lhs, interface_base& rhs) noexcept;
     };

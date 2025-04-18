@@ -17,6 +17,7 @@
 #include <tuple>
 #include <sys/un.h>
 #include <fcntl.h>
+#include <netinet/tcp.h>
 namespace cloudbus {
     namespace controller {
         static constexpr std::streamsize MAX_BUFSIZE = 65536 * 4096; /* 256MiB */
@@ -336,7 +337,7 @@ namespace cloudbus {
                 if(empty){
                     sbd.register_connect(
                         sptr,
-                        [&triggers=triggers()](
+                        [&](
                             auto& hnd,
                             const auto *addr,
                             auto addrlen,
@@ -350,11 +351,23 @@ namespace cloudbus {
                                             std::error_code(errno, std::system_category()), 
                                             "Unable to create a new socket."
                                         );
+                                    if(protocol == "TCP"){
+                                        for(auto&[k, v] : sbd.options()){
+                                            if(k == "TCP_NODELAY"){
+                                                int nodelay = 1;
+                                                if(setsockopt(sfd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay)))
+                                                    throw std::system_error(
+                                                        std::error_code(errno, std::system_category()),
+                                                        "Unable to set TCP_NODELAY on socket."
+                                                    );
+                                            }
+                                        }
+                                    }
                                 } else throw std::invalid_argument("Unsupported transport protocol.");
                                 ssp->native_handle() = set_flags(sfd);
                             }
                             ssp->connectto(addr, addrlen);
-                            triggers.set(sfd, (POLLIN | POLLOUT));
+                            triggers().set(sfd, (POLLIN | POLLOUT));
                         }
                     );
                     /* Address resolution only on the first pending connect. */

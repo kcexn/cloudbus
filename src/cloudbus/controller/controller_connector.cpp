@@ -210,10 +210,7 @@ namespace cloudbus {
                 std::size_t connected = 0;
                 auto conn=connections().begin(), cur=conn, end=connections().end();
                 while((cur=conn++) != end){
-                    if(cur->south.expired()) {
-                        *cur = std::move(*(--end));
-                        conn = cur;
-                    } else if( !(cur->north.owner_before(nsp) || nsp.owner_before(cur->north)) ) {
+                    if( !(cur->north.owner_before(nsp) || nsp.owner_before(cur->north)) ) {
                         if(auto s = cur->south.lock()) {
                             if(++connected && cur->state != connection_type::CLOSED){
                                 head.eid = cur->uuid;
@@ -223,9 +220,6 @@ namespace cloudbus {
                                     triggers().set(sockfd, POLLOUT);
                                 state_update(*cur, head.type, time);
                             }
-                        } else {
-                            *cur = std::move(*(--end));
-                            conn = cur;
                         }
                     }
                 }
@@ -266,7 +260,7 @@ namespace cloudbus {
                     if(cur->north.expired()){
                         *cur = std::move(*(--end));
                         conn = cur;
-                    } else if(
+                    } else if (
                         !messages::uuidcmp_node(&cur->uuid, eid) &&
                         !(cur->south.owner_before(ssp) || ssp.owner_before(cur->south))
                     ){
@@ -409,10 +403,7 @@ namespace cloudbus {
             const auto&[nfd, nsp] = stream;
             auto conn = connections().begin(), cur=conn, end=connections().end();
             while((cur=conn++) != connections().end()) {
-                if(cur->south.expired()) {
-                    *cur = std::move(*(--end));
-                    conn = cur;
-                } else if( !(cur->north.owner_before(nsp) || nsp.owner_before(cur->north)) ) {
+                if( !(cur->north.owner_before(nsp) || nsp.owner_before(cur->north)) ) {
                     if(auto s = cur->south.lock()) {
                         triggers().set(s->native_handle(), POLLOUT);
                         if(
@@ -431,9 +422,6 @@ namespace cloudbus {
                             *cur = std::move(*(--end));
                             conn = cur;
                         }
-                    } else {
-                        *cur = std::move(*(--end));
-                        conn = cur;
                     }
                 }
             }
@@ -532,20 +520,13 @@ namespace cloudbus {
             const auto time = connection_type::clock_type::now();
             auto conn = connections().begin(), cur=conn, end=connections().end();
             while((cur=conn++) != end){
-                if(cur->north.expired()) {
-                    *cur = std::move(*(--end));
-                    conn = cur;
-                } else if( !(cur->south.owner_before(ssp) || ssp.owner_before(cur->south)) ){
+                if( !(cur->south.owner_before(ssp) || ssp.owner_before(cur->south)) ){
                     if(auto n = cur->north.lock()) {
                         state_update(*cur, {messages::STOP, 0}, time);
                         triggers().set(n->native_handle(), POLLOUT);
-                    } else {
-                        *cur = std::move(*(--end));
-                        conn = cur;
                     }
                 }
             }
-            connections().resize(end-connections().begin());
             revents = 0;
             triggers().clear(sfd);
             interface.erase(stream);

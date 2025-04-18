@@ -37,9 +37,9 @@ namespace cloudbus {
             protected:
                 virtual size_type _handle(events_type& events) override {
                     size_type handled = 0;
-                    auto hit=handles().begin();
-                    while(hit != handles().end()){
-                        auto& hnd = *hit++;
+                    auto hit=handles().begin(), cur=hit;
+                    while((cur=hit++) != handles().end()){
+                        auto& hnd = *cur;
                         auto&[sockfd, sockev] = hnd;
                         event_mask curr=0, set=0, unset=0;
                         auto cit = std::find_if(
@@ -61,7 +61,7 @@ namespace cloudbus {
                         } else cit=events.erase(cit);
                         if(!sockev){
                             this->triggers().clear(sockfd);
-                            hit = handles().erase(--hit);
+                            hit = handles().erase(cur);
                         } else {
                             if( (sockev & READABLE) && !(curr & POLLIN) )
                                 set |= POLLIN;

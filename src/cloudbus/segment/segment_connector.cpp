@@ -285,6 +285,14 @@ namespace cloudbus{
                                     std::error_code(errno, std::system_category()),
                                     "Unable to create a new socket."
                                 );
+                            if(protocol == "TCP"){
+                                int nodelay = 1;
+                                if(setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay)))
+                                    throw std::system_error(
+                                        std::error_code(errno, std::system_category()),
+                                        "Unable to set TCP_NODELAY socket option."
+                                    );
+                            }
                         } else throw std::invalid_argument("Unsupported transport protocol.");
                         sptr->native_handle() = set_flags(sockfd);
                     }
@@ -349,16 +357,12 @@ namespace cloudbus{
             while( (sockfd = _accept(listenfd, nullptr, nullptr)) > -1 ){
                 interface.make(sockfd, true);
                 if(interface.protocol() == "TCP"){
-                    for(auto&[k,v] : interface.options()){
-                        if(k == "TCP_NODELAY"){
-                            int nodelay = 1;
-                            if(setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay)))
-                                throw std::system_error(
-                                    std::error_code(errno, std::system_category()),
-                                    "Unable to set TCP_NODELAY socket option."
-                                );
-                        }
-                    }
+                    int nodelay = 1;
+                    if(setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay)))
+                        throw std::system_error(
+                            std::error_code(errno, std::system_category()),
+                            "Unable to set TCP_NODELAY socket option."
+                        );
                 }
                 triggers().set(sockfd, POLLIN);
             }

@@ -59,9 +59,9 @@ namespace cloudbus {
                 } else {
                     if(!dir)
                         continue;
-                    if(dir > 0)
+                    else if(dir > 0)
                         noptions.emplace_back(k, value);
-                    if(dir < 0)
+                    else if(dir < 0)
                         soptions.emplace_back(k, value);
                 }
             }

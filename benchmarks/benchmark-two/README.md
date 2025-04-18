@@ -157,10 +157,6 @@ gcloud compute ssh "${SEGMENT_NAME}" \
     --zone="${SERVER_ZONE}" \
     --command="/usr/bin/sh -c 'sudo mv segment.ini /usr/local/etc/cloudbus/'"
 ```
-gcloud compute ssh ${CONTROLLER_NAME} --zone=${CLIENT_ZONE} \
-    --command="/usr/bin/sh -c 'sudo systemctl daemon-reload && sudo systemctl stop controller && sudo systemctl start controller'" && \
-gcloud compute ssh ${SEGMENT_NAME} --zone=${SERVER_ZONE} \
-    --command="/usr/bin/sh -c 'sudo systemctl daemon-reload && sudo systemctl stop segment && sudo systemctl start segment'"
 
 ### Configure the HTTP Tests:
 Copy the Jmeter JMX benchmark to the test client by running:

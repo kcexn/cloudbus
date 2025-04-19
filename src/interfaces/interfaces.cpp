@@ -253,7 +253,7 @@ namespace cloudbus {
             _idx = (_idx+1) % _addresses.size();
             auto& addr = _addresses[_idx];
             auto&[max, count, prio] = std::get<weight_type>(addr);
-            if(prio <= _prio) {
+            if(prio == _prio) {
                 if(count++ < max)
                     return addr;
                 sum += --count;

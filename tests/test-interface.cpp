@@ -49,7 +49,7 @@ static int test_addresses() {
     inet_pton(in_addr->sin_family, "127.0.0.1", &in_addr->sin_addr);
     addrlen = sizeof(struct sockaddr_in);
     ttl = std::make_tuple(clock_type::now(), duration_type(-1));
-    weight = {1,0,0};
+    weight = {0,0,SIZE_MAX};
     {
         base.addresses(addrs);
         for(const auto&[addr_, addrlen_, ttl_, weight_]: addrs){
@@ -151,7 +151,7 @@ static int test_streams() {
     );
     FAIL_IF(base.npending() != 1);
     ttl = std::make_tuple(clock_type::now(), duration_type(300));
-    weight = {1,0,0};
+    weight = {1,0,SIZE_MAX};
     base.addresses(addrs);
     auto addrs_ = base.addresses();
     FAIL_IF(addrs_.empty());

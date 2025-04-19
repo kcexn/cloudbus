@@ -82,7 +82,8 @@ namespace cloudbus {
                 auto delim = std::find(uri.begin(), uri.end(), ':'),
                     start = std::find(++delim, uri.end(), '.'),
                     end = std::find(++start, uri.end(), '.');
-                auto proto = std::string(++start, end);
+                while(!std::isalpha(*(++start)));
+                auto proto = std::string(start, end);
                 std::transform(
                         proto.begin(), proto.end(),
                         proto.begin(),

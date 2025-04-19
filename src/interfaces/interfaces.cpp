@@ -141,14 +141,32 @@ namespace cloudbus {
         );
         return host;
     }
-    static auto find_weights(const interface_base::addresses_type& addresses){
+    static auto find_weights(interface_base::addresses_type& addresses){
+        using addresses_type = interface_base::addresses_type;
+        using iterator = addresses_type::iterator;
         using weight_type = interface_base::weight_type;
+        using iterators = std::vector<iterator>;
+
         std::size_t weight=0, prio=SIZE_MAX;
-        for(const auto& addr: addresses)
-            prio = std::min(prio, std::get<weight_type>(addr).priority);
-        for(const auto& addr: addresses)
-            if(std::get<weight_type>(addr).priority <= prio)
-                weight += std::get<weight_type>(addr).max;
+        iterators its;
+        its.reserve(addresses.size());
+        for(auto it=addresses.begin(); it != addresses.end(); ++it) {
+            auto& prio_ = std::get<weight_type>(*it).priority;
+            if(prio_ < prio) {
+                prio = prio_;
+                weight = 0;
+                its.clear();
+            }
+            if(prio_ == prio) {
+                its.push_back(it);
+                weight += std::get<weight_type>(*it).max;
+            }
+        }
+        if(!weight) {
+            for(auto& it: its)
+                std::get<weight_type>(*it).max = 1;
+            weight = its.size();
+        }
         return std::make_tuple(weight, prio);
     }
     const interface_base::addresses_type& interface_base::addresses(const addresses_type& addrs){

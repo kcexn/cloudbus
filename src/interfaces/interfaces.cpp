@@ -149,7 +149,6 @@ namespace cloudbus {
 
         std::size_t weight=0, prio=SIZE_MAX;
         iterators its;
-        its.reserve(addresses.size());
         for(auto it=addresses.begin(); it != addresses.end(); ++it) {
             auto& prio_ = std::get<weight_type>(*it).priority;
             if(prio_ < prio) {

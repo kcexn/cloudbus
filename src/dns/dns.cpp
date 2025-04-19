@@ -126,6 +126,10 @@ namespace cloudbus {
         static int ares_version_number=0, ares_initialized=0;
         static void initialize_ares_library(){
             const std::lock_guard<std::mutex> lock(ares_library_mtx);
+            if(ares_initialized == INT_MAX)
+                throw std::runtime_error( 
+                    "libc-ares has been initialized more than INT_MAX times."
+                );
             if( !(ares_initialized++) ){
                 const char *v = ares_version(&ares_version_number);
                 if(ares_version_number < 0x011201){

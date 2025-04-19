@@ -29,54 +29,67 @@ namespace cloudbus{
     namespace config {
         enum hostname_types { HOSTNAME_ERROR, IPV4, IPV6, HOSTNAME };
         static std::string_view _path(const char *c, std::size_t len){
-            if(c == nullptr) return std::string_view();
-            const char *start = c;
-            for(; len-- > 0 && !std::isspace(*c); ++c);
-            if(len == SIZE_MAX) return std::string_view(start, ++c - start);
-            else return std::string_view(start, c - start);
+            if(c == nullptr)
+                return std::string_view();
+            /* strip leading whitespace. */
+            while(len-- > 0 && std::isspace(*c++)); 
+            if(len++==SIZE_MAX)
+                return std::string_view();
+            const char *start = --c;
+            /* Then take everything up to the first whitespace. */
+            while(len-- > 0 && !std::isspace(*c++));
+            return (len==SIZE_MAX) ?
+                std::string_view(start, c-start) :
+                std::string_view(start, --c-start);
         }
         static std::string_view _port(const char *c, std::size_t len){
-            if(c == nullptr) return std::string_view();
+            if(c == nullptr)
+                return std::string_view();
             const char *start = c;
-            for(; len-- > 0 && std::isdigit(*c); ++c);
-            if(len == SIZE_MAX) return std::string_view(start, ++c - start);
-            else return std::string_view(start, c - start);
+            while(len-- > 0 && std::isdigit(*c++));
+            return (len==SIZE_MAX) ?
+                std::string_view(start, c-start) :
+                std::string_view(start, --c-start);
         }
         static std::string_view _ipv4(const char *c, std::size_t len){
-            if(c == nullptr) return std::string_view();
+            if(c == nullptr)
+                return std::string_view();
             const char *start = c;
-            for(; len-- > 0 && *c != ':'; ++c);
-            if(len == SIZE_MAX) return std::string_view();
-            else return std::string_view(start, c - start);
+            while(len-- > 0 && *c++ != ':');
+            return (len==SIZE_MAX) ?
+                std::string_view() :
+                std::string_view(start, --c-start);
         }
         static std::string_view _ipv6(const char *c, std::size_t len){
             if(c == nullptr || *c++ != '[')
                 return std::string_view();
             const char *start = c;
-            while(len-- > 0 && *c != ']')
-                ++c;
-            if(len == SIZE_MAX)
-                return std::string_view();
-            else return std::string_view(start, c-start);
+            while(len-- > 0 && *c++ != ']');
+            return (len==SIZE_MAX) ?
+                std::string_view() :
+                std::string_view(start, --c-start);
         }
         static std::string_view _host(const char *c, std::size_t len){
-            if(c == nullptr) return std::string_view();
+            if(c == nullptr)
+                return std::string_view();
             const char *start = c;
-            for(; len-- > 0 && !std::isspace(*c); ++c);
-            if(len == SIZE_MAX) return std::string_view(start, ++c - start);
-            else return std::string_view(start, c - start);
+            while(len-- > 0 && !std::isspace(*c++));
+            return (len==SIZE_MAX) ?
+                std::string_view(start, c-start) :
+                std::string_view(start, --c-start);
         }
         static hostname_types _hostname_type(const char *c, std::size_t len){
             if(c == nullptr)
                 return HOSTNAME_ERROR;
             std::size_t period_count=0;
-            for(const char *const start = c; len-- > 0; ++c){
-                switch(*c){
+            const char *start=c, *cur=start;
+            while(len-- > 0 && (cur=c++)){
+                switch(*cur){
                     case '.':
                         ++period_count;
                         break;
                     case '[':
-                        if(c == start)
+                        if(cur == start)
                             return IPV6;
                         else return HOSTNAME_ERROR;
                     case ':':
@@ -84,7 +97,7 @@ namespace cloudbus{
                             return IPV4;
                         else return HOSTNAME;
                     default:
-                        if(!std::isdigit(*c))
+                        if(!std::isdigit(*cur))
                             return HOSTNAME;
                         break;
                 }
@@ -94,14 +107,20 @@ namespace cloudbus{
         static std::string_view _protocol(const char *c, std::size_t len){
             if(c == nullptr)
                 return std::string_view();
-            for(; len-- > 0 && std::isspace(*c); ++c);
-            if(len == SIZE_MAX)
+            while(len-- > 0 && std::isspace(*c++));
+            if(len++ == SIZE_MAX)
                 return std::string_view();
-            const char *start = c;
-            for(; len-- > 0  && *c != ':'; ++c);
-            if(len == SIZE_MAX)
+            /* RFC 3986 (https://datatracker.ietf.org/doc/html/rfc3986#section-3.1) specifies that *
+             * a URI scheme must be of the form: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )        */
+            const char *start=--c, *cur=start;
+            if(!std::isalpha(*start))
                 return std::string_view();
-            return std::string_view(start, c - start);
+            while(len-- > 0 && *(cur=c++) != ':')
+                if( !(std::isalpha(*cur) || std::isdigit(*cur) || *cur=='+' || *cur=='-' || *cur=='.') )
+                    return std::string_view();
+            return (len==SIZE_MAX) ?
+                std::string_view() :
+                std::string_view(start, --c-start);
         }
         static int make_unix_address(const std::string_view& path, struct sockaddr_un *addr, socklen_t *len){
             constexpr std::size_t MAXLEN = sizeof(struct sockaddr_un) - offsetof(struct sockaddr_un, sun_path) - 1;
@@ -156,24 +175,25 @@ namespace cloudbus{
         }
         static address_type make_url(const std::string_view& host, std::string&& p){
             auto it = std::find(host.begin(), host.end(), ':');
-            if(++it == host.end())
+            if(it == host.end() || ++it == host.end())
                 return address_type();
-            while(std::isdigit(*it++) && it < host.end());
-            return (it==host.end()) ? address_type(url{host, std::move(p)}) : address_type();
+            /* There must be at least one digit. */
+            while(std::isdigit(*it) && ++it != host.end());
+            return (it==host.end()) ?
+                address_type(url_type{host, std::move(p)}) :
+                address_type();
         }
-        /* unix:///<PATH> */
-        /* tcp://<IP>:<PORT> */
         static address_type make_address(const std::string& line, std::string&& p){
             socket_address address{};
             auto&[protocol, addr, addrlen] = address;
             protocol = std::move(p);
             const char *start = line.data() + protocol.size() + 3;
             std::size_t size = line.size() - (start - line.data());
-            if(protocol == "UNIX"){
+            if(protocol == "UNIX") {
                 if(make_unix_address(_path(start, size), reinterpret_cast<struct sockaddr_un*>(&addr), &addrlen))
                     return address_type();
                 return address_type{std::move(address)};
-            } else if (protocol == "TCP" || protocol=="UDP" || protocol == "SCTP"){
+            } else if (protocol == "TCP" || protocol=="UDP" || protocol == "SCTP") {
                 auto host = _host(start, size);
                 if(!host.size())
                     return address_type();
@@ -191,22 +211,28 @@ namespace cloudbus{
                     default:
                         return address_type();
                 }
-            } else return address_type();
-        }
-        static address_type make_urn(const std::string& line){
-            auto it = std::find_if(line.cbegin(), line.cend(), [](const unsigned char c){ return std::isspace(c); });
-            return address_type(std::string(line.cbegin(), it));
+            }
+            return address_type();
         }
         address_type make_address(const std::string& line){
             std::string protocol{_protocol(line.data(), line.size())};
-            if(protocol.empty())
-                return address_type();
-            std::transform(protocol.begin(), protocol.end(), protocol.begin(), [](const unsigned char c){ return std::toupper(c); });
-            if(protocol == "UNIX" || protocol=="TCP" || protocol=="UDP" || protocol == "SCTP")
-                return make_address(line, std::move(protocol));
-            else if(protocol == "URN")
-                return make_urn(line);
-            else return address_type();
+            if(!protocol.empty()){
+                std::transform(
+                        protocol.begin(),
+                        protocol.end(),
+                    protocol.begin(),
+                    [](const unsigned char c){
+                        return std::toupper(c);
+                    }
+                );
+                if(protocol == "UNIX" || protocol == "TCP" || 
+                    protocol == "UDP" || protocol == "SCTP"
+                ){
+                    return make_address(line, std::move(protocol));
+                }
+                return address_type( uri_type(_path(line.data(), line.size())) );
+            }
+            return address_type();
         }
 
         configuration::configuration():

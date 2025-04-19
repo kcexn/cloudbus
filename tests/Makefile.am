@@ -1,13 +1,14 @@
 SOURCE=../src
 check_PROGRAMS =
+LDADD = $(SOURCE)/libcbutils.a
 
 if ENABLE_TESTS
-check_PROGRAMS += test-config
+check_PROGRAMS += test-config test-interface
 TEST_COMMON_CPPHEADERS = tests.hpp
-nodist_test_config_SOURCES = test-config.cpp \
-	$(TEST_COMMON_CPPHEADERS)
-test_config_LDADD = $(SOURCE)/libcbutils.a
-test_config_CXXFLAGS=-DTEST_SRCDIR=\"@srcdir@\"
+nodist_test_config_SOURCES = $(TEST_COMMON_CPPHEADERS) \
+	test-config.cpp
+nodist_test_interface_SOURCES = $(TEST_COMMON_CPPHEADERS) \
+	test-interface.cpp
 endif
 
 TESTS = $(check_PROGRAMS)

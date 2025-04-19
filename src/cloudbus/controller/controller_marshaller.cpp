@@ -53,7 +53,8 @@ namespace cloudbus{
             using stream_ptr = north_type::stream_ptr;
             const auto& nsp = std::get<stream_ptr>(stream);
             auto it=north().begin(), cur=it, end=north().end();
-            while((cur=it++) != end){
+            while((cur=it) != end){
+                ++it;
                 auto&[n, buf] = *cur;
                 if(n.expired()) {
                     *cur = std::move(*(--end));
@@ -77,7 +78,8 @@ namespace cloudbus{
             using stream_ptr = south_type::stream_ptr;
             const auto& ssp = std::get<stream_ptr>(stream);
             auto it=south().begin(), cur=it, end=south().end();
-            while((cur=it++) != end){
+            while((cur=it) != end){
+                ++it;
                 auto&[s, buf] = *cur;
                 if(s.expired()) {
                     *cur = std::move(*(--end));

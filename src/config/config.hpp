@@ -24,10 +24,13 @@
 #define CLOUDBUS_CONFIG
 namespace cloudbus{
     namespace config {
-        enum types { URN, URL, SOCKADDR };
+        /* URI's must always be of the form <SCHEME>:<SCHEME SPECIFIC PART>. *
+         * Malformed URI's will be rejected.                                 */
+        enum types { URI, URL, SOCKADDR };
         using socket_address = std::tuple<std::string, struct sockaddr_storage, socklen_t>;
-        using url = std::tuple<std::string, std::string>;
-        using address_type = std::variant<std::string, url, socket_address>;
+        using url_type = std::tuple<std::string, std::string>;
+        using uri_type = std::string;
+        using address_type = std::variant<uri_type, url_type, socket_address>;
 
         address_type make_address(const std::string& line);
         struct section {

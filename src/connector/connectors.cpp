@@ -14,6 +14,7 @@
 *   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "connectors.hpp"
+#include <type_traits>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/un.h>
@@ -95,35 +96,36 @@ namespace cloudbus {
         }
         return -1;
     }
-
-    int connector_base::make_south(const config::address_type& address){
-        switch(address.index()){
-            case config::SOCKADDR:
-            {
-                auto&[protocol, addr, addrlen] = std::get<config::SOCKADDR>(address);
-                _south.emplace_back(reinterpret_cast<const struct sockaddr*>(&addr), addrlen, protocol);
-                return 0;
-            }
-            case config::URL:
-            {
-                auto&[host, protocol] = std::get<config::URL>(address);
-                _south.emplace_back(protocol, host);
-                return 0;
-            }
-            case config::URN:
-                if(auto& urn = std::get<config::URN>(address); !urn.empty()){
-                    _south.emplace_back("urn", urn);
-                    return 0;
-                }
+    static int make_south_sockaddr(connector_base::interfaces& south, const config::socket_address& sockaddr) {
+        const auto&[protocol, addr, addrlen] = sockaddr;
+        south.emplace_back(reinterpret_cast<const struct sockaddr*>(&addr), addrlen, protocol);
+        return 0;
+    }
+    static int make_south_url(connector_base::interfaces& south, const config::url_type& url) {
+        const auto&[host, protocol] = url;
+        south.emplace_back(host, protocol);
+        return 0;
+    }
+    static int make_south_uri(connector_base::interfaces& south, const config::uri_type& uri) {
+        south.emplace_back(uri);
+        return 0;
+    }
+    int connector_base::make_south(const config::address_type& address) {
+        using namespace config;
+        switch(address.index()) {
+            case SOCKADDR:
+                return make_south_sockaddr(_south, std::get<SOCKADDR>(address));
+            case URL:
+                return make_south_url(_south, std::get<URL>(address));
+            case URI:
+                return make_south_uri(_south, std::get<URI>(address));
             default:
                 return -1;
         }
-        return -1;
     }
-
     connector_base::~connector_base(){
         for(auto& n: north())
-            for(const auto&[addr, addrlen, ttl]: n.addresses())
+            for(const auto&[addr, addrlen, ttl, weight]: n.addresses())
                 if(addr.ss_family == AF_UNIX)
                     unlink(reinterpret_cast<const struct sockaddr_un*>(&addr)->sun_path);
     }

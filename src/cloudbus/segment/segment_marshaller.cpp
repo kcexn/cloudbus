@@ -55,7 +55,8 @@ namespace cloudbus{
             using stream_ptr = north_type::stream_ptr;
             const auto& nsp = std::get<stream_ptr>(stream);
             auto it = north().begin(), cur=it;
-            while((cur=it++) != north().end()){
+            while((cur=it) != north().end()){
+                ++it;
                 auto&[n, buf] = *cur;
                 if(n.expired()) {
                     it = north().erase(cur);
@@ -74,7 +75,8 @@ namespace cloudbus{
             using stream_ptr = south_type::stream_ptr;
             const auto& ssp = std::get<stream_ptr>(stream);
             auto it = south().begin(), cur=it;
-            while((cur=it++) != south().end()){
+            while((cur=it) != south().end()){
+                ++it;
                 auto&[s, buf] = *cur;
                 if(s.expired()) {
                     it = south().erase(cur);

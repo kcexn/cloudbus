@@ -50,18 +50,19 @@ static int status = TEST_PASS;
 #define SKIP \
     status = TEST_SKIP;
 
-static std::string prefix;
-#define SET_LOG_PREFIX(PREFIX) \
-    prefix = PREFIX;
-
 #define ERROR_LOG(MSG) {    \
-    std::cerr << prefix     \
-        << ":" << MSG       \
+    std::cerr << __FILE__   \
+        << ':' << __LINE__  \
+        << ':' << MSG       \
         << std::endl;       \
 }
 #define FAIL(MSG) {     \
     ERROR_LOG(MSG);     \
     return TEST_FAIL;   \
+}
+#define FAIL_IF(COND) { \
+    if(COND)            \
+        FAIL(#COND);    \
 }
 
 #endif

@@ -234,7 +234,8 @@ namespace cloudbus{
             const auto p = buf.tellp();
             if(const auto eof = ssp->eof(); eof || p > 0) {
                 auto conn = connections().begin(), cur=conn, end=connections().end();
-                while((cur=conn++) != end) {
+                while((cur=conn) != end) {
+                    ++conn;
                     if(cur->north.expired()) {
                         *cur = std::move(*(--end));
                         conn = cur;
@@ -317,7 +318,8 @@ namespace cloudbus{
             const auto time = connection_type::clock_type::now();
             const auto&[nfd, nsp] = stream;
             auto conn=connections().begin(), cur=conn;
-            while((cur=conn++) != connections().end()) {
+            while((cur=conn) != connections().end()) {
+                ++conn;
                 if( !(cur->north.owner_before(nsp) || nsp.owner_before(cur->north)) ) {
                     if(auto s = cur->south.lock()) {
                         state_update(*cur, {messages::STOP, 0}, time);
@@ -402,7 +404,8 @@ namespace cloudbus{
             const auto&[sfd, ssp] = stream;
             const auto time = connection_type::clock_type::now();
             auto conn=connections().begin(), cur=conn;
-            while((cur=conn++) != connections().end()){
+            while((cur=conn) != connections().end()){
+                ++conn;
                 if( !(cur->south.owner_before(ssp) || ssp.owner_before(cur->south)) ) {
                     if(auto n = cur->north.lock()) {
                         messages::msgheader stop{
@@ -462,7 +465,8 @@ namespace cloudbus{
         void connector::_south_state_handler(south_type& interface, const south_type::handle_type& stream, event_mask& revents){
             const auto&[sfd, ssp] = stream;
             auto conn = connections().begin(), cur=conn;
-            while((cur=conn++) != connections().end()) {
+            while((cur=conn) != connections().end()) {
+                ++conn;
                 if( !(cur->south.owner_before(ssp) || ssp.owner_before(cur->south)) ) {
                     switch(cur->state){
                         case connection_type::CLOSED:

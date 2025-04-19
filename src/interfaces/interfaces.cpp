@@ -18,22 +18,24 @@
 namespace cloudbus {
     static constexpr std::size_t SHRINK_THRESHOLD = 4096;
     const interface_base::address_type interface_base::NULLADDR = interface_base::address_type{};
-    interface_base::address_type interface_base::make_address(const struct sockaddr *addr, socklen_t addrlen, const ttl_type& ttl){
+    interface_base::address_type interface_base::make_address(const struct sockaddr *addr, socklen_t addrlen, const ttl_type& ttl, const weight_type& weight){
         auto address = address_type();
-        auto&[ifaddr, len, ttl_] = address;
+        auto&[ifaddr, len, ttl_, weight_] = address;
         len = addrlen;
         std::memset(&ifaddr, 0, sizeof(addr));
         std::memcpy(&ifaddr, addr, addrlen);
         ttl_ = ttl;
+        weight_ = weight;
         return address;
     }
-    interface_base::address_type interface_base::make_address(const struct sockaddr *addr, socklen_t addrlen, ttl_type&& ttl){
+    interface_base::address_type interface_base::make_address(const struct sockaddr *addr, socklen_t addrlen, ttl_type&& ttl, weight_type&& weight){
         auto address = address_type();
-        auto&[ifaddr, len, ttl_] = address;
+        auto&[ifaddr, len, ttl_, weight_] = address;
         len = addrlen;
         std::memset(&ifaddr, 0, sizeof(addr));
         std::memcpy(&ifaddr, addr, addrlen);
         ttl_ = std::move(ttl);
+        weight_ = weight;
         return address;
     }
     interface_base::handle_type interface_base::make_handle(){
@@ -57,7 +59,8 @@ namespace cloudbus {
     ):
         _uri{uri}, _protocol{protocol},
         _addresses{}, _streams{}, _pending{},
-        _idx{0}, _options{}
+        _idx{0}, _total_weight{0}, _prio{SIZE_MAX},
+        _options{}
     {
         if(addr != nullptr && addrlen >= sizeof(sa_family_t))
             _addresses.push_back(make_address(addr, addrlen, std::make_tuple(clock_type::now(), ttl)));
@@ -76,7 +79,8 @@ namespace cloudbus {
     ):
         _uri{uri}, _protocol{protocol},
         _addresses{addresses}, _streams{}, _pending{},
-        _idx{0}, _options{}
+        _idx{0}, _total_weight{0}, _prio{SIZE_MAX},
+        _options{}
     {}
     interface_base::interface_base(
         addresses_type&& addresses,
@@ -86,7 +90,8 @@ namespace cloudbus {
         _uri{uri}, _protocol{protocol},
         _addresses{std::move(addresses)},
         _streams{}, _pending{},
-        _idx{0}, _options{}
+        _idx{0}, _total_weight{0}, _prio{SIZE_MAX},
+        _options{}
     {}
     interface_base::interface_base(interface_base&& other) noexcept:
         interface_base()
@@ -97,15 +102,66 @@ namespace cloudbus {
         swap(*this, other);
         return *this;
     }
+    std::string interface_base::scheme() {
+        auto delim = std::find(_uri.begin(), _uri.end(), ':');
+        auto scheme = std::string(_uri.begin(), delim);
+        std::transform(
+                scheme.begin(), scheme.end(),
+                scheme.begin(),
+            [](unsigned char c) {
+                return std::tolower(c);
+            }
+        );
+        return scheme;
+    }
+    static std::string_view port_(const std::string& uri) {
+        auto delim = std::find(uri.begin(), uri.end(), ':');
+        if(delim == uri.end() || ++delim == uri.end())
+            return std::string_view();
+        auto start = delim;
+        while(std::isdigit(*delim) && ++delim != uri.end());
+        return delim==uri.end() ?
+            std::string_view(&*start, delim-start) :
+            std::string_view();
+    }
+    std::string interface_base::port() {
+        return std::string(port_(_uri));
+    }
+    std::string interface_base::host() {
+        auto p = port_(_uri);
+        if(p.empty())
+            return std::string();
+        auto host = std::string(_uri.data(), p.data()-_uri.data()-1);
+        std::transform(
+                host.begin(), host.end(),
+                host.begin(),
+            [](unsigned char c){
+                return std::tolower(c);
+            }
+        );
+        return host;
+    }
+    static auto find_weights(const interface_base::addresses_type& addresses){
+        using weight_type = interface_base::weight_type;
+        std::size_t weight=0, prio=SIZE_MAX;
+        for(const auto& addr: addresses)
+            prio = std::min(prio, std::get<weight_type>(addr).priority);
+        for(const auto& addr: addresses)
+            if(std::get<weight_type>(addr).priority <= prio)
+                weight += std::get<weight_type>(addr).max;
+        return std::make_tuple(weight, prio);
+    }
     const interface_base::addresses_type& interface_base::addresses(const addresses_type& addrs){
-        _addresses = addrs;
-        _addresses.shrink_to_fit();
+        _addresses=addrs;
+        auto[weight, prio] = find_weights(_addresses);
+        _total_weight=weight, _prio=prio;
         _resolve_callbacks();
         return _addresses;
     }
     const interface_base::addresses_type& interface_base::addresses(addresses_type&& addrs){
         _addresses = std::move(addrs);
-        _addresses.shrink_to_fit();
+        auto[weight, prio] = find_weights(_addresses);
+        _total_weight=weight, _prio=prio;
         _resolve_callbacks();
         return _addresses;
     }
@@ -167,18 +223,34 @@ namespace cloudbus {
             _pending.shrink_to_fit();
         return _resolve_callbacks();
     }
+    static void clear_counters(interface_base::addresses_type& addresses){
+        using weight_type = interface_base::weight_type;
+        for(auto& addr: addresses)
+            std::get<weight_type>(addr).count = 0;
+    }
     const interface_base::address_type& interface_base::next(){
         if(_addresses.empty())
             return NULLADDR;
-        _idx = (_idx+1) % _addresses.size();
-        return _addresses[_idx];
+        std::size_t sum = 0;
+        while(sum < _total_weight) {
+            _idx = (_idx+1) % _addresses.size();
+            auto& addr = _addresses[_idx];
+            auto&[max, count, prio] = std::get<weight_type>(addr);
+            if(prio <= _prio) {
+                if(count++ < max)
+                    return addr;
+                sum += --count;
+            }
+        }
+        clear_counters(_addresses);
+        return next();
     }
     void interface_base::_resolve_callbacks(){
         constexpr duration_type HYST_WND{300};
         if(expire_addresses(clock_type::now()-HYST_WND)){
-            for(auto&[wp, cb]: _pending){
+            for(auto&[wp, cb]: _pending) {
                 if(!wp.expired()){
-                    const auto&[addr, addrlen, ttl] = next();
+                    const auto&[addr, addrlen, ttl, weight] = next();
                     const auto *addrp = reinterpret_cast<const struct sockaddr*>(&addr);
                     for(auto& hnd: _streams){
                         const auto& ptr = std::get<stream_ptr>(hnd);
@@ -194,15 +266,21 @@ namespace cloudbus {
         }
     }
     std::size_t interface_base::expire_addresses(const time_point& t){
-        auto it = _addresses.begin();
-        while(it != _addresses.end()){
-            const auto&[time, interval] = std::get<ttl_type>(*it++);
-            if(interval.count() > -1 && t > time+interval)
-                it = _addresses.erase(--it);
-        }
+        auto it = std::remove_if(
+                _addresses.begin(), _addresses.end(),
+            [&](auto& addr){
+                const auto&[time, interval] = std::get<ttl_type>(addr);
+                return (interval.count() > -1 && t > time+interval) ||
+                    !std::get<weight_type>(addr).max;
+            }
+        );
+        _addresses.resize(it-_addresses.begin());
+        if(_addresses.empty() && scheme()=="srv")
+            protocol().clear();
+        auto[weight, prio] = find_weights(_addresses);
+        _total_weight = weight, _prio = prio;
         return _addresses.size();
     }
-
     void swap(interface_base& lhs, interface_base& rhs) noexcept {
         using std::swap;
         swap(lhs._uri, rhs._uri);
@@ -211,6 +289,8 @@ namespace cloudbus {
         swap(lhs._streams, rhs._streams);
         swap(lhs._pending, rhs._pending);
         swap(lhs._idx, rhs._idx);
+        swap(lhs._total_weight, rhs._total_weight);
+        swap(lhs._prio, rhs._prio);
         swap(lhs._options, rhs._options);
     }
 }

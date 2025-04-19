@@ -453,6 +453,14 @@ namespace cloudbus {
             auto listenfd = std::get<native_handle_type>(stream);
             while( (sockfd = _accept(listenfd, nullptr, nullptr)) > -1){
                 interface.make(sockfd, true);
+                if(interface.protocol() == "TCP") {
+                    int nodelay = 1;
+                    if(setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(int)))
+                        throw std::system_error(
+                            std::error_code(errno, std::system_category()),
+                            "Unable to set TCP_NODELAY socket option."
+                        );
+                }
                 triggers().set(sockfd, POLLIN);
             }
             revents &= ~(POLLIN | POLLHUP);

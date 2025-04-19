@@ -55,7 +55,7 @@ namespace cloudbus {
             using options_type = std::vector<option_type>;
 
             static const address_type NULLADDR;
-            static address_type make_address(const struct sockaddr *addr, socklen_t addrlen, const ttl_type& ttl, const weight_type& weight={1,0});
+            static address_type make_address(const struct sockaddr *addr, socklen_t addrlen, const ttl_type& ttl, const weight_type& weight={1,0,SIZE_MAX});
             static address_type make_address(const struct sockaddr *addr, socklen_t addrlen, ttl_type&& ttl, weight_type&& weight);
             static handle_type make_handle();
             static handle_type make_handle(int domain, int type, int protocol, std::ios_base::openmode which);

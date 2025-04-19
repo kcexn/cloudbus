@@ -14,7 +14,6 @@
 *   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "connectors.hpp"
-#include <type_traits>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/un.h>

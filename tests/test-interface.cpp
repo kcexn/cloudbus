@@ -51,7 +51,7 @@ static int test_addresses() {
     ttl = std::make_tuple(clock_type::now(), duration_type(-1));
     weight = {1,0,0};
     {
-        const auto& set = base.addresses(addrs);
+        base.addresses(addrs);
         for(const auto&[addr_, addrlen_, ttl_, weight_]: addrs){
             auto *in_addr_ = reinterpret_cast<struct sockaddr_in*>(&addr);
             FAIL_IF(in_addr_->sin_family != in_addr->sin_family);
@@ -65,7 +65,7 @@ static int test_addresses() {
     }
     {
         auto addresses = base.addresses();
-        const auto& set = base.addresses(std::move(addresses));
+        base.addresses(std::move(addresses));
         for(const auto&[addr_, addrlen_, ttl_, weight_]: addrs){
             auto *in_addr_ = reinterpret_cast<struct sockaddr_in*>(&addr);
             FAIL_IF(in_addr_->sin_family != in_addr->sin_family);

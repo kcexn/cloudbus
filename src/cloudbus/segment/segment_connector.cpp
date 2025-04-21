@@ -278,27 +278,29 @@ namespace cloudbus{
                     auto addrlen,
                     const std::string& protocol
                 ){
-                    auto&[sockfd, sptr] = hnd;
-                    if(sockfd == sptr->BAD_SOCKET){
-                        if(protocol == "TCP" || protocol == "UNIX") {
-                            if( (sockfd=socket(addr->sa_family, SOCK_STREAM, 0)) < 0 )
-                                throw std::system_error(
-                                    std::error_code(errno, std::system_category()),
-                                    "Unable to create a new socket."
-                                );
-                            if(protocol == "TCP"){
-                                int nodelay = 1;
-                                if(setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay)))
+                    if(addr != nullptr) {
+                        auto&[sockfd, sptr] = hnd;
+                        if(sockfd == sptr->BAD_SOCKET){
+                            if(protocol == "TCP" || protocol == "UNIX") {
+                                if( (sockfd=socket(addr->sa_family, SOCK_STREAM, 0)) < 0 )
                                     throw std::system_error(
                                         std::error_code(errno, std::system_category()),
-                                        "Unable to set TCP_NODELAY socket option."
+                                        "Unable to create a new socket."
                                     );
-                            }
-                        } else throw std::invalid_argument("Unsupported transport protocol.");
-                        sptr->native_handle() = set_flags(sockfd);
+                                if(protocol == "TCP"){
+                                    int nodelay = 1;
+                                    if(setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay)))
+                                        throw std::system_error(
+                                            std::error_code(errno, std::system_category()),
+                                            "Unable to set TCP_NODELAY socket option."
+                                        );
+                                }
+                            } else throw std::invalid_argument("Unsupported transport protocol.");
+                            sptr->native_handle() = set_flags(sockfd);
+                        }
+                        sptr->connectto(addr, addrlen);
+                        triggers().set(sockfd, (POLLIN | POLLOUT));
                     }
-                    sptr->connectto(addr, addrlen);
-                    triggers().set(sockfd, (POLLIN | POLLOUT));
                 }
             );
             /* Address resolution only on the first pending connect. */

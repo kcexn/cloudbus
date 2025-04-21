@@ -46,7 +46,7 @@ namespace cloudbus {
                                 events.cbegin(),
                                 events.cend(),
                             [&](const auto& event){
-                                if(event.fd==sockfd){
+                                if(event.fd==sockfd) {
                                     curr = event.events;
                                     if(event.revents && ++handled)
                                         process_event(hnd);

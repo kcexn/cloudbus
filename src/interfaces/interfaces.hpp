@@ -84,6 +84,7 @@ namespace cloudbus {
             interface_base& operator=(interface_base&& other) noexcept;
 
             std::string& uri() { return _uri; }
+            const std::string& uri() const { return _uri; }
             std::string scheme();
             std::string& protocol() { return _protocol; }
             options_type& options() { return _options; }

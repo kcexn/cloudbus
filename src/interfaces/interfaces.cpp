@@ -268,7 +268,8 @@ namespace cloudbus {
             for(auto&[wp, cb]: _pending) {
                 if(!wp.expired()){
                     const auto&[addr, addrlen, ttl, weight] = next();
-                    const auto *addrp = reinterpret_cast<const struct sockaddr*>(&addr);
+                    const auto *addrp = addrlen < 0 ? nullptr :
+                        reinterpret_cast<const struct sockaddr*>(&addr);
                     for(auto& hnd: _streams){
                         const auto& ptr = std::get<stream_ptr>(hnd);
                         if( !(ptr.owner_before(wp) || wp.owner_before(ptr)) ) {

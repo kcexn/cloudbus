@@ -22,13 +22,108 @@ namespace cloudbus {
     namespace dns {
         using addrinfo_args = std::tuple<interface_base&, struct ares_addrinfo_hints*, interface_base::weight_type>;
         using ares_query_args = std::tuple<interface_base&, const ares_channel&>;
-        static void resolve_ares_getaddrinfo(
+        static void resolve_ares_getaddrinfo (
             interface_base& interface,
             const ares_channel& channel,
             const char *name,
             const char *service,
             const interface_base::weight_type& weight={1,0,SIZE_MAX}
         );
+        static void ares_addrinfo_success(
+            interface_base& iface,
+            const interface_base::weight_type& weight,
+            struct ares_addrinfo *result
+        ){
+            using addresses_type = interface_base::addresses_type;
+            using clock_type = interface_base::clock_type;
+            using duration_type = interface_base::duration_type;
+
+            addresses_type addresses;
+            for(auto *node = result->nodes; node; node = node->ai_next){
+                auto&[addr, addrlen, ttl, weight_] = addresses.emplace_back();
+                std::memcpy(&addr, node->ai_addr, node->ai_addrlen);
+                addrlen = node->ai_addrlen;
+                ttl = std::make_tuple(clock_type::now(), duration_type(node->ai_ttl));
+                weight_ = weight;
+            }
+            iface.addresses(std::move(addresses));
+            ares_freeaddrinfo(result);
+        }
+        static const char *ares_handle_error(interface_base& iface, int status){
+            using addresses_type = interface_base::addresses_type;
+            using clock_type = interface_base::clock_type;
+            using duration_type = interface_base::duration_type;
+
+            addresses_type addresses;
+            auto&[addr, addrlen, ttl, weight_] = addresses.emplace_back();
+            addr = {};
+            addrlen = -1;
+            ttl = std::make_tuple(clock_type::now(), duration_type(0));
+            weight_ = {1,0,SIZE_MAX};
+            iface.addresses(std::move(addresses));
+            return ares_strerror(status);
+        }
+        static std::string extract_protocol(const std::string& uri) {
+            auto delim = std::find(uri.cbegin(), uri.cend(), ':'),
+                start = std::find(++delim, uri.cend(), '.'),
+                end = std::find(++start, uri.cend(), '.');
+            while(!std::isalpha(*(++start)));
+            auto proto = std::string(start, end);
+            std::transform(
+                    proto.begin(), proto.end(),
+                    proto.begin(),
+                [](unsigned char c){
+                    return std::toupper(c);
+                }
+            );
+            return proto;
+        }
+        static void ares_parse_srv_success(
+            interface_base& iface,
+            const ares_channel& channel,
+            struct ares_srv_reply *srv
+        ){
+            using weight_type = interface_base::weight_type;
+            constexpr std::size_t PORT_CHARBUF_SIZE = 6;
+
+            std::array<char, PORT_CHARBUF_SIZE> port = {};
+            iface.protocol() = extract_protocol(iface.uri());
+            char *begin=port.data(), *end=port.data()+port.max_size();
+            for(auto *cur=srv; cur != nullptr; cur=cur->next) {
+                auto[ptr, ec] = std::to_chars(begin, end, cur->port);
+                if(ec != std::errc())
+                    throw std::system_error(
+                        std::make_error_code(ec),
+                        "Unable to convert port number to char*."
+                    );
+                *ptr = '\0';
+                resolve_ares_getaddrinfo(
+                    iface, channel,
+                    cur->host, port.data(),
+                    weight_type{cur->weight, 0, cur->priority}
+                );
+            }
+            ares_free_data(srv);
+        }
+        static void ares_getsrv_success(
+            interface_base& iface,
+            const ares_channel& channel,
+            unsigned char *abuf,
+            int alen
+        ){
+            struct ares_srv_reply *srv = nullptr;
+            int rc = ares_parse_srv_reply(abuf, alen, &srv);
+            switch(rc) {
+                case ARES_SUCCESS:
+                    return ares_parse_srv_success(iface, channel, srv);
+                default:
+                    std::cerr << __FILE__ << ':' << __LINE__
+                        << ":ares error:"
+                        << ares_handle_error(iface, rc)
+                        << std::endl;
+                    break;
+            }
+        }
         extern "C" {
             static void ares_socket_cb(void *data, ares_socket_t socket_fd, int readable, int writable){
                 auto *hnds = static_cast<resolver_base::socket_handles*>(data);
@@ -48,75 +143,45 @@ namespace cloudbus {
                 if(writable)
                     sockstate |= resolver_base::WRITABLE;
             }
-            static void ares_addrinfo_cb(void *arg, int status, int timeouts, struct ares_addrinfo *result){
-                using addresses_type =interface_base::addresses_type;
-                using clock_type = interface_base::clock_type;
-                using duration_type = interface_base::duration_type;
+            static void ares_addrinfo_cb(
+                void *arg,
+                int status,
+                int timeouts,
+                struct ares_addrinfo *result
+            ){
                 auto *args = static_cast<addrinfo_args*>(arg);
-                auto&[interface, hints, weight] = *args;
+                auto&[iface, hints, weight] = *args;
                 delete hints;
-                addresses_type addresses;
-                switch(status){
+                switch(status) {
                     case ARES_SUCCESS:
-                        for(auto *node = result->nodes; node; node = node->ai_next){
-                            auto&[addr, addrlen, ttl, weight_] = addresses.emplace_back();
-                            std::memcpy(&addr, node->ai_addr, node->ai_addrlen);
-                            addrlen = node->ai_addrlen;
-                            ttl = std::make_tuple(clock_type::now(), duration_type(node->ai_ttl));
-                            weight_ = weight;
-                        }
-                        interface.addresses(std::move(addresses));
-                        ares_freeaddrinfo(result);
+                        ares_addrinfo_success(iface, weight, result);
+                        break;
                     default:
+                        std::cerr << __FILE__ << ':' << __LINE__
+                            << ":ares error:"
+                            << ares_handle_error(iface, status)
+                            << std::endl;
                         break;
                 }
                 delete args;
             }
-            static void ares_getsrv_cb(void *arg, int status, int timeouts, unsigned char *abuf, int alen) {
-                using weight_type = interface_base::weight_type;
-                constexpr std::size_t PORT_CHARBUF_SIZE = 6;
-                struct ares_srv_reply *srv = nullptr, *cur=srv;
+            static void ares_getsrv_cb(
+                void *arg, int status,
+                int timeouts,
+                unsigned char *abuf,
+                int alen
+            ){
                 auto *args = static_cast<ares_query_args*>(arg);
                 auto&[iface, channel] = *args;
-                auto& uri = iface.uri();
-                auto delim = std::find(uri.begin(), uri.end(), ':'),
-                    start = std::find(++delim, uri.end(), '.'),
-                    end = std::find(++start, uri.end(), '.');
-                while(!std::isalpha(*(++start)));
-                auto proto = std::string(start, end);
-                std::transform(
-                        proto.begin(), proto.end(),
-                        proto.begin(),
-                    [](unsigned char c){
-                        return std::toupper(c);
-                    }
-                );
                 switch(status) {
                     case ARES_SUCCESS:
-                        if(ares_parse_srv_reply(abuf, alen, &srv) == ARES_SUCCESS) {
-                            iface.protocol() = proto;
-                            std::array<char, PORT_CHARBUF_SIZE> port{};
-                            for(cur=srv; cur; cur=cur->next) {
-                                auto[ptr, ec] = std::to_chars(
-                                    port.data(),
-                                    port.data()+port.max_size(),
-                                    cur->port
-                                );
-                                if(ec != std::errc())
-                                    throw std::system_error(
-                                        std::make_error_code(ec),
-                                        "Unable to convert port number to char*."
-                                    );
-                                *ptr = '\0';
-                                resolve_ares_getaddrinfo(
-                                    iface, channel,
-                                    cur->host, port.data(),
-                                    weight_type{cur->weight, 0, cur->priority}
-                                );
-                            }
-                            ares_free_data(srv);
-                        }
+                        ares_getsrv_success(iface, channel, abuf, alen);
+                        break;
                     default:
+                        std::cerr << __FILE__ << ':' << __LINE__
+                            << ":ares error:"
+                            << ares_handle_error(iface, status)
+                            << std::endl;
                         break;
                 }
                 delete args;
@@ -182,7 +247,7 @@ namespace cloudbus {
             initialize_ares_channel(&_channel, &_opts, ARES_OPT_SOCK_STATE_CB | ARES_OPT_TIMEOUTMS | ARES_OPT_ROTATE);
         }
         static void resolve_ares_getaddrinfo(
-            interface_base& interface,
+            interface_base& iface,
             const ares_channel& channel,
             const char *name,
             const char *service,
@@ -191,9 +256,9 @@ namespace cloudbus {
             struct ares_addrinfo_hints *hints = new struct ares_addrinfo_hints;
             std::memset(hints, 0, sizeof(struct ares_addrinfo_hints));
             hints->ai_family = AF_INET;
-            if(interface.protocol() == "TCP")
+            if(iface.protocol() == "TCP")
                 hints->ai_socktype = SOCK_STREAM;
-            addrinfo_args *args = new addrinfo_args{interface, hints, weight};
+            addrinfo_args *args = new addrinfo_args{iface, hints, weight};
             return ares_getaddrinfo(
                 channel,
                 name, service,
@@ -203,11 +268,11 @@ namespace cloudbus {
             );
         }
         static void resolve_ares_getsrv(
-            interface_base& interface,
+            interface_base& iface,
             const ares_channel& channel
         ){
-            auto *args = new ares_query_args{interface, channel};
-            auto& uri = interface.uri();
+            auto *args = new ares_query_args{iface, channel};
+            auto& uri = iface.uri();
             auto delim = uri.find(':');
             return ares_query(
                 channel,
@@ -217,16 +282,16 @@ namespace cloudbus {
                 args
             );
         }
-        resolver_base::duration_type resolver_base::resolve(interface_base& interface) {
-            if(interface.protocol() == "TCP") {
+        resolver_base::duration_type resolver_base::resolve(interface_base& iface) {
+            if(iface.protocol() == "TCP") {
                 resolve_ares_getaddrinfo(
-                    interface, _channel,
-                    interface.host().c_str(),
-                    interface.port().c_str()
+                    iface, _channel,
+                    iface.host().c_str(),
+                    iface.port().c_str()
                 );
-            } else if(interface.protocol().empty()) {
-                if(interface.scheme()=="srv")
-                    resolve_ares_getsrv(interface, _channel);
+            } else if(iface.protocol().empty()) {
+                if(iface.scheme()=="srv")
+                    resolve_ares_getsrv(iface, _channel);
             }
             return set_timeout();
         }

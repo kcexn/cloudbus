@@ -109,9 +109,9 @@ static int test_make_url() {
 }
 static int test_make_urn() {
     using namespace cloudbus;
-    auto address = config::make_address(" urn:localhost:80 ");
+    auto address = config::make_address(" urn:bus:test ");
     FAIL_IF(address.index()!=config::URI);
-    FAIL_IF(std::get<config::URI>(address)!="urn:localhost:80");
+    FAIL_IF(std::get<config::URI>(address)!="urn:bus:test");
 
     return TEST_PASS;
 }

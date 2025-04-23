@@ -313,9 +313,9 @@ namespace cloudbus {
         auto[weight, prio] = find_weights(_addresses);
         _total_weight = weight, _prio = prio;
         if(_addresses.empty() &&
-            scheme() == "srv" ||
+            ( scheme() == "srv" ||
             scheme() == "naptr" ||
-            scheme() == "urn"
+            scheme() == "urn" )
         ){
             protocol().clear();
         }

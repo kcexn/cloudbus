@@ -233,7 +233,7 @@ namespace cloudbus {
                 const unsigned char *flag = ares_match_naptr_flag(cur);
                 if(!flag)
                     continue;
-                int rc = 0;
+                int rc = 1;
                 auto regexp_size = naptr_regexp_len(cur->regexp);
                 auto replacement_size = naptr_replacement_len(cur->replacement);
                 if(regexp_size) {
@@ -257,7 +257,7 @@ namespace cloudbus {
                             break;
                     }
                 }
-                if(replacement_size) {
+                if(rc > 0 && replacement_size) {
                     rc = naptr_resolve_sub(
                         iface, channel,
                         subject,

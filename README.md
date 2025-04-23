@@ -44,12 +44,12 @@ framework *in addition* to Cloudbus for internal network configuration.
 
 Developer's looking to use Cloudbus to build or prototype a distributed application 
 simply need to configure their service backends in Cloudbus segments, and configure 
-their service frontends in Cloudbus controllers (see [Configuring Cloudbus]
-(#configuring-cloudbus)). Service backends can be defined using a protocol 
-(currently TCP, or Unix domain sockets), a port number, and either an IP address or 
-a domain name. In the future, Cloudbus plans to support both NAPTR and SRV record 
-resolution so that distributed services can be configured using an arbitrary URN 
-and dynamically resolved using NAPTR substitution rules.
+their service frontends in Cloudbus controllers (see 
+[Configuring Cloudbus](#configuring-cloudbus)). Service backends can be defined 
+using a protocol (currently TCP, or Unix domain sockets), a port number, and either 
+an IP address or a domain name. In the future, Cloudbus plans to support both NAPTR 
+and SRV record resolution so that distributed services can be configured using an 
+arbitrary URN and dynamically resolved using NAPTR substitution rules.
 
 ## Build and Install
 Cloudbus has only been tested on Linux. I believe that it will work on any POSIX 

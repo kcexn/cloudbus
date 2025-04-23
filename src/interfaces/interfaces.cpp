@@ -104,15 +104,31 @@ namespace cloudbus {
     }
     std::string interface_base::scheme() {
         auto delim = std::find(_uri.begin(), _uri.end(), ':');
-        auto scheme = std::string(_uri.begin(), delim);
+        auto s = std::string(_uri.begin(), delim);
         std::transform(
-                scheme.begin(), scheme.end(),
-                scheme.begin(),
+                s.begin(), s.end(),
+                s.begin(),
             [](unsigned char c) {
                 return std::tolower(c);
             }
         );
-        return scheme;
+        return s;
+    }
+    std::string interface_base::nid() {
+        if(scheme() == "urn") {
+            auto begin = _uri.begin()+4,
+                end = std::find(begin, _uri.end(), ':');
+            auto s = std::string(begin, end);
+            std::transform(
+                    s.begin(), s.end(),
+                    s.begin(),
+                [](unsigned char c) {
+                    return std::tolower(c);
+                }
+            );
+            return s;
+        }
+        return std::string();
     }
     static std::string_view port_(const std::string& uri) {
         auto delim = std::find(uri.begin(), uri.end(), ':');
@@ -266,11 +282,12 @@ namespace cloudbus {
         constexpr duration_type HYST_WND{300};
         if(expire_addresses(clock_type::now()-HYST_WND)){
             for(auto&[wp, cb]: _pending) {
-                if(!wp.expired()){
+                if(!wp.expired()) {
                     const auto&[addr, addrlen, ttl, weight] = next();
-                    const auto *addrp = addrlen < 0 ? nullptr :
-                        reinterpret_cast<const struct sockaddr*>(&addr);
-                    for(auto& hnd: _streams){
+                    const auto *addrp = addrlen != -1UL ?
+                        reinterpret_cast<const struct sockaddr*>(&addr) :
+                        nullptr;
+                    for(auto& hnd: _streams) {
                         const auto& ptr = std::get<stream_ptr>(hnd);
                         if( !(ptr.owner_before(wp) || wp.owner_before(ptr)) ) {
                             cb(hnd, addrp, addrlen, _protocol);
@@ -293,10 +310,12 @@ namespace cloudbus {
             }
         );
         _addresses.resize(it-_addresses.begin());
-        if(_addresses.empty() && scheme()=="srv")
+        if( !_addresses.empty() ) {
+            auto[weight, prio] = find_weights(_addresses);
+            _total_weight = weight, _prio = prio;
+        } else if(scheme() == "srv" || scheme() == "naptr") {
             protocol().clear();
-        auto[weight, prio] = find_weights(_addresses);
-        _total_weight = weight, _prio = prio;
+        }
         return _addresses.size();
     }
     void swap(interface_base& lhs, interface_base& rhs) noexcept {

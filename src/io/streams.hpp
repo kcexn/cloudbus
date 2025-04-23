@@ -42,7 +42,8 @@ namespace io {
                 const sockbuf::buffer_type& recvbuf() const { return _buf.recvbuf(); }
                 const sockbuf::buffer_type& sendbuf() const { return _buf.sendbuf(); }
                 native_handle_type& native_handle() { return _buf.native_handle(); }
-                int err() { return _buf.err(); }
+                int& err() { return _buf.err(); }
+                const int& err() const { return _buf.err(); }
                 sockbuf::buffer_type connectto(const struct sockaddr* addr, socklen_t len) { return _buf.connectto(addr, len); }
 
                 ~sockstream() = default;

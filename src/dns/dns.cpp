@@ -14,6 +14,7 @@
 *   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "dns.hpp"
+#include <pcre2.h>
 #include <charconv>
 #include <mutex>
 #include <arpa/nameser.h>
@@ -21,14 +22,25 @@
 namespace cloudbus {
     namespace dns {
         using addrinfo_args = std::tuple<interface_base&, struct ares_addrinfo_hints*, interface_base::weight_type>;
-        using ares_query_args = std::tuple<interface_base&, const ares_channel&>;
+        using ares_query_args = std::tuple<interface_base&, const ares_channel&, std::string, std::string>;
         static void resolve_ares_getaddrinfo (
-            interface_base& interface,
+            interface_base& iface,
             const ares_channel& channel,
             const char *name,
             const char *service,
             const interface_base::weight_type& weight={1,0,SIZE_MAX}
         );
+        static void resolve_ares_getsrv(
+            interface_base& iface,
+            const ares_channel& channel,
+            const std::string& name
+        );
+        static void resolve_ares_getnaptr(
+            interface_base& iface,
+            const ares_channel& channel,
+            const std::string& name,
+            const std::string& subject
+        );        
         static void ares_addrinfo_success(
             interface_base& iface,
             const interface_base::weight_type& weight,
@@ -63,10 +75,9 @@ namespace cloudbus {
             iface.addresses(std::move(addresses));
             return ares_strerror(status);
         }
-        static std::string extract_protocol(const std::string& uri) {
-            auto delim = std::find(uri.cbegin(), uri.cend(), ':'),
-                start = std::find(++delim, uri.cend(), '.'),
-                end = std::find(++start, uri.cend(), '.');
+        static std::string extract_protocol(const std::string& name) {
+            auto start = std::find(name.cbegin(), name.cend(), '.'),
+                end = std::find(++start, name.cend(), '.');
             while(!std::isalpha(*(++start)));
             auto proto = std::string(start, end);
             std::transform(
@@ -81,13 +92,14 @@ namespace cloudbus {
         static void ares_parse_srv_success(
             interface_base& iface,
             const ares_channel& channel,
+            const std::string& name,
             struct ares_srv_reply *srv
         ){
             using weight_type = interface_base::weight_type;
             constexpr std::size_t PORT_CHARBUF_SIZE = 6;
 
             std::array<char, PORT_CHARBUF_SIZE> port = {};
-            iface.protocol() = extract_protocol(iface.uri());
+            iface.protocol() = extract_protocol(name);
             char *begin=port.data(), *end=port.data()+port.max_size();
             for(auto *cur=srv; cur != nullptr; cur=cur->next) {
                 auto[ptr, ec] = std::to_chars(begin, end, cur->port);
@@ -105,9 +117,161 @@ namespace cloudbus {
             }
             ares_free_data(srv);
         }
+        static std::size_t naptr_regexp_len(const unsigned char *regexp) {
+            std::size_t length = 0;
+            if(regexp == nullptr)
+                return length;
+            while( (*regexp != '\0') && (++length != SIZE_MAX) )
+                ++regexp;
+            return length;
+        }
+        static std::size_t naptr_replacement_len(const char *replacement) {
+            std::size_t length = 0;
+            if(replacement == nullptr)
+                return length;
+            while( (*replacement != '\0') && (++length != SIZE_MAX) )
+                ++replacement;
+            return length;
+        }
+        static const unsigned char *ares_match_naptr_flag(struct ares_naptr_reply *cur) {
+            auto *flag = cur->flags;
+            if(!flag)
+                return reinterpret_cast<const unsigned char*>("\0");
+            for(; *flag != '\0'; ++flag) {
+                switch(*flag=std::tolower(*flag)) {
+                    case 's':
+                        return flag;
+                    default:
+                        return nullptr;
+                }
+            }
+            return flag;
+        }
+        static int naptr_resolve_sub(
+            interface_base& iface,
+            const ares_channel& channel,
+            const std::string& subject,
+            const char *substitution,
+            const unsigned char *flag
+        ){
+            switch(*flag){
+                case '\0':
+                    resolve_ares_getnaptr(
+                        iface, channel,
+                        substitution,
+                        subject
+                    );
+                    return 0;
+                case 's':
+                    resolve_ares_getsrv(
+                        iface, channel,
+                        substitution
+                    );
+                    return 0;
+                default:
+                    return -1;
+            }
+        }
+        static void replace_backreferences(std::string& s) {
+            for(auto it=s.begin(); it != s.end(); ++it)
+                if( *it == '\\' && std::isdigit(*(it+1)) )
+                    *it = '$';
+        }        
+        static int pcre_substitute_(
+            struct ares_naptr_reply *cur,
+            std::size_t regexp_size,
+            const std::string& subject,
+            PCRE2_UCHAR *result,
+            PCRE2_SIZE *result_len
+        ){
+            pcre2_code *re = nullptr;
+            pcre2_match_data *match_data = nullptr;
+            int rc = 0;
+            PCRE2_SIZE roff = 0;
+            auto *begin=cur->regexp, *end=begin+regexp_size;
+            auto delim = *begin;
+            auto mbegin = ++begin, mend=std::find(mbegin, end, delim);
+            auto match = std::string(mbegin, mend);
+            auto sbegin = ++mend, send=std::find(sbegin, end, delim);
+            auto substitute = std::string(sbegin, send);
+            replace_backreferences(substitute);
+            re = pcre2_compile(
+                reinterpret_cast<PCRE2_SPTR8>(match.c_str()),
+                match.size(),
+                PCRE2_NEVER_UCP | PCRE2_NEVER_UTF,
+                &rc,
+                &roff,
+                nullptr
+            );
+            if(re != nullptr) {
+                match_data = pcre2_match_data_create_from_pattern(re, nullptr);
+                rc = pcre2_substitute(
+                    re,
+                    reinterpret_cast<PCRE2_SPTR>(subject.c_str()),
+                    PCRE2_ZERO_TERMINATED,
+                    0,
+                    0,
+                    match_data,
+                    nullptr,
+                    reinterpret_cast<PCRE2_SPTR>(substitute.c_str()),
+                    PCRE2_ZERO_TERMINATED,
+                    result,
+                    result_len
+                );
+            }
+            pcre2_match_data_free(match_data);
+            pcre2_code_free(re);
+            return rc;
+        }
+        static void ares_parse_naptr_success(
+            interface_base& iface,
+            const ares_channel& channel,
+            const std::string& subject,
+            struct ares_naptr_reply *naptr
+        ){
+            for(auto *cur = naptr; cur != nullptr; cur = cur->next) {
+                const unsigned char *flag = ares_match_naptr_flag(cur);
+                if(!flag)
+                    continue;
+                int rc = 1;
+                auto regexp_size = naptr_regexp_len(cur->regexp);
+                auto replacement_size = naptr_replacement_len(cur->replacement);
+                if(regexp_size) {
+                    PCRE2_UCHAR result[256] = {};
+                    PCRE2_SIZE result_len = 256;
+                    rc = pcre_substitute_(
+                        cur,
+                        regexp_size,
+                        subject,
+                        result,
+                        &result_len
+                    );
+                    if(rc > 0 && !replacement_size) {
+                        rc = naptr_resolve_sub(
+                            iface, channel,
+                            subject,
+                            reinterpret_cast<const char*>(result),
+                            flag
+                        );
+                    }
+                }
+                if(rc > 0 && replacement_size) {
+                    rc = naptr_resolve_sub(
+                        iface, channel,
+                        subject,
+                        cur->replacement,
+                        flag
+                    );
+                }
+                if(!rc)
+                    break;
+            }
+            ares_free_data(naptr);
+        }
         static void ares_getsrv_success(
             interface_base& iface,
             const ares_channel& channel,
+            const std::string& name,
             unsigned char *abuf,
             int alen
         ){
@@ -115,7 +279,27 @@ namespace cloudbus {
             int rc = ares_parse_srv_reply(abuf, alen, &srv);
             switch(rc) {
                 case ARES_SUCCESS:
-                    return ares_parse_srv_success(iface, channel, srv);
+                    return ares_parse_srv_success(iface, channel, name, srv);
+                default:
+                    std::cerr << __FILE__ << ':' << __LINE__
+                        << ":ares error:"
+                        << ares_handle_error(iface, rc)
+                        << std::endl;
+                    break;
+            }
+        }
+        static void ares_getnaptr_success(
+            interface_base& iface,
+            const ares_channel& channel,
+            const std::string& subject,
+            unsigned char *abuf,
+            int alen
+        ){
+            struct ares_naptr_reply *naptr = nullptr;
+            int rc = ares_parse_naptr_reply(abuf, alen, &naptr);
+            switch(rc) {
+                case ARES_SUCCESS:
+                    return ares_parse_naptr_success(iface, channel, subject, naptr);
                 default:
                     std::cerr << __FILE__ << ':' << __LINE__
                         << ":ares error:"
@@ -172,10 +356,31 @@ namespace cloudbus {
                 int alen
             ){
                 auto *args = static_cast<ares_query_args*>(arg);
-                auto&[iface, channel] = *args;
+                auto&[iface, channel, name, subject] = *args;
                 switch(status) {
                     case ARES_SUCCESS:
-                        ares_getsrv_success(iface, channel, abuf, alen);
+                        ares_getsrv_success(iface, channel, name, abuf, alen);
+                        break;
+                    default:
+                        std::cerr << __FILE__ << ':' << __LINE__
+                            << ":ares error:"
+                            << ares_handle_error(iface, status)
+                            << std::endl;
+                        break;
+                }
+                delete args;
+            }
+            static void ares_getnaptr_cb(
+                void *arg, int status,
+                int timeouts,
+                unsigned char *abuf,
+                int alen
+            ){
+                auto *args = static_cast<ares_query_args*>(arg);
+                auto&[iface, channel, name, subject] = *args;
+                switch(status) {
+                    case ARES_SUCCESS:
+                        ares_getnaptr_success(iface, channel, subject, abuf, alen);
                         break;
                     default:
                         std::cerr << __FILE__ << ':' << __LINE__
@@ -269,16 +474,30 @@ namespace cloudbus {
         }
         static void resolve_ares_getsrv(
             interface_base& iface,
-            const ares_channel& channel
+            const ares_channel& channel,
+            const std::string& name
         ){
-            auto *args = new ares_query_args{iface, channel};
-            auto& uri = iface.uri();
-            auto delim = uri.find(':');
+            auto *args = new ares_query_args{iface, channel, name, ""};
             return ares_query(
                 channel,
-                uri.substr(delim+1).c_str(),
+                name.c_str(),
                 ns_c_in, ns_t_srv,
                 ares_getsrv_cb,
+                args
+            );
+        }
+        static void resolve_ares_getnaptr(
+            interface_base& iface,
+            const ares_channel& channel,
+            const std::string& name,
+            const std::string& subject
+        ){
+            auto *args = new ares_query_args{iface, channel, name, subject};
+            return ares_query(
+                channel,
+                name.c_str(),
+                ns_c_in, ns_t_naptr,
+                ares_getnaptr_cb,
                 args
             );
         }
@@ -290,8 +509,14 @@ namespace cloudbus {
                     iface.port().c_str()
                 );
             } else if(iface.protocol().empty()) {
-                if(iface.scheme()=="srv")
-                    resolve_ares_getsrv(iface, _channel);
+                const auto& uri = iface.uri();
+                if(iface.scheme()=="srv") {
+                    resolve_ares_getsrv(iface, _channel, uri.substr(4));
+                } else if(iface.scheme()=="naptr") {
+                    resolve_ares_getnaptr(iface, _channel, uri.substr(6), uri.substr(6));
+                } else if(iface.scheme()=="urn" && iface.nid()=="bus") {
+                    resolve_ares_getnaptr(iface, _channel, "bus.urn", uri.substr(8));
+                }
             }
             return set_timeout();
         }

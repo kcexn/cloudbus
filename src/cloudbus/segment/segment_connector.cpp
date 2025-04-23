@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <netinet/tcp.h>
+#include <cstring>
 namespace cloudbus{
     namespace segment {
         static constexpr std::streamsize MAX_BUFSIZE = 65536 * 4096; /* 256MiB */
@@ -169,7 +170,7 @@ namespace cloudbus{
             events.resize(put-events.begin());
             return handled + Base::_handle(events);
         }
-        int connector::_route(marshaller_type::north_format& buf, const north_type& interface, const north_type::handle_type& stream, event_mask& revents){
+        int connector::_route(marshaller_type::north_format& buf, north_type& interface, const north_type::handle_type& stream, event_mask& revents){
             constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
             const auto&[nfd, nsp] = stream;
             const auto eof = nsp->eof();
@@ -229,7 +230,7 @@ namespace cloudbus{
             }
             return eof ? -1 : 0;
         }
-        int connector::_route(marshaller_type::south_format& buf, const south_type& interface, const south_type::handle_type& stream, event_mask& revents){
+        int connector::_route(marshaller_type::south_format& buf, south_type& interface, const south_type::handle_type& stream, event_mask& revents){
             auto&[sfd, ssp] = stream;
             const auto p = buf.tellp();
             if(const auto eof = ssp->eof(); eof || p > 0) {
@@ -263,10 +264,9 @@ namespace cloudbus{
                 connections().resize(end-connections().begin());
                 return -1;
             }
-            if(p == 0) return 0;
-            return -1;
+            return p ? -1 : 0;
         }
-        std::streamsize connector::_north_connect(const north_type& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
+        std::streamsize connector::_north_connect(north_type& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
             constexpr std::size_t SHRINK_THRESHOLD = 4096;
             auto& sbd = south().front();
             auto&[sfd, ssp] = sbd.make();
@@ -278,28 +278,22 @@ namespace cloudbus{
                     auto addrlen,
                     const std::string& protocol
                 ){
-                    if(addr != nullptr) {
-                        auto&[sockfd, sptr] = hnd;
-                        if(sockfd == sptr->BAD_SOCKET){
-                            if(protocol == "TCP" || protocol == "UNIX") {
-                                if( (sockfd=socket(addr->sa_family, SOCK_STREAM, 0)) < 0 )
-                                    throw std::system_error(
-                                        std::error_code(errno, std::system_category()),
-                                        "Unable to create a new socket."
-                                    );
-                                if(protocol == "TCP"){
-                                    int nodelay = 1;
-                                    if(setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay)))
-                                        throw std::system_error(
-                                            std::error_code(errno, std::system_category()),
-                                            "Unable to set TCP_NODELAY socket option."
-                                        );
-                                }
-                            } else throw std::invalid_argument("Unsupported transport protocol.");
-                            sptr->native_handle() = set_flags(sockfd);
+                    if(addr == nullptr)
+                        return (void)interface.erase(hnd);
+                    auto&[sockfd, sptr] = hnd;
+                    if(sockfd == sptr->BAD_SOCKET) {
+                        if( !(protocol == "TCP" || protocol == "UNIX") )
+                            return (void)interface.erase(hnd);
+                        if( (sockfd = socket(addr->sa_family, SOCK_STREAM, 0)) == -1 )
+                            return (void)interface.erase(hnd);
+                        if(protocol == "TCP") {
+                            int nodelay = 1;
+                            if(setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay)))
+                                return (void)interface.erase(hnd);
                         }
+                        sptr->native_handle() = set_flags(sockfd);
                         sptr->connectto(addr, addrlen);
-                        triggers().set(sockfd, (POLLIN | POLLOUT));
+                        triggers().set(sockfd, POLLIN | POLLOUT);
                     }
                 }
             );
@@ -344,7 +338,7 @@ namespace cloudbus{
                 return p-g;
             } else return 0;
         }
-        int connector::_north_pollin_handler(const north_type& interface, const north_type::handle_type& stream, event_mask& revents){
+        int connector::_north_pollin_handler(north_type& interface, const north_type::handle_type& stream, event_mask& revents){
             if(auto it = marshaller().unmarshal(stream); it != marshaller().north().end()){
                 using stream_ptr = north_type::stream_ptr;
                 using north_format = marshaller_type::north_format;
@@ -375,6 +369,11 @@ namespace cloudbus{
         }
         int connector::_north_pollout_handler(const north_type::handle_type& stream, event_mask& revents){
             auto&[nfd, nsp] = stream;
+            if(revents & POLLERR) {
+                int ec = 0; socklen_t len = sizeof(ec);
+                if(!getsockopt(nfd, SOL_SOCKET, SO_ERROR, &ec, &len) && ec)
+                    nsp->err() = ec;
+            }
             if(revents & (POLLERR | POLLNVAL))
                 nsp->setstate(nsp->badbit);
             if(nsp->flush().bad())
@@ -402,37 +401,54 @@ namespace cloudbus{
             }
             return handled;
         }
+        static void expire_address_of(const interface_base::stream_ptr& sptr, interface_base& iface) {
+            const auto&[addr, addrlen] = sptr->sendbuf()->data;
+            auto addresses = iface.addresses();
+            auto end = std::remove_if(
+                    addresses.begin(),
+                    addresses.end(),
+                [&](auto& a){
+                    const auto&[addr_, addrlen_, ttl_, weight_] = a;
+                    const auto&[time, interval] = ttl_;
+                    return interval.count() > -1 &&
+                        addrlen_ == addrlen &&
+                        !std::memcmp(&addr, &addr_, addrlen);
+                }
+            );
+            addresses.resize(end-addresses.begin());
+            iface.addresses(std::move(addresses));
+        }        
         void connector::_south_err_handler(south_type& interface, const south_type::handle_type& stream, event_mask& revents){
             const auto&[sfd, ssp] = stream;
             const auto time = connection_type::clock_type::now();
-            auto conn=connections().begin(), cur=conn;
-            while((cur=conn) != connections().end()){
-                ++conn;
-                if( !(cur->south.owner_before(ssp) || ssp.owner_before(cur->south)) ) {
-                    if(auto n = cur->north.lock()) {
+            for(auto conn=connections().begin(); conn != connections().end(); ++conn){
+                if( !(conn->south.owner_before(ssp) || ssp.owner_before(conn->south)) ) {
+                    if(auto n = conn->north.lock()) {
                         messages::msgheader stop{
-                            cur->uuid, {1, sizeof(stop)},
+                            conn->uuid, {1, sizeof(stop)},
                             {0,0}, {messages::STOP, 0}
                         };
-                        if(cur->state < connection_type::CLOSED ||
+                        if(conn->state < connection_type::CLOSED ||
                                 (ssp->fail() || !ssp->eof())
                         ){
                             if(ssp->fail()){
                                 stop.type.flags = messages::ABORT;
-                                state_update(*cur, stop.type, time);
+                                state_update(*conn, stop.type, time);
                             }
                             n->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
                             triggers().set(n->native_handle(), POLLOUT);
                         }
-                        state_update(*cur, stop.type, time);
-                        if(cur->state == connection_type::CLOSED)
-                            conn = connections().erase(cur);
+                        state_update(*conn, stop.type, time);
+                        if(conn->state == connection_type::CLOSED)
+                            connections().erase(conn);
                         break;
                     }
                 }
             }
             revents = 0;
             triggers().clear(sfd);
+            if(ssp->err() == ECONNREFUSED)
+                expire_address_of(ssp, interface);
             interface.erase(stream);
         }
         std::streamsize connector::_south_write(const north_type::stream_ptr& n, const connection_type& conn, marshaller_type::south_format& buf){
@@ -455,7 +471,7 @@ namespace cloudbus{
                 return -1;
             return size;
         }
-        int connector::_south_pollin_handler(const south_type& interface, const south_type::handle_type& stream, event_mask& revents){
+        int connector::_south_pollin_handler(south_type& interface, const south_type::handle_type& stream, event_mask& revents){
             if(auto it = marshaller().marshal(stream); it != marshaller().south().end()){
                 using stream_ptr = south_type::stream_ptr;
                 using south_format = marshaller_type::south_format;
@@ -484,6 +500,11 @@ namespace cloudbus{
         }
         int connector::_south_pollout_handler(const south_type::handle_type& stream, event_mask& revents){
             auto&[sfd, ssp] = stream;
+            if(revents & POLLERR) {
+                int ec = 0; socklen_t len = sizeof(ec);
+                if(getsockopt(sfd, SOL_SOCKET, SO_ERROR, &ec, &len) && ec)
+                    ssp->err() = ec;
+            }
             if(revents & (POLLERR | POLLNVAL))
                 ssp->setstate(ssp->badbit);
             if(ssp->flush().bad())

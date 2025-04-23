@@ -38,13 +38,13 @@ namespace cloudbus {
 
             protected:
                 virtual size_type _handle(events_type& events) override;
-                virtual int _route(marshaller_type::north_format& buf, const north_type& interface, const north_type::handle_type& stream, event_mask& revents) override;
-                virtual int _route(marshaller_type::south_format& buf, const south_type& interface, const south_type::handle_type& stream, event_mask& revents) override;
-                virtual std::streamsize _north_connect(const north_type& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf) override;
+                virtual int _route(marshaller_type::north_format& buf, north_type& interface, const north_type::handle_type& stream, event_mask& revents) override;
+                virtual int _route(marshaller_type::south_format& buf, south_type& interface, const south_type::handle_type& stream, event_mask& revents) override;
+                virtual std::streamsize _north_connect(north_type& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf) override;
 
             private:
                 void _north_err_handler(north_type& interface, const north_type::handle_type& stream, event_mask& revents);
-                int _north_pollin_handler(const north_type& interface, const north_type::handle_type& stream, event_mask& revents);
+                int _north_pollin_handler(north_type& interface, const north_type::handle_type& stream, event_mask& revents);
                 int _north_accept_handler(north_type& interface, const north_type::handle_type& stream, event_mask& revents);
                 void _north_state_handler(north_type& interface, const north_type::handle_type& stream, event_mask& revents);
                 int _north_pollout_handler(const north_type::handle_type& stream, event_mask& revents);
@@ -52,7 +52,7 @@ namespace cloudbus {
 
                 void _south_err_handler(south_type& interface, const south_type::handle_type& stream, event_mask& revents);
                 std::streamsize _south_write(const north_type::stream_ptr& n, marshaller_type::south_format& buf);
-                int _south_pollin_handler(const south_type& interface, const south_type::handle_type& stream, event_mask& revents);
+                int _south_pollin_handler(south_type& interface, const south_type::handle_type& stream, event_mask& revents);
                 int _south_state_handler(const south_type::handle_type& stream);
                 int _south_pollout_handler(const south_type::handle_type& stream, event_mask& revents);
                 size_type _handle(south_type& interface, const south_type::handle_type& stream, event_mask& revents);

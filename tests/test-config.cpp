@@ -131,6 +131,14 @@ static int test_invalid_uri() {
     
     return TEST_PASS;
 }
+static int test_make_naptr() {
+    using namespace cloudbus;
+    auto address = config::make_address("naptr:service.bus.urn.arpa");
+    FAIL_IF(address.index() != config::URI);
+    FAIL_IF(std::get<config::URI>(address) != "naptr:service.bus.urn.arpa");
+
+    return TEST_PASS;
+}
 int main(int argc, char **argv) {
     std::cout << "================================= TEST CONFIG ==================================" << std::endl;
     EXEC_TEST(test_ingest_config);
@@ -141,6 +149,7 @@ int main(int argc, char **argv) {
     EXEC_TEST(test_make_urn);
     EXEC_TEST(test_make_srv);
     EXEC_TEST(test_invalid_uri);
+    EXEC_TEST(test_make_naptr);
     std::cout << "================================================================================" << std::endl;
     return TEST_PASS;
 }

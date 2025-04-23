@@ -159,7 +159,7 @@ namespace cloudbus {
             {}
             int route(
                 typename marshaller_type::north_format& buf,
-                const north_type& interface,
+                north_type& interface,
                 const typename north_type::handle_type& stream,
                 event_mask& revents
             ){
@@ -167,14 +167,14 @@ namespace cloudbus {
             }
             int route(
                 typename marshaller_type::south_format& buf,
-                const south_type& interface,
+                south_type& interface,
                 const typename south_type::handle_type& stream,
                 event_mask& revents
             ){
                 return _route(buf, interface, stream, revents);
             }
             std::streamsize north_connect(
-                const north_type& interface,
+                north_type& interface,
                 const typename north_type::stream_ptr& nsp,
                 typename marshaller_type::north_format& buf
             ){
@@ -192,20 +192,20 @@ namespace cloudbus {
         protected:
             virtual int _route(
                 typename marshaller_type::north_format& buf,
-                const north_type& interface,
+                north_type& interface,
                 const typename north_type::handle_type& stream,
                 event_mask& revents
             ){ return -1; }
 
             virtual int _route(
                 typename marshaller_type::south_format& buf,
-                const south_type& interface,
+                south_type& interface,
                 const typename south_type::handle_type& stream,
                 event_mask& revents
             ){ return -1; }
 
             virtual std::streamsize _north_connect(
-                const north_type& interface,
+                north_type& interface,
                 const typename north_type::stream_ptr& nsp,
                 typename marshaller_type::north_format& buf
             ){ return -1; }

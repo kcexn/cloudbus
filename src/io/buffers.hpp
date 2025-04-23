@@ -58,7 +58,8 @@ namespace io{
                 const buffer_type& recvbuf() const { return _buffers.front(); }
                 const buffer_type& sendbuf() const { return _buffers.back(); }
                 native_handle_type& native_handle() { return _socket; }
-                int err(){ return _errno; }
+                int& err() { return _errno; }
+                const int& err() const { return _errno; }
 
                 ~sockbuf();
 

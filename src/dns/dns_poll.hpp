@@ -38,7 +38,8 @@ namespace cloudbus {
                 virtual size_type _handle(events_type& events) override {
                     size_type handled = 0;
                     auto hit=handles().begin(), cur=hit;
-                    while((cur=hit++) != handles().end()){
+                    while((cur=hit) != handles().end()) {
+                        ++hit;
                         auto& hnd = *cur;
                         auto&[sockfd, sockev] = hnd;
                         event_mask curr=0, set=0, unset=0;

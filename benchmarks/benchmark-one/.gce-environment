@@ -12,7 +12,7 @@ deactivate() {
 }
 # Common:
 export MACHINE_TYPE='e2-micro'
-DISK_TYPE='auto-delete=yes,boot=yes,image=projects/debian-cloud/global/images/debian-12-bookworm-v20250311,mode=rw,size=10,type=pd-balanced'
+DISK_TYPE='auto-delete=yes,boot=yes,image=projects/debian-cloud/global/images/debian-12-bookworm-v20250415,mode=rw,size=10,type=pd-balanced'
 # Client Node:
 export CLIENT_NAME='test-client'
 export CLIENT_ZONE='australia-southeast1-c'

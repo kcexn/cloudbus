@@ -97,18 +97,18 @@ $ gcloud compute ssh "${CONTROLLER_NAME}" \
     --zone="${CLIENT_ZONE}" \
     --command="/usr/bin/sh -c 'sudo apt-get update && \
         sudo apt-get -y upgrade && \
-        sudo apt-get -y install build-essential libc-ares-dev'" && \
+        sudo apt-get -y install build-essential libc-ares-dev libpcre2-dev'" && \
 gcloud compute ssh "${SEGMENT_NAME}" \
     --zone="${SERVER_ZONE}" \
     --command="/usr/bin/sh -c 'sudo apt-get update && \
         sudo apt-get -y upgrade && \
-        sudo apt-get -y install build-essential libc-ares-dev'"
+        sudo apt-get -y install build-essential libc-ares-dev libpcre2-dev'"
 ```
 
 #### Install and Configure Cloudbus on the Controller and the Segment
 Copy the cloudbus distribution:
 ```
-$ VERSION=0.1.0 && \
+$ VERSION=0.2.0 && \
 CLOUDBUS_PATH="./cloudbus-${VERSION}.tar.gz" && \
 gcloud compute scp "${CLOUDBUS_PATH}" \
     "${CONTROLLER_NAME}":~ \
@@ -119,7 +119,7 @@ gcloud compute scp "${CLOUDBUS_PATH}" \
 ```
 Install cloudbus:
 ```
-$ VERSION=0.1.0 && \
+$ VERSION=0.2.0 && \
 COMMAND="/usr/bin/sh -c 'tar -zxvf cloudbus-${VERSION}.tar.gz && \
     cd cloudbus-${VERSION} && \
     ./configure CXXFLAGS=-flto && \

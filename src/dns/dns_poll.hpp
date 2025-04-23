@@ -37,12 +37,18 @@ namespace cloudbus {
             protected:
                 virtual size_type _handle(events_type& events) override {
                     size_type handled = 0;
-                    auto hit=handles().begin(), cur=hit;
-                    while((cur=hit) != handles().end()) {
-                        ++hit;
-                        auto& hnd = *cur;
+                    auto hit=handles().begin();
+                    while(hit != handles().end()) {
+                        auto& hnd = *hit;
                         auto&[sockfd, sockev] = hnd;
+                        if(!sockev) {
+                            this->triggers().clear(sockfd);
+                            hit = handles().erase(hit);
+                            continue;
+                        }
+                        else ++hit;
                         event_mask curr=0, set=0, unset=0;
+                        
                         auto cit = std::find_if(
                                 events.cbegin(),
                                 events.cend(),
@@ -55,28 +61,25 @@ namespace cloudbus {
                                 return event.fd==sockfd;
                             }
                         );
+
                         if(cit == events.cend()){
                             auto&[time, interval] = timeout();
                             if(clock_type::now() > time+interval && ++handled)
                                 process_event(hnd);
                         } else cit=events.erase(cit);
-                        if(!sockev){
-                            this->triggers().clear(sockfd);
-                            hit = handles().erase(cur);
-                        } else {
-                            if( (sockev & READABLE) && !(curr & POLLIN) )
-                                set |= POLLIN;
-                            if( !(sockev & READABLE) && (curr & POLLIN) )
-                                unset |= POLLIN;
-                            if( (sockev & WRITABLE) && !(curr & POLLOUT) )
-                                set |= POLLOUT;
-                            if( !(sockev & WRITABLE) && (curr & POLLOUT) )
-                                unset |= POLLOUT;
-                            if(set)
-                                this->triggers().set(sockfd, set);
-                            if(unset)
-                                this->triggers().clear(sockfd, unset);
-                        }
+
+                        if( (sockev & READABLE) && !(curr & POLLIN) )
+                            set |= POLLIN;
+                        if( !(sockev & READABLE) && (curr & POLLIN) )
+                            unset |= POLLIN;
+                        if( (sockev & WRITABLE) && !(curr & POLLOUT) )
+                            set |= POLLOUT;
+                        if( !(sockev & WRITABLE) && (curr & POLLOUT) )
+                            unset |= POLLOUT;
+                        if(set)
+                            this->triggers().set(sockfd, set);
+                        if(unset)
+                            this->triggers().clear(sockfd, unset);
                     }
                     return handled;
                 }

@@ -39,16 +39,15 @@ namespace cloudbus {
                     size_type handled = 0;
                     auto hit=handles().begin();
                     while(hit != handles().end()) {
-                        auto& hnd = *hit;
+                        auto& hnd = *hit++;
                         auto&[sockfd, sockev] = hnd;
                         if(!sockev) {
                             this->triggers().clear(sockfd);
-                            hit = handles().erase(hit);
+                            hit = handles().erase(--hit);
                             continue;
                         }
-                        else ++hit;
-                        event_mask curr=0, set=0, unset=0;
                         
+                        event_mask curr=0, set=0, unset=0;
                         auto cit = std::find_if(
                                 events.cbegin(),
                                 events.cend(),

@@ -1,13 +1,16 @@
 # Developer Notes
 ## Dependencies:
 
-* Cloudbus depends on c-ares version 1.18.1 or greater, releases can be downloaded 
-  from the c-ares [Github repository](https://github.com/c-ares/c-ares/releases). 
-  Alternatively, you can install the libc-ares binary and associated development 
-  headers from your distro's package manager, e.g., on Debian:
-  ```
-  $ sudo apt-get install libc-ares-dev
-  ```
+* Cloudbus depends on c-ares v1.18.1 or greater. Releases can be downloaded 
+    from the c-ares [repository](https://github.com/c-ares/c-ares/releases). 
+* Cloudbus also depends on pcre2 v10.42 or greaer. Releases can be downloaded 
+    from the pcre2 [repository](https://github.com/PCRE2Project/pcre2/releases).
+
+Alternatively, dependencies and their development headers can be installed from 
+distro's package manager, e.g., on Debian:
+```
+$ sudo apt-get install libc-ares-dev libpcre2-dev
+```
 
 ## Configure and Build:
 
@@ -26,7 +29,7 @@
 * Development tests are disabled by default so that software tests do not need to be 
   included in the distributed tarball. Enable tests at configure time with:
   ```
-  $ ./configure --enable-tests
+  $ ./configure CXXFLAGS='-UCONFDIR' --enable-tests
   ```
 
 * This can be combined with VPATH builds to nicely separate out any development 
@@ -34,5 +37,5 @@
   tarballs. i.e.:
   ```
   $ mkdir build && cd build
-  $ ../configure CXXFLAGS='-UCONFDIR'
+  $ ../configure CXXFLAGS='-UCONFDIR' --enable-tests
   ```

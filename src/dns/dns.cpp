@@ -253,6 +253,8 @@ namespace cloudbus {
                             reinterpret_cast<const char*>(result),
                             flag
                         );
+                        if(!rc)
+                            break;
                     }
                 }
                 if(rc > 0 && replacement_size) {
@@ -262,9 +264,9 @@ namespace cloudbus {
                         cur->replacement,
                         flag
                     );
+                    if(!rc)
+                        break;
                 }
-                if(!rc)
-                    break;
             }
             ares_free_data(naptr);
         }

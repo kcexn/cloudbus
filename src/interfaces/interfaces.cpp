@@ -16,7 +16,6 @@
 #include "interfaces.hpp"
 #include <cstring>
 namespace cloudbus {
-    static constexpr std::size_t SHRINK_THRESHOLD = 4096;
     const interface_base::address_type interface_base::NULLADDR = interface_base::address_type{};
     interface_base::address_type interface_base::make_address(const struct sockaddr *addr, socklen_t addrlen, const ttl_type& ttl, const weight_type& weight){
         auto address = address_type();
@@ -200,20 +199,17 @@ namespace cloudbus {
     }
     interface_base::handle_type& interface_base::make(){
         _streams.push_back(make_handle());
-        if(_streams.capacity() > SHRINK_THRESHOLD)
-            _streams.shrink_to_fit();
+        _streams.shrink_to_fit();
         return _streams.back();
     }
     interface_base::handle_type& interface_base::make(int domain, int type, int protocol, std::ios_base::openmode which){
         _streams.push_back(make_handle(domain, type, protocol, which));
-        if(_streams.capacity() > SHRINK_THRESHOLD)
-            _streams.shrink_to_fit();
+        _streams.shrink_to_fit();
         return _streams.back();
     }
     interface_base::handle_type& interface_base::make(native_handle_type sockfd, bool connected){
         _streams.push_back(make_handle(sockfd, connected));
-        if(_streams.capacity() > SHRINK_THRESHOLD)
-            _streams.shrink_to_fit();
+        _streams.shrink_to_fit();
         return _streams.back();
     }
     interface_base::handles_type::const_iterator interface_base::erase(handles_type::const_iterator cit){
@@ -246,14 +242,12 @@ namespace cloudbus {
     }
     void interface_base::register_connect(const stream_ptr& ptr, const callback_type& connect_callback){
         _pending.emplace_back(ptr, connect_callback);
-        if(_pending.capacity() > SHRINK_THRESHOLD)
-            _pending.shrink_to_fit();
+        _pending.shrink_to_fit();
         return _resolve_callbacks();
     }
     void interface_base::register_connect(const stream_ptr& ptr, callback_type&& connect_callback){
         _pending.emplace_back(ptr, std::move(connect_callback));
-        if(_pending.capacity() > SHRINK_THRESHOLD)
-            _pending.shrink_to_fit();
+        _pending.shrink_to_fit();
         return _resolve_callbacks();
     }
     static void clear_counters(interface_base::addresses_type& addresses){

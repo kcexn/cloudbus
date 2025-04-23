@@ -313,7 +313,7 @@ namespace cloudbus {
         if( !_addresses.empty() ) {
             auto[weight, prio] = find_weights(_addresses);
             _total_weight = weight, _prio = prio;
-        } else if(scheme() == "srv" || scheme() == "naptr") {
+        } else if(scheme() == "srv" || scheme() == "naptr" || scheme() == "urn") {
             protocol().clear();
         }
         return _addresses.size();

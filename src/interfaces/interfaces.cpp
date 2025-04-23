@@ -242,12 +242,10 @@ namespace cloudbus {
     }
     void interface_base::register_connect(const stream_ptr& ptr, const callback_type& connect_callback){
         _pending.emplace_back(ptr, connect_callback);
-        _pending.shrink_to_fit();
         return _resolve_callbacks();
     }
     void interface_base::register_connect(const stream_ptr& ptr, callback_type&& connect_callback){
         _pending.emplace_back(ptr, std::move(connect_callback));
-        _pending.shrink_to_fit();
         return _resolve_callbacks();
     }
     static void clear_counters(interface_base::addresses_type& addresses){
@@ -275,7 +273,9 @@ namespace cloudbus {
     void interface_base::_resolve_callbacks(){
         constexpr duration_type HYST_WND{300};
         if(expire_addresses(clock_type::now()-HYST_WND)){
-            for(auto&[wp, cb]: _pending) {
+            auto pending{std::move(_pending)};
+            _pending = callbacks_type();
+            for(auto&[wp, cb]: pending) {
                 if(!wp.expired()) {
                     const auto&[addr, addrlen, ttl, weight] = next();
                     const auto *addrp = addrlen != -1UL ?
@@ -290,7 +290,6 @@ namespace cloudbus {
                     }
                 }
             }
-            _pending.clear();
             expire_addresses();
         }
     }

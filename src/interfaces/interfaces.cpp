@@ -278,7 +278,7 @@ namespace cloudbus {
             for(auto&[wp, cb]: pending) {
                 if(!wp.expired()) {
                     const auto&[addr, addrlen, ttl, weight] = next();
-                    const auto *addrp = addrlen != -1UL ?
+                    const auto *addrp = addrlen != static_cast<socklen_t>(-1) ?
                         reinterpret_cast<const struct sockaddr*>(&addr) :
                         nullptr;
                     for(auto& hnd: _streams) {

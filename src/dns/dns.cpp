@@ -66,13 +66,13 @@ namespace cloudbus {
             using clock_type = interface_base::clock_type;
             using duration_type = interface_base::duration_type;
 
-            addresses_type addresses;
-            auto&[addr, addrlen, ttl, weight_] = addresses.emplace_back();
-            addr = {};
-            addrlen = -1;
+            addresses_type addrs;
+            auto&[addr, addrlen, ttl, weight] = addrs.emplace_back();
+            std::memset(&addr, 0, sizeof(addr));
+            addrlen = static_cast<socklen_t>(-1);
             ttl = std::make_tuple(clock_type::now(), duration_type(0));
-            weight_ = {1,0,SIZE_MAX};
-            iface.addresses(std::move(addresses));
+            weight = {1,0,SIZE_MAX};
+            iface.addresses(std::move(addrs));
             return ares_strerror(status);
         }
         static std::string extract_protocol(const std::string& name) {
@@ -117,26 +117,10 @@ namespace cloudbus {
             }
             ares_free_data(srv);
         }
-        static std::size_t naptr_regexp_len(const unsigned char *regexp) {
-            std::size_t length = 0;
-            if(regexp == nullptr)
-                return length;
-            while( (*regexp != '\0') && (++length != SIZE_MAX) )
-                ++regexp;
-            return length;
-        }
-        static std::size_t naptr_replacement_len(const char *replacement) {
-            std::size_t length = 0;
-            if(replacement == nullptr)
-                return length;
-            while( (*replacement != '\0') && (++length != SIZE_MAX) )
-                ++replacement;
-            return length;
-        }
         static const unsigned char *ares_match_naptr_flag(struct ares_naptr_reply *cur) {
             auto *flag = cur->flags;
             if(!flag)
-                return reinterpret_cast<const unsigned char*>("\0");
+                return reinterpret_cast<const unsigned char*>("");
             for(; *flag != '\0'; ++flag) {
                 switch(*flag=std::tolower(*flag)) {
                     case 's':
@@ -172,11 +156,26 @@ namespace cloudbus {
                     return -1;
             }
         }
+        static std::string extract_part(const unsigned char *regexp, std::size_t len) {
+            if(!regexp || !len)
+                return std::string();
+            auto delim=*regexp;
+            const auto *end = ++regexp;
+            while(--len != 0 && *end != '\0' && *end != delim)
+                ++end;
+            return std::string(reinterpret_cast<const char*>(regexp), end-regexp);
+        }
         static void replace_backreferences(std::string& s) {
-            for(auto it=s.begin(); it != s.end(); ++it)
-                if( *it == '\\' && std::isdigit(*(it+1)) )
-                    *it = '$';
-        }        
+            for(auto it=s.begin(); it != s.end(); ++it){
+                if(*it == '\\') {
+                    if(++it == s.end())
+                        return;
+                    if( std::isdigit(*it) ) {
+                        *(it-1) = '$';
+                    }
+                }
+            }
+        }
         static int pcre_substitute_(
             struct ares_naptr_reply *cur,
             std::size_t regexp_size,
@@ -188,12 +187,9 @@ namespace cloudbus {
             pcre2_match_data *match_data = nullptr;
             int rc = 0;
             PCRE2_SIZE roff = 0;
-            auto *begin=cur->regexp, *end=begin+regexp_size;
-            auto delim = *begin;
-            auto mbegin = ++begin, mend=std::find(mbegin, end, delim);
-            auto match = std::string(mbegin, mend);
-            auto sbegin = ++mend, send=std::find(sbegin, end, delim);
-            auto substitute = std::string(sbegin, send);
+            auto strsize = std::strlen(reinterpret_cast<const char*>(cur->regexp));
+            auto match = extract_part(cur->regexp, strsize);
+            auto substitute = extract_part(cur->regexp+match.size()+1, strsize-match.size()-1);
             replace_backreferences(substitute);
             re = pcre2_compile(
                 reinterpret_cast<PCRE2_SPTR8>(match.c_str()),
@@ -234,8 +230,8 @@ namespace cloudbus {
                 if(!flag)
                     continue;
                 int rc = 1;
-                auto regexp_size = naptr_regexp_len(cur->regexp);
-                auto replacement_size = naptr_replacement_len(cur->replacement);
+                auto regexp_size = std::strlen(reinterpret_cast<const char*>(cur->regexp));
+                auto replacement_size = std::strlen(cur->replacement);
                 if(regexp_size) {
                     PCRE2_UCHAR result[256] = {};
                     PCRE2_SIZE result_len = 256;
@@ -504,22 +500,28 @@ namespace cloudbus {
             );
         }
         resolver_base::duration_type resolver_base::resolve(interface_base& iface) {
-            if(iface.protocol() == "TCP") {
+            if(iface.protocol().empty()) {
+                auto& uri = iface.uri();
+                const auto scheme = iface.scheme();
+                if(scheme=="srv") {
+                    resolve_ares_getsrv(iface, _channel, uri.substr(scheme.size()+1));
+                } else if(scheme=="naptr") {
+                    resolve_ares_getnaptr(iface, _channel, uri.substr(scheme.size()+1), uri.substr(scheme.size()+1));
+                } else if(scheme=="urn") {
+                    const auto nid = iface.nid();
+                    resolve_ares_getnaptr(iface, _channel, nid+"."+scheme, uri.substr(scheme.size()+nid.size()+2));
+                } else {
+                    resolve_ares_getnaptr(iface, _channel, scheme+".uri", uri.substr(scheme.size()+1));
+                }
+            } else if(iface.protocol() == "TCP") {
                 resolve_ares_getaddrinfo(
                     iface, _channel,
                     iface.host().c_str(),
                     iface.port().c_str()
                 );
-            } else if(iface.protocol().empty()) {
-                const auto& uri = iface.uri();
-                if(iface.scheme()=="srv") {
-                    resolve_ares_getsrv(iface, _channel, uri.substr(4));
-                } else if(iface.scheme()=="naptr") {
-                    resolve_ares_getnaptr(iface, _channel, uri.substr(6), uri.substr(6));
-                } else if(iface.scheme()=="urn" && iface.nid()=="bus") {
-                    resolve_ares_getnaptr(iface, _channel, "bus.urn", uri.substr(8));
-                }
-            }
+            } else throw std::invalid_argument(
+                "resolver_base::resolve(interface_base& iface) - Invalid protocol, "+iface.protocol()
+            );
             return set_timeout();
         }
         resolver_base::duration_type resolver_base::process_event(const socket_handle& hnd){

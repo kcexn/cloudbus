@@ -340,7 +340,7 @@ namespace cloudbus {
                         break;
                     default:
                         std::cerr << __FILE__ << ':' << __LINE__
-                            << ":ares error:"
+                            << ":ares error="
                             << ares_handle_error(iface, status)
                             << std::endl;
                         break;
@@ -361,7 +361,8 @@ namespace cloudbus {
                         break;
                     default:
                         std::cerr << __FILE__ << ':' << __LINE__
-                            << ":ares error:"
+                            << ":name=" << name
+                            << " ares error="
                             << ares_handle_error(iface, status)
                             << std::endl;
                         break;
@@ -382,7 +383,9 @@ namespace cloudbus {
                         break;
                     default:
                         std::cerr << __FILE__ << ':' << __LINE__
-                            << ":ares error:"
+                            << ":name=" << name
+                            << " subject=" << subject
+                            << " ares error="
                             << ares_handle_error(iface, status)
                             << std::endl;
                         break;
@@ -509,9 +512,9 @@ namespace cloudbus {
                     resolve_ares_getnaptr(iface, _channel, uri.substr(scheme.size()+1), uri.substr(scheme.size()+1));
                 } else if(scheme=="urn") {
                     const auto nid = iface.nid();
-                    resolve_ares_getnaptr(iface, _channel, nid+"."+scheme, uri.substr(scheme.size()+nid.size()+2));
+                    resolve_ares_getnaptr(iface, _channel, nid+"."+scheme, uri);
                 } else {
-                    resolve_ares_getnaptr(iface, _channel, scheme+".uri", uri.substr(scheme.size()+1));
+                    resolve_ares_getnaptr(iface, _channel, scheme+".uri", uri);
                 }
             } else if(iface.protocol() == "TCP") {
                 resolve_ares_getaddrinfo(

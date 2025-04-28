@@ -92,6 +92,8 @@ namespace cloudbus {
         return 0;
     }
     manager_base::threads_type::iterator manager_base::stop(threads_type::iterator it) {
+        if(it == _threads.end())
+            return it;
         auto&[name, thrd] = *it;
         auto&[p, t] = thrd;
         if(int ec = notify_thread(p[1], SIGTERM)) {
@@ -111,8 +113,7 @@ namespace cloudbus {
     int manager_base::_handle_signal(int sig) {
         if(sig == SIGTERM || sig == SIGINT || sig == SIGHUP) {
             auto it = _threads.begin();
-            while(it != _threads.end())
-                it = stop(it);
+            while( (it = stop(it)) != _threads.end() );
             return 0;
         }
         return sig;

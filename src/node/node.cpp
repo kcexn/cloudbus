@@ -31,17 +31,13 @@ namespace cloudbus{
         static void sighandler(int sig){
             switch(sig) {
                 case SIGTERM:
-                    sigterm = sig;
-                    break;
+                    return (void)(sigterm = sig);
                 case SIGINT:
-                    sigint = sig;
-                    break;
+                    return (void)(sigint = sig);
                 case SIGHUP:
-                    sighup = sig;
-                    break;
+                    return (void)(sighup = sig);
                 case SIGUSR1:
-                    sigusr1 = sig;
-                    break;
+                    return (void)(sigusr1 = sig);
                 default:
                     break;
             }

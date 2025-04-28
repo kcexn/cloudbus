@@ -15,6 +15,7 @@
 */
 #include "../node.hpp"
 #include "../config.hpp"
+#include <fstream>
 #include <thread>
 #include <list>
 #pragma once
@@ -27,16 +28,18 @@ namespace cloudbus {
             using node_type = node_base;
             using pipe_type = std::array<int, 2>;
             using thread_type = std::tuple<pipe_type, std::thread>;
-            using threads_type = std::list<thread_type>;
-            static volatile std::sig_atomic_t signal;
+            using threads_type = std::map<std::string, thread_type>;
+            static volatile std::sig_atomic_t sigterm, sighup, sigint, sigusr1;
 
             explicit manager_base(const config::configuration& config);
 
             const config_type& config() const { return _config; }
-            void start(node_type& node);
+            threads_type& threads() { return _threads; }
+            void start(const std::string& name, node_type& node);
             int run() { return _run(); }
             int handle_signal(int sig);
-            void join(std::size_t start=0, std::size_t size=-1);
+            void join(threads_type::iterator it);
+            threads_type::iterator stop(threads_type::iterator it);
 
             virtual ~manager_base() = default;
 
@@ -61,22 +64,48 @@ namespace cloudbus {
         public:
             using Base = manager_base;
             using node_type = NodeT;
-            using service_type = std::tuple<std::string, node_type>;
-            using services_type = std::list<service_type>;
+            using services_type = std::map<std::string, node_type>;
 
             explicit basic_manager(const config_type& config):
                 Base(config), _services{}
             {
-                for(const auto& section: config.sections()){
-                    std::string heading = section.heading;
-                    std::transform(heading.begin(), heading.end(), heading.begin(), [](unsigned char c){ return std::toupper(c); });
-                    if(heading != "CLOUDBUS")
-                        _services.emplace_back(section.heading, section);
-                }
+                merge(config);
             }
 
             services_type& services() { return _services; }
             const services_type& services() const { return _services; }
+
+            void merge(const config_type& config) {
+                auto ity = services().begin();
+                while(ity != services().end()) {
+                    const auto&[heading, node] = *ity++;
+                    auto itx = config.sections().find(heading);
+                    if(itx == config.sections().end()) {
+                        stop(threads().find(heading));
+                        ity = services().erase(--ity);
+                    }
+                }
+                for(auto&[heading, section]: config.sections()) {
+                    std::string h = heading;
+                    std::transform(h.begin(), h.end(), h.begin(), [](unsigned char c){ return std::tolower(c); });
+                    if(h != "cloudbus") {
+                        auto[ity, emplaced] = services().try_emplace(heading, section);
+                        while(!emplaced) {
+                            auto&[head, node] = *ity;
+                            if(node.conf() == section)
+                                break;
+                            stop(threads().find(heading));
+                            services().erase(ity);
+                            auto[itv, empl] = services().try_emplace(heading, section);
+                            ity = itv; emplaced = empl;
+                        }
+                        if(emplaced) {
+                            auto&[head, node] = *ity;
+                            start(heading, node);
+                        }
+                    }
+                }
+            }
 
             virtual ~basic_manager() = default;
 
@@ -88,9 +117,28 @@ namespace cloudbus {
 
         protected:
             virtual int _run() override {
-                for(auto&[name, node]: services())
-                    start(node);
                 return Base::_run();
+            }
+            virtual int _handle_signal(int sig) override {
+                if(sig == SIGUSR1) {
+                    #ifdef CONFDIR
+                        std::string path{CONFDIR};
+                    #else
+                        std::string path{"."};
+                    #endif
+                    #ifdef COMPILE_CONTROLLER
+                        path += "/controller.ini";
+                    #elifdef COMPILE_SEGMENT
+                        path += "/segment.ini";
+                    #endif
+                    config::configuration conf;
+                    if(std::fstream f{path, f.in}; f.good()) {
+                        f >> conf;
+                        merge(conf);
+                    }
+                    return 0;
+                }
+                return Base::_handle_signal(sig);
             }
 
         private:

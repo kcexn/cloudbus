@@ -27,9 +27,13 @@ namespace cloudbus{
             using duration_type = trigger_type::duration_type;
 
             node_base();
+            node_base(const config::section& section);
+
             int run(int notify_pipe=0) { return _run(notify_pipe); }
             duration_type& timeout() { return _timeout; }
             int signal_handler(int sig){ return _signal_handler(sig); }
+            const config::section& conf() const { return _conf; }
+
             virtual ~node_base() = default;
 
             node_base(node_base&& other) = delete;
@@ -44,6 +48,7 @@ namespace cloudbus{
         private:
             trigger_type _triggers;
             duration_type _timeout;
+            config::section _conf;
     };
     template<class ConnectorT>
     class basic_node: public node_base
@@ -53,7 +58,7 @@ namespace cloudbus{
             using connector_type = ConnectorT;
 
             explicit basic_node(const config::section& section):
-                _connector(triggers(), section){}
+                Base(section), _connector(triggers(), section){}
 
             connector_type& connector() { return _connector; }
 
@@ -78,9 +83,9 @@ namespace cloudbus{
                 return handled;
             }
             virtual int _signal_handler(int sig) override {
-                if(sig & (SIGTERM | SIGINT | SIGHUP)){
+                if(sig == SIGTERM || sig == SIGINT || sig == SIGHUP) {
                     if(connector().connections().empty())
-                        sig &= ~(SIGTERM | SIGINT | SIGHUP);
+                        return 0;
                     timeout() = (timeout().count() < 0) ?
                             duration_type(50) :
                             std::min(duration_type(50), timeout());

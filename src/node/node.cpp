@@ -18,13 +18,33 @@
 #include <unistd.h>
 namespace cloudbus{
     node_base::node_base():
-        Base(_triggers), _triggers{}, _timeout{-1}
+        Base(_triggers), _triggers{},
+        _timeout{-1}, _conf{}
+    {}
+    node_base::node_base(const config::section& section) :
+        Base(_triggers), _triggers{},
+        _timeout{-1}, _conf{section}
     {}
 
-    volatile static std::sig_atomic_t signal = 0;
+    volatile static std::sig_atomic_t sigterm=0, sighup=0, sigint=0, sigusr1=0;
     extern "C" {
         static void sighandler(int sig){
-            signal = sig;
+            switch(sig) {
+                case SIGTERM:
+                    sigterm = sig;
+                    break;
+                case SIGINT:
+                    sigint = sig;
+                    break;
+                case SIGHUP:
+                    sighup = sig;
+                    break;
+                case SIGUSR1:
+                    sigusr1 = sig;
+                    break;
+                default:
+                    break;
+            }
         }
     }
     static int read_notice(const int& notify_pipe, int& notice){
@@ -40,7 +60,7 @@ namespace cloudbus{
             if((off+=len) == sizeof(notice_))
                 break;
         }
-        notice |= notice_;
+        notice = notice_;
         return 0;
     }
     static int check_for_signal(
@@ -48,9 +68,17 @@ namespace cloudbus{
         const int& notify_pipe,
         int& notice
     ){
-        if(!notify_pipe){
-            if(notice |= signal)
-                signal = 0;
+        if(notice)
+            return 0;
+        if(!notify_pipe) {
+            if( (notice = sighup) )
+                return sighup = 0;
+            if( (notice = sigint) )
+                return sigint = 0;
+            if( (notice = sigusr1) )
+                return sigusr1 = 0;
+            if( (notice = sigterm) )
+                return sigterm = 0;
             return 0;
         }
         auto it = std::find_if(
@@ -78,15 +106,16 @@ namespace cloudbus{
             std::signal(SIGTERM, sighandler);
             std::signal(SIGINT, sighandler);
             std::signal(SIGHUP, sighandler);
+            std::signal(SIGUSR1, sighandler);
         } else triggers().set(notify_pipe, POLLIN);
         while( (n = triggers().wait(_timeout)) != trigger_type::npos ){
             auto events = n ? triggers().events() : events_type();
             if(check_for_signal(events, notify_pipe, notice))
                 return notice;
-            for(size_type i=0, handled=handle(events); handled; handled=handle(events)){
+            for(size_type i=0, handled=handle(events); handled; handled=handle(events)) {
                 if(handled == trigger_type::npos)
                     return notice;
-                if(++i == FAIRNESS){
+                if(++i == FAIRNESS) {
                     if( (i = triggers().wait()) != trigger_type::npos ){
                         for(const auto& e: triggers().events()){
                             if(e.revents && i--){
@@ -107,12 +136,17 @@ namespace cloudbus{
                     } else return notice;
                     if(check_for_signal(events, notify_pipe, notice))
                         return notice;
-                    if(auto mask=signal_handler(notice); notice & ~mask)
-                        return notice & ~mask;
                 }
             }
-            if(auto mask=signal_handler(notice); notice & ~mask)
-                return notice & ~mask;
+            while(notice) {
+                int sig = notice;
+                if( (notice = signal_handler(sig)) )
+                    break;
+                if(sig == SIGTERM || sig == SIGHUP || sig == SIGINT)
+                    return sig;
+                if(check_for_signal(events, notify_pipe, notice))
+                    return notice;
+            }
         }
         return notice;
     }

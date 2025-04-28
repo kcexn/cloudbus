@@ -30,12 +30,12 @@ static int test_ingest_config() {
         "backend=unix:///var/run/backend.sock\n"
     };
     ss >> conf;
-    for(auto& section: conf.sections()) {
-        FAIL_IF(section.heading != "Cloudbus" && section.heading != "Test Service");
-        FAIL_IF(section.heading == "Cloudbus" && !section.config.empty());
-        FAIL_IF(section.heading == "Test Service" && section.config.empty());
-        if (section.heading== "Test Service") {
-            for(auto&[k,v]: section.config) {
+    for(auto&[heading, section]: conf.sections()) {
+        FAIL_IF(heading != "Cloudbus" && heading != "Test Service");
+        FAIL_IF(heading == "Cloudbus" && !section.empty());
+        FAIL_IF(heading == "Test Service" && section.empty());
+        if (heading== "Test Service") {
+            for(auto&[k,v]: section) {
                 FAIL_IF(k != "bind" && k != "backend");
                 FAIL_IF(k == "bind" && v != "unix:///var/run/test.sock");
                 FAIL_IF(k == "backend" && v != "unix:///var/run/backend.sock");

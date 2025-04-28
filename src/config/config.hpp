@@ -18,6 +18,7 @@
 #include <tuple>
 #include <variant>
 #include <vector>
+#include <map>
 #include <sys/socket.h>
 #pragma once
 #ifndef CLOUDBUS_CONFIG
@@ -33,13 +34,11 @@ namespace cloudbus{
         using address_type = std::variant<uri_type, url_type, socket_address>;
 
         address_type make_address(const std::string& line);
-        struct section {
-            using kvp = std::tuple<std::string, std::string>;
-            std::string heading;
-            std::vector<kvp> config;
-        };
+        using kvp = std::pair<std::string, std::string>;
+        using section = std::vector<kvp>;
         class configuration {
             public:
+                using sections_type = std::map<std::string, section>;
                 configuration();
                 configuration(const configuration& other);
                 configuration(configuration&& other) noexcept;
@@ -47,12 +46,12 @@ namespace cloudbus{
                 configuration& operator=(const configuration& other);
                 configuration& operator=(configuration&& other) noexcept;
 
-                const std::vector<section>& sections() const { return _sections; }
+                const sections_type& sections() const { return _sections; }
 
                 virtual ~configuration() = default;
 
             private:
-                std::vector<section> _sections;
+                sections_type _sections;
 
                 friend std::istream& operator>>(std::istream& is, configuration& config);
                 friend std::ostream& operator<<(std::ostream& os, const configuration& config);

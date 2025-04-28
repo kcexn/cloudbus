@@ -254,7 +254,7 @@ namespace cloudbus{
         std::istream& operator>>(std::istream& is, configuration& conf){
             auto& sections = conf._sections;
             sections.clear();
-            std::string line;
+            std::string line, heading;
             while(std::getline(is, line)){
                 auto start = std::find_if(line.begin(), line.end(), [](const unsigned char c){ return !std::isspace(c); });
                 std::string_view entry(&*start, line.end()-start);
@@ -265,10 +265,10 @@ namespace cloudbus{
                     if(end == entry.cend())
                         continue;
                     while(std::isspace(*(--end)));
-                    sections.emplace_back().heading = std::string(entry.cbegin()+1, ++end);
-                } else if(!sections.empty()){
-                    auto& section = sections.back();
-                    auto& config = section.config;
+                    heading = std::string(entry.cbegin()+1, ++end);
+                    sections.try_emplace(heading);
+                } else if(!sections.empty()) {
+                    auto& section = sections.at(heading);
                     auto delim = std::find(entry.cbegin(), entry.cend(), '=');
                     if(delim == entry.cend())
                         continue;
@@ -278,15 +278,15 @@ namespace cloudbus{
                     auto end = entry.cend();
                     while(std::isspace(*(--end)));
                     while(std::isspace(*(--delim)));
-                    config.emplace_back(std::string(entry.cbegin(), ++delim), std::string(sval, ++end));
+                    section.emplace_back(std::string(entry.cbegin(), ++delim), std::string(sval, ++end));
                 }
             }
             return is;
         }
         std::ostream& operator<<(std::ostream& os, const configuration& config){
-            for(auto& section: config._sections){
-                os << '[' << section.heading << "]\n";
-                for(auto&[key, value]: section.config)
+            for(auto&[heading, section]: config._sections){
+                os << '[' << heading << "]\n";
+                for(auto&[key, value]: section)
                     os << key << '=' << value << '\n';
                 os << '\n';
             }

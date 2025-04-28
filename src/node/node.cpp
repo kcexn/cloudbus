@@ -26,7 +26,7 @@ namespace cloudbus{
         _timeout{-1}, _conf{section}
     {}
 
-    volatile static std::sig_atomic_t sigterm=0, sighup=0, sigint=0, sigusr1=0;
+    volatile static std::sig_atomic_t sigterm=0, sighup=0, sigint=0;
     extern "C" {
         static void sighandler(int sig){
             switch(sig) {
@@ -36,8 +36,6 @@ namespace cloudbus{
                     return (void)(sigint = sig);
                 case SIGHUP:
                     return (void)(sighup = sig);
-                case SIGUSR1:
-                    return (void)(sigusr1 = sig);
                 default:
                     break;
             }
@@ -71,8 +69,6 @@ namespace cloudbus{
                 return sighup = 0;
             if( (notice = sigint) )
                 return sigint = 0;
-            if( (notice = sigusr1) )
-                return sigusr1 = 0;
             if( (notice = sigterm) )
                 return sigterm = 0;
             return 0;
@@ -102,7 +98,6 @@ namespace cloudbus{
             std::signal(SIGTERM, sighandler);
             std::signal(SIGINT, sighandler);
             std::signal(SIGHUP, sighandler);
-            std::signal(SIGUSR1, sighandler);
         } else triggers().set(notify_pipe, POLLIN);
         while( (n = triggers().wait(_timeout)) != trigger_type::npos ){
             auto events = n ? triggers().events() : events_type();

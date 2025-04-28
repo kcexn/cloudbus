@@ -103,8 +103,6 @@ namespace cloudbus {
             );
         }
         join(it);
-        for(auto fd: p)
-            close(fd);
         return _threads.erase(it);
     }
     int manager_base::handle_signal(int sig) {

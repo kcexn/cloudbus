@@ -18,6 +18,7 @@
 #include <fstream>
 #include <thread>
 #include <list>
+#include <filesystem>
 #pragma once
 #ifndef CLOUDBUS_MANAGER
 #define CLOUDBUS_MANAGER
@@ -67,9 +68,20 @@ namespace cloudbus {
             using services_type = std::map<std::string, node_type>;
 
             explicit basic_manager(const config_type& config):
-                Base(config), _services{}
+                Base(config), _services{}, mtime{}
             {
                 merge(config);
+                #ifdef CONFDIR
+                    std::string path{CONFDIR};
+                #else
+                    std::string path{"."};
+                #endif
+                #ifdef COMPILE_CONTROLLER
+                    path += "/controller.ini";
+                #elifdef COMPILE_SEGMENT
+                    path += "/segment.ini";
+                #endif
+                mtime = std::filesystem::last_write_time(path);
             }
 
             services_type& services() { return _services; }
@@ -117,6 +129,21 @@ namespace cloudbus {
 
         protected:
             virtual int _run() override {
+                #ifdef CONFDIR
+                    std::string path{CONFDIR};
+                #else
+                    std::string path{"."};
+                #endif
+                #ifdef COMPILE_CONTROLLER
+                    path += "/controller.ini";
+                #elifdef COMPILE_SEGMENT
+                    path += "/segment.ini";
+                #endif
+                auto mt = std::filesystem::last_write_time(path);
+                if(mt != mtime) {
+                    mtime = mt;
+                    std::raise(SIGUSR1);
+                }
                 return Base::_run();
             }
             virtual int _handle_signal(int sig) override {
@@ -143,6 +170,7 @@ namespace cloudbus {
 
         private:
             services_type _services;
+            std::filesystem::file_time_type mtime;
     };
 }
 #endif

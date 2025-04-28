@@ -16,6 +16,7 @@
 #include "manager.hpp"
 #include <thread>
 #include <fcntl.h>
+#include <ctime>
 namespace cloudbus {
     static void set_flags(int handle){
         if(fcntl(handle, F_SETFD, FD_CLOEXEC))
@@ -117,8 +118,12 @@ namespace cloudbus {
         return sig;
     }
 
-    int manager_base::_run(){
-        while(pause()) {
+    int manager_base::_run() {
+        int rc = 0;
+        struct timespec ts = {30, 0}, tr = ts;
+        do{
+            if(rc && errno != EINTR)
+                return errno;
             if(sighup) {
                 sighup = handle_signal(sighup);
                 return SIGHUP;
@@ -133,7 +138,8 @@ namespace cloudbus {
                 sigterm = handle_signal(sigterm);
                 return SIGTERM;
             }
-        }
-        return 0;
+            ts = tr;
+        } while( (rc = nanosleep(&ts, &tr)) );
+        return run();
     }
 }

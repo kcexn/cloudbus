@@ -196,12 +196,13 @@ namespace cloudbus {
         static int pcre_substitute_(
             struct ares_naptr_reply *cur,
             std::size_t regexp_size,
-            std::string& subject,
+            const std::string& subject,
             PCRE2_UCHAR *result,
             PCRE2_SIZE *result_len
         ){
             pcre2_code *re = nullptr;
             pcre2_match_data *match_data = nullptr;
+            auto subj = subject;
             int rc = 0;
             PCRE2_SIZE roff = 0;
             auto strsize = std::strlen(reinterpret_cast<const char*>(cur->regexp));
@@ -209,7 +210,7 @@ namespace cloudbus {
             auto substitute = extract_part(cur->regexp+match.size()+1, strsize-match.size()-1);
             replace_backreferences(substitute);
             if( *(cur->regexp+strsize-1) == 'i' )
-                tolower(match, substitute, subject);
+                tolower(match, substitute, subj);
             re = pcre2_compile(
                 reinterpret_cast<PCRE2_SPTR8>(match.c_str()),
                 match.size(),
@@ -222,7 +223,7 @@ namespace cloudbus {
                 match_data = pcre2_match_data_create_from_pattern(re, nullptr);
                 rc = pcre2_substitute(
                     re,
-                    reinterpret_cast<PCRE2_SPTR>(subject.c_str()),
+                    reinterpret_cast<PCRE2_SPTR>(subj.c_str()),
                     PCRE2_ZERO_TERMINATED,
                     0,
                     0,
@@ -241,7 +242,7 @@ namespace cloudbus {
         static void ares_parse_naptr_success(
             interface_base& iface,
             const ares_channel& channel,
-            std::string& subject,
+            const std::string& subject,
             struct ares_naptr_reply *naptr
         ){
             for(auto *cur = naptr; cur != nullptr; cur = cur->next) {
@@ -308,7 +309,7 @@ namespace cloudbus {
         static void ares_getnaptr_success(
             interface_base& iface,
             const ares_channel& channel,
-            std::string& subject,
+            const std::string& subject,
             unsigned char *abuf,
             int alen
         ){

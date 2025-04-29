@@ -170,16 +170,33 @@ namespace cloudbus {
                 if(*it == '\\') {
                     if(++it == s.end())
                         return;
-                    if( std::isdigit(*it) ) {
+                    if( std::isdigit(*it) && *it != '0' ) {
                         *(it-1) = '$';
                     }
                 }
             }
         }
+        static void tolower(std::string& match, std::string& substitute, std::string& subject){
+            std::transform(
+                    match.begin(), match.end(),
+                    match.begin(),
+                [](unsigned char c){ return std::tolower(c); }
+            );
+            std::transform(
+                    substitute.begin(), substitute.end(),
+                    substitute.begin(),
+                [](unsigned char c){ return std::tolower(c); }
+            );
+            std::transform(
+                    subject.begin(), subject.end(),
+                    subject.begin(),
+                [](unsigned char c){ return std::tolower(c); }
+            );
+        }
         static int pcre_substitute_(
             struct ares_naptr_reply *cur,
             std::size_t regexp_size,
-            const std::string& subject,
+            std::string& subject,
             PCRE2_UCHAR *result,
             PCRE2_SIZE *result_len
         ){
@@ -191,6 +208,8 @@ namespace cloudbus {
             auto match = extract_part(cur->regexp, strsize);
             auto substitute = extract_part(cur->regexp+match.size()+1, strsize-match.size()-1);
             replace_backreferences(substitute);
+            if( *(cur->regexp+strsize-1) == 'i' )
+                tolower(match, substitute, subject);
             re = pcre2_compile(
                 reinterpret_cast<PCRE2_SPTR8>(match.c_str()),
                 match.size(),
@@ -222,7 +241,7 @@ namespace cloudbus {
         static void ares_parse_naptr_success(
             interface_base& iface,
             const ares_channel& channel,
-            const std::string& subject,
+            std::string& subject,
             struct ares_naptr_reply *naptr
         ){
             for(auto *cur = naptr; cur != nullptr; cur = cur->next) {
@@ -289,7 +308,7 @@ namespace cloudbus {
         static void ares_getnaptr_success(
             interface_base& iface,
             const ares_channel& channel,
-            const std::string& subject,
+            std::string& subject,
             unsigned char *abuf,
             int alen
         ){

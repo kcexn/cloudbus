@@ -118,10 +118,7 @@ namespace cloudbus {
             ares_free_data(srv);
         }
         static const unsigned char *ares_match_naptr_flag(struct ares_naptr_reply *cur) {
-            auto *flag = cur->flags;
-            if(!flag)
-                return reinterpret_cast<const unsigned char*>("");
-            for(; *flag != '\0'; ++flag) {
+            for(auto *flag=cur->flags; flag && *flag != '\0'; ++flag) {
                 switch(*flag=std::tolower(*flag)) {
                     case 's':
                         return flag;
@@ -129,7 +126,7 @@ namespace cloudbus {
                         return nullptr;
                 }
             }
-            return flag;
+            return reinterpret_cast<const unsigned char*>("");
         }
         static int naptr_resolve_sub(
             interface_base& iface,
@@ -197,7 +194,7 @@ namespace cloudbus {
             struct ares_naptr_reply *cur,
             std::size_t regexp_size,
             const std::string& subject,
-            PCRE2_UCHAR *result,
+            PCRE2_UCHAR **result,
             PCRE2_SIZE *result_len
         ){
             pcre2_code *re = nullptr;
@@ -219,50 +216,59 @@ namespace cloudbus {
                 &roff,
                 nullptr
             );
-            if(re != nullptr) {
+            if(re) {
                 match_data = pcre2_match_data_create_from_pattern(re, nullptr);
-                rc = pcre2_substitute(
-                    re,
-                    reinterpret_cast<PCRE2_SPTR>(subj.c_str()),
-                    PCRE2_ZERO_TERMINATED,
-                    0,
-                    0,
-                    match_data,
-                    nullptr,
-                    reinterpret_cast<PCRE2_SPTR>(substitute.c_str()),
-                    PCRE2_ZERO_TERMINATED,
-                    result,
-                    result_len
-                );
+                do {
+                    if(auto *ptr = std::realloc(*result, (*result_len)*sizeof(PCRE2_UCHAR)))
+                        *result = static_cast<PCRE2_UCHAR*>(ptr);
+                    else throw std::bad_alloc();
+                    rc = pcre2_substitute(
+                        re,
+                        reinterpret_cast<PCRE2_SPTR>(subj.c_str()),
+                        PCRE2_ZERO_TERMINATED,
+                        0,
+                        PCRE2_SUBSTITUTE_OVERFLOW_LENGTH,
+                        match_data,
+                        nullptr,
+                        reinterpret_cast<PCRE2_SPTR>(substitute.c_str()),
+                        PCRE2_ZERO_TERMINATED,
+                        *result,
+                        result_len
+                    );
+                } while(rc == PCRE2_ERROR_NOMEMORY);
             }
             pcre2_match_data_free(match_data);
             pcre2_code_free(re);
             return rc;
         }
-        static void ares_parse_naptr_success(
+        static int ares_parse_naptr_success(
             interface_base& iface,
             const ares_channel& channel,
             const std::string& subject,
             struct ares_naptr_reply *naptr
         ){
-            for(auto *cur = naptr; cur != nullptr; cur = cur->next) {
+            PCRE2_UCHAR *result = nullptr;
+            auto *cur=naptr;
+            for(; cur; cur=cur->next) {
                 const unsigned char *flag = ares_match_naptr_flag(cur);
                 if(!flag)
                     continue;
-                int rc = 1;
-                auto regexp_size = std::strlen(reinterpret_cast<const char*>(cur->regexp));
-                auto replacement_size = std::strlen(cur->replacement);
+                auto regexp_size = !cur->regexp ? 0 :
+                    std::strlen(reinterpret_cast<const char*>(cur->regexp));
+                auto replacement_size = !cur->replacement ? 0 :
+                    std::strlen(cur->replacement);
+                if(regexp_size && replacement_size)
+                    continue;
                 if(regexp_size) {
-                    PCRE2_UCHAR result[256] = {};
                     PCRE2_SIZE result_len = 256;
-                    rc = pcre_substitute_(
+                    int rc = pcre_substitute_(
                         cur,
                         regexp_size,
                         subject,
-                        result,
+                        &result,
                         &result_len
                     );
-                    if(rc > 0 && !replacement_size) {
+                    if(rc > 0 && result_len) {
                         rc = naptr_resolve_sub(
                             iface, channel,
                             subject,
@@ -272,9 +278,8 @@ namespace cloudbus {
                         if(!rc)
                             break;
                     }
-                }
-                if(rc > 0 && replacement_size) {
-                    rc = naptr_resolve_sub(
+                } else if(replacement_size) {
+                    int rc = naptr_resolve_sub(
                         iface, channel,
                         subject,
                         cur->replacement,
@@ -284,7 +289,10 @@ namespace cloudbus {
                         break;
                 }
             }
+            int rc = cur ? 0 : -1;
+            std::free(result);
             ares_free_data(naptr);
+            return rc;
         }
         static void ares_getsrv_success(
             interface_base& iface,
@@ -317,7 +325,12 @@ namespace cloudbus {
             int rc = ares_parse_naptr_reply(abuf, alen, &naptr);
             switch(rc) {
                 case ARES_SUCCESS:
-                    return ares_parse_naptr_success(iface, channel, subject, naptr);
+                    if(ares_parse_naptr_success(iface, channel, subject, naptr)) {
+                        std::cerr << __FILE__ << ":" << __LINE__
+                            << ":ares error:" << ares_handle_error(iface, rc)
+                            << ":no NAPTR match." << std::endl;
+                    }
+                    break;
                 default:
                     std::cerr << __FILE__ << ':' << __LINE__
                         << ":ares error:"

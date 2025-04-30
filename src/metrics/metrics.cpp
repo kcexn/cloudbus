@@ -22,6 +22,8 @@ namespace cloudbus {
         stream_metrics::metrics_type& measurements,
         stream_metrics::weak_ptr& ptr
     ){
+        if(ptr.expired())
+            return measurements.end();
         auto it = measurements.begin();
         while(it != measurements.end()) {
             auto& wp = it->wp;
@@ -33,19 +35,11 @@ namespace cloudbus {
         }
         return measurements.end();
     }
-    stream_metrics::duration_type stream_metrics::update_response_time(weak_ptr ptr, const duration_type& t) {
-        stream_metrics::metric_type *mptr = nullptr;
-        {
-            std::lock_guard<std::mutex> lk(mtx);
-            auto it = find_metric(measurements, ptr);
-            if(it == measurements.end()) {
-                measurements.push_back({ptr, t, init_interarrival, init_time});
-                return t;
-            } else {
-                mptr = &*it;
-            }
-        }
-        auto& m = *mptr;
+    static stream_metrics::duration_type update_response_time_lockfree(
+        stream_metrics::metric_type& m,
+        const stream_metrics::duration_type& t
+    ){
+        using duration_type = stream_metrics::duration_type;
         auto delta = t - m.response;
         if(delta > duration_type::max()/2)
         {
@@ -65,22 +59,30 @@ namespace cloudbus {
         }
         else return m.response += 2*delta/(span+1);
     }
-    stream_metrics::duration_type stream_metrics::add_arrival(weak_ptr ptr) {
+    stream_metrics::duration_type stream_metrics::update_response_time(
+        weak_ptr ptr,
+        const duration_type& t
+    ){
+        if(ptr.expired())
+            return duration_type(-1);
         stream_metrics::metric_type *mptr = nullptr;
-        stream_metrics::time_point t;
         {
             std::lock_guard<std::mutex> lk(mtx);
-            t = clock_type::now();
             auto it = find_metric(measurements, ptr);
             if(it == measurements.end()) {
-                auto interval = std::chrono::duration_cast<duration_type>(t.time_since_epoch());
-                measurements.push_back({ptr, init_response, interval, t});
-                return interval;
+                measurements.push_back({ptr, t, init_interarrival, init_time});
+                return t;
             } else {
                 mptr = &*it;
             }
         }
-        auto& m = *mptr;
+        return update_response_time_lockfree(*mptr, t);
+    }
+    static stream_metrics::duration_type add_arrival_lockfree(
+        stream_metrics::metric_type& m,
+        const stream_metrics::time_point& t
+    ){
+        using duration_type = stream_metrics::duration_type;
         auto interval = std::chrono::duration_cast<duration_type>(t - m.last);
         m.last = t;
         auto delta = interval - m.interarrival;
@@ -102,7 +104,28 @@ namespace cloudbus {
         }
         else return m.interarrival += 2*delta/(span+1);
     }
+    stream_metrics::duration_type stream_metrics::add_arrival(weak_ptr ptr) {
+        if(ptr.expired())
+            return duration_type(-1);
+        stream_metrics::metric_type *mptr = nullptr;
+        stream_metrics::time_point t;
+        {
+            std::lock_guard<std::mutex> lk(mtx);
+            t = clock_type::now();
+            auto it = find_metric(measurements, ptr);
+            if(it == measurements.end()) {
+                auto interval = std::chrono::duration_cast<duration_type>(t.time_since_epoch());
+                measurements.push_back({ptr, init_response, interval, t});
+                return interval;
+            } else {
+                mptr = &*it;
+            }
+        }
+        return add_arrival_lockfree(*mptr, t);
+    }
     stream_metrics::metric_type stream_metrics::find(weak_ptr ptr) {
+        if(ptr.expired())
+            return metric_type();
         std::lock_guard<std::mutex> lk(mtx);
         auto it = find_metric(measurements, ptr);
         return it != measurements.end() ? *it : metric_type();

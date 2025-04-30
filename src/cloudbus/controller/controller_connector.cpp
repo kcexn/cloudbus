@@ -13,6 +13,7 @@
 *   You should have received a copy of the GNU General Public License along with Cloudbus.
 *   If not, see <https://www.gnu.org/licenses/>.
 */
+#include "../../metrics.hpp"
 #include "controller_connector.hpp"
 #include <tuple>
 #include <sys/un.h>
@@ -47,14 +48,26 @@ namespace cloudbus {
             const messages::msgtype& type,
             const connector::connection_type::time_point time
         ){
+            using connection_type = connector::connection_type;
+            int prev = conn.state;
             switch(conn.state){
-                case connector::connection_type::HALF_OPEN:
+                case connection_type::HALF_OPEN:
                     conn.timestamps[++conn.state] = time;
-                case connector::connection_type::OPEN:
-                case connector::connection_type::HALF_CLOSED:
-                    if(type.op != messages::STOP) return;
+                case connection_type::OPEN:
+                case connection_type::HALF_CLOSED:
+                    if(type.op != messages::STOP)
+                        break;
                     conn.timestamps[++conn.state] = time;
-                default: return;
+                    if(type.flags & messages::ABORT)
+                        conn.timestamps[conn.state=connection_type::CLOSED] = time;
+                default:
+                    break;
+            }
+            if(conn.state != prev && conn.state == connection_type::CLOSED) {
+                auto response_time = std::chrono::duration_cast<stream_metrics::duration_type>(
+                    conn.timestamps.back()-conn.timestamps.front()
+                );
+                metrics::get_stream_metrics().update_response_time(conn.south, response_time);
             }
         }
         static std::ostream& stream_write(std::ostream& os, std::istream& is){
@@ -252,8 +265,8 @@ namespace cloudbus {
                     : gpos;
                 const auto rem = buf.len()->length - pos;
                 const auto time = connection_type::clock_type::now();
-                messages::msgheader stop = {
-                    *eid, {1, sizeof(stop)},
+                messages::msgheader abort = {
+                    *eid, {1, sizeof(abort)},
                     {0,0},{messages::STOP, messages::ABORT}
                 };
                 auto conn=connections().begin(), end=connections().end();
@@ -283,21 +296,18 @@ namespace cloudbus {
                             }
                             auto prev = conn->state;
                             state_update(*conn, *type, time);
-                            if(type->flags & messages::ABORT)
-                                state_update(*conn, *type, time);
                             if(mode() == HALF_DUPLEX &&
                                     prev == connection_type::HALF_OPEN &&
-                                    conn->state == connection_type::OPEN &&
+                                    conn->state != connection_type::HALF_OPEN &&
                                     seekpos == HDRLEN && pos > seekpos
                             ){
                                 for(auto& c: connections()){
                                     if(c.uuid == *eid && c.state < connection_type::HALF_CLOSED){
                                         if(c.south.owner_before(ssp) || ssp.owner_before(c.south)){
                                             if(auto sp = c.south.lock()) {
-                                                sp->write(reinterpret_cast<const char*>(&stop), sizeof(stop));
+                                                sp->write(reinterpret_cast<const char*>(&abort), sizeof(abort));
                                                 triggers().set(sp->native_handle(), POLLOUT);
-                                                for(int i=0; i<2; ++i)
-                                                    state_update(c, stop.type, time);
+                                                state_update(c, abort.type, time);
                                             }
                                         }
                                     }
@@ -314,7 +324,7 @@ namespace cloudbus {
                 if(!rem) {
                     buf.setstate(buf.eofbit);
                     if(!eof && conn==connections().end()) {
-                        ssp->write(reinterpret_cast<char*>(&stop), sizeof(stop));
+                        ssp->write(reinterpret_cast<char*>(&abort), sizeof(abort));
                         triggers().set(ssp->native_handle(), POLLOUT);
                     }
                 }
@@ -349,15 +359,48 @@ namespace cloudbus {
             nbd.erase(it);
             return (void)sbd.erase(hnd);
         }
+
+        static const interface_base::handle_type& select_stream(interface_base& sbd) {
+            constexpr std::size_t ratio = 2;
+            auto measurements = metrics::get_stream_metrics().get_all_measurements();
+            auto min = measurements.begin();
+            auto ll = sbd.streams().begin();
+            for(auto it=ll; it != sbd.streams().end(); ++it) {
+                auto&[fd, sp] = *it;
+                auto itm = std::find_if(
+                        measurements.begin(), measurements.end(),
+                    [&](const auto& metric) {
+                        return !(metric.wp.owner_before(sp) || sp.owner_before(metric.wp));
+                    }
+                );
+                if(itm == measurements.end())
+                    return *it;
+                if(ratio*itm->response <= itm->interarrival)
+                    return *it;
+                if(itm->response - itm->interarrival <
+                    min->response - min->interarrival
+                ){
+                    min = itm;
+                    ll = it;
+                }
+            }
+            auto max_streams = std::max(sbd.addresses().size(), 1UL);
+            if(sbd.streams().size() < max_streams)
+                return sbd.make();
+            return *ll;
+        }
+
         std::streamsize connector::_north_connect(north_type& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
             constexpr std::size_t SHRINK_THRESHOLD = 4096;
             const auto n = connection_type::clock_type::now();
             auto eid = messages::make_uuid_v7();
             if(eid == messages::uuid{})
                 return -1;
+            metrics::get().arrivals.fetch_add(1, std::memory_order_relaxed);
             connections_type connect;
             for(auto& sbd: south()){
-                auto&[sockfd, sptr] = sbd.streams().empty() ? sbd.make() : sbd.streams().back();
+                auto&[sockfd, sptr] = select_stream(sbd);
+                metrics::get_stream_metrics().add_arrival(sptr);
                 if(sockfd == sptr->BAD_SOCKET) {
                     sbd.register_connect(
                         sptr,

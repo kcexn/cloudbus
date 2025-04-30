@@ -78,7 +78,7 @@ namespace cloudbus {
                 #endif
                 #ifdef COMPILE_CONTROLLER
                     path += "/controller.ini";
-                #elifdef COMPILE_SEGMENT
+                #elif defined(COMPILE_SEGMENT)
                     path += "/segment.ini";
                 #endif
                 mtime = std::filesystem::last_write_time(path);
@@ -136,7 +136,7 @@ namespace cloudbus {
                 #endif
                 #ifdef COMPILE_CONTROLLER
                     path += "/controller.ini";
-                #elifdef COMPILE_SEGMENT
+                #elif defined(COMPILE_SEGMENT)
                     path += "/segment.ini";
                 #endif
                 auto mt = std::filesystem::last_write_time(path);
@@ -155,7 +155,7 @@ namespace cloudbus {
                     #endif
                     #ifdef COMPILE_CONTROLLER
                         path += "/controller.ini";
-                    #elifdef COMPILE_SEGMENT
+                    #elif defined(COMPILE_SEGMENT)
                         path += "/segment.ini";
                     #endif
                     config::configuration conf;

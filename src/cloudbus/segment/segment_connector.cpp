@@ -13,6 +13,7 @@
 *   You should have received a copy of the GNU General Public License along with Cloudbus.
 *   If not, see <https://www.gnu.org/licenses/>.
 */
+#include "../../metrics.hpp"
 #include "segment_connector.hpp"
 #include <sys/un.h>
 #include <unistd.h>
@@ -47,14 +48,19 @@ namespace cloudbus{
             const messages::msgtype& type,
             const connector::connection_type::time_point time
         ){
+            using connection_type = connector::connection_type;
             switch(conn.state){
-                case connector::connection_type::HALF_OPEN:
+                case connection_type::HALF_OPEN:
                     conn.timestamps[++conn.state] = time;
-                case connector::connection_type::OPEN:
-                case connector::connection_type::HALF_CLOSED:
-                    if(type.op != messages::STOP) return;
+                case connection_type::OPEN:
+                case connection_type::HALF_CLOSED:
+                    if(type.op != messages::STOP)
+                        break;
                     conn.timestamps[++conn.state] = time;
-                default: return;
+                    if(type.flags & messages::ABORT)
+                        conn.timestamps[conn.state=connection_type::CLOSED] = time;
+                default:
+                    break;
             }
         }
         static std::ostream& stream_write(std::ostream& os, std::istream& is){
@@ -195,8 +201,7 @@ namespace cloudbus{
                             if(!rem && (type->flags & messages::ABORT))
                             {
                                 s->setstate(s->badbit);
-                                for(int i=0; i<2; ++i)
-                                    state_update(*conn, *type, time);
+                                state_update(*conn, *type, time);
                                 buf.setstate(buf.eofbit);
                                 return eof ? -1 : 0;
                             }
@@ -295,6 +300,7 @@ namespace cloudbus{
             constexpr std::size_t SHRINK_THRESHOLD = 4096;
             auto& sbd = south().front();
             auto&[sfd, ssp] = sbd.make();
+            metrics::get().arrivals.fetch_add(1, std::memory_order_relaxed);
             sbd.register_connect(
                 ssp,
                 [&](

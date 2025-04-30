@@ -107,13 +107,18 @@ namespace cloudbus {
         auto it = find_metric(measurements, ptr);
         return it != measurements.end() ? *it : metric_type();
     }
-    stream_metrics::metrics_type stream_metrics::get_all_measurements() {
+    std::vector<stream_metrics::metric_type> stream_metrics::get_all_measurements() {
+        std::vector<metric_type> metrics;
+        metrics.reserve(measurements.size());
         std::lock_guard<std::mutex> lk(mtx);
         auto it = measurements.begin();
         while(it != measurements.end()) {
-            if((it++)->wp.expired())
-                it = measurements.erase(--it);
+            if(it->wp.expired()) {
+                it = measurements.erase(it);
+            } else {
+                metrics.push_back(*it++);
+            }
         }
-        return measurements;
+        return metrics;
     }
 }

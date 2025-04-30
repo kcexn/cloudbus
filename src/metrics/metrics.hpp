@@ -44,7 +44,7 @@ namespace cloudbus {
             duration_type update_response_time(weak_ptr ptr, const duration_type& t);
             duration_type add_arrival(weak_ptr ptr);
             metric_type find(weak_ptr ptr);
-            metrics_type get_all_measurements();
+            std::vector<metric_type> get_all_measurements();
 
             stream_metrics(const stream_metrics& other) = delete;
             stream_metrics& operator=(const stream_metrics& other) = delete;

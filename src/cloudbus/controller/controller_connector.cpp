@@ -319,7 +319,7 @@ namespace cloudbus {
                 connections().resize(end-connections().begin());
                 if(!rem) {
                     buf.setstate(buf.eofbit);
-                    if(!eof && conn==connections().end()) {
+                    if(!eof && conn==connections().end() && !(type->flags & messages::ABORT)) {
                         ssp->write(reinterpret_cast<char*>(&abort), sizeof(abort));
                         triggers().set(ssp->native_handle(), POLLOUT);
                     }
@@ -397,38 +397,36 @@ namespace cloudbus {
             for(auto& sbd: south()){
                 auto&[sockfd, sptr] = select_stream(sbd);
                 metrics::get_stream_metrics().add_arrival(sptr);
-                if(sockfd == sptr->BAD_SOCKET) {
-                    sbd.register_connect(
-                        sptr,
-                        [&](
-                            auto& hnd,
-                            const auto *addr,
-                            auto addrlen,
-                            const std::string& protocol
-                        ){
-                            if(addr == nullptr)
+                sbd.register_connect(
+                    sptr,
+                    [&](
+                        auto& hnd,
+                        const auto *addr,
+                        auto addrlen,
+                        const std::string& protocol
+                    ){
+                        if(addr == nullptr)
+                            return erase_connect(interface, nsp, sbd, hnd, triggers(), connections());
+                        auto&[sockfd, sptr] = hnd;
+                        if(sockfd == sptr->BAD_SOCKET) {
+                            if( !(protocol == "TCP" || protocol == "UNIX") )
                                 return erase_connect(interface, nsp, sbd, hnd, triggers(), connections());
-                            auto&[sockfd, sptr] = hnd;
-                            if(sockfd == sptr->BAD_SOCKET) {
-                                if( !(protocol == "TCP" || protocol == "UNIX") )
+                            if( (sockfd = socket(addr->sa_family, SOCK_STREAM, 0)) == -1 )
+                                return erase_connect(interface, nsp, sbd, hnd, triggers(), connections());
+                            if(protocol == "TCP") {
+                                int nodelay = 1;
+                                if(setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay)))
                                     return erase_connect(interface, nsp, sbd, hnd, triggers(), connections());
-                                if( (sockfd = socket(addr->sa_family, SOCK_STREAM, 0)) == -1 )
-                                    return erase_connect(interface, nsp, sbd, hnd, triggers(), connections());
-                                if(protocol == "TCP") {
-                                    int nodelay = 1;
-                                    if(setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay)))
-                                        return erase_connect(interface, nsp, sbd, hnd, triggers(), connections());
-                                }
-                                sptr->native_handle() = set_flags(sockfd);
-                                sptr->connectto(addr, addrlen);
-                                triggers().set(sockfd, POLLIN | POLLOUT);
                             }
+                            sptr->native_handle() = set_flags(sockfd);
+                            sptr->connectto(addr, addrlen);
                         }
-                    );
-                    /* Address resolution only on the first pending connect. */
-                    if(sbd.addresses().empty() && sbd.npending()==1)
-                        resolver().resolve(sbd);
-                }
+                        triggers().set(sockfd, POLLIN | POLLOUT);
+                    }
+                );
+                /* Address resolution only on the first pending connect. */
+                if(sbd.addresses().empty() && sbd.npending()==1)
+                    resolver().resolve(sbd);
                 if(mode() == FULL_DUPLEX){
                     if((eid.clock_seq_reserved & messages::CLOCK_SEQ_MAX) == messages::CLOCK_SEQ_MAX)
                         eid.clock_seq_reserved &= ~messages::CLOCK_SEQ_MAX;

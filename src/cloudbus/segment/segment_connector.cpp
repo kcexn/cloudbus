@@ -195,8 +195,9 @@ namespace cloudbus{
                         *conn = std::move(*(--end));
                     } else if(conn->uuid == *eid && !(conn->north.owner_before(nsp) || nsp.owner_before(conn->north)) ) {
                         connections().resize(end-connections().begin());
-                        if(auto s = conn->south.lock()){
-                            if(auto sockfd = s->native_handle(); sockfd != s->BAD_SOCKET)
+                        if(auto s = conn->south.lock()) {
+                            auto sockfd = s->native_handle();
+                            if(sockfd != s->BAD_SOCKET)
                                 triggers().set(sockfd, POLLOUT);
                             if(!rem && (type->flags & messages::ABORT))
                             {
@@ -205,14 +206,14 @@ namespace cloudbus{
                                 buf.setstate(buf.eofbit);
                                 return eof ? -1 : 0;
                             }
-                            if(conn->state != connection_type::CLOSED && pos > seekpos){
+                            if(conn->state != connection_type::CLOSED && pos > seekpos) {
                                 buf.seekg(seekpos);
                                 if(!_north_write(s, buf))
                                     return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
                             }
                             if(!rem)
                                 state_update(*conn, *type, time);
-                        } else conn = connections().erase(conn);
+                        }
                         if(!rem)
                             buf.setstate(buf.eofbit);
                         return eof ? -1 : 0;
@@ -230,7 +231,8 @@ namespace cloudbus{
                             if(status < 0)
                                 return -1;
                         } else return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
-                    } else if(!eof) {
+                    } 
+                    else if(!eof && !(type->flags & messages::ABORT)) {
                         messages::msgheader abort{
                             *buf.eid(), {1, sizeof(abort)},
                             {0,0}, {messages::STOP, messages::ABORT}
@@ -245,32 +247,33 @@ namespace cloudbus{
         int connector::_route(marshaller_type::south_format& buf, south_type& interface, const south_type::handle_type& stream, event_mask& revents){
             auto&[sfd, ssp] = stream;
             const auto p = buf.tellp();
-            if(const auto eof = ssp->eof(); eof || p > 0) {
-                auto conn = connections().begin(), end=connections().end();
-                while(conn != end) {
-                    if(conn->north.expired()) {
-                        *conn = std::move(*(--end));
-                    } else if( !(conn->south.owner_before(ssp) || ssp.owner_before(conn->south)) ) {
-                        if(auto n = conn->north.lock()){
-                            connections().resize(end-connections().begin());
-                            messages::msgtype t = {messages::DATA, 0};
-                            if(eof) t.op = messages::STOP;
+            const auto eof = ssp->eof();
+            auto conn = connections().begin(), end=connections().end();
+            while(conn != end) {
+                if(conn->north.expired()) {
+                    *conn = std::move(*(--end));
+                } else if( !(conn->south.owner_before(ssp) || ssp.owner_before(conn->south)) ) {
+                    if(auto n = conn->north.lock()){
+                        connections().resize(end-connections().begin());
+                        messages::msgtype t = {messages::DATA, 0};
+                        if(eof)
+                            t.op = messages::STOP;
+                        if(eof || p) {
                             buf.seekg(0);
                             triggers().set(n->native_handle(), POLLOUT);
                             if(!_south_write(n, *conn, buf))
                                 return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
-                            state_update(*conn, t, connection_type::clock_type::now());
-                            if(eof)
-                                triggers().clear(sfd, POLLIN);
-                            return conn->state == connection_type::CLOSED ? -1 : 0;
-                        } else {
-                            *conn = std::move(*(--end));
                         }
-                    } else ++conn;
-                }
-                connections().resize(end-connections().begin());
-                return -1;
+                        state_update(*conn, t, connection_type::clock_type::now());
+                        if(eof)
+                            triggers().clear(sfd, POLLIN);
+                        return conn->state == connection_type::CLOSED ? -1 : 0;
+                    } else {
+                        *conn = std::move(*(--end));
+                    }
+                } else ++conn;
             }
+            connections().resize(end-connections().begin());
             return p ? -1 : 0;
         }
         static void erase_connect(
@@ -324,8 +327,8 @@ namespace cloudbus{
                         }
                         sptr->native_handle() = set_flags(sockfd);
                         sptr->connectto(addr, addrlen);
-                        triggers().set(sockfd, POLLIN | POLLOUT);
                     }
+                    triggers().set(sockfd, POLLIN | POLLOUT);
                 }
             );
             /* Address resolution only on the first pending connect. */

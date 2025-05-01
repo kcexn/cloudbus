@@ -22,6 +22,20 @@
 #include <cstring>
 namespace cloudbus{
     namespace segment {
+        namespace {
+            template<class T>
+            static bool owner_equal(const std::weak_ptr<T>& p1, const std::shared_ptr<T>& p2){
+                return !p1.owner_before(p2) && !p2.owner_before(p1);
+            }
+            template<class T>
+            static bool owner_equal(const std::shared_ptr<T>& p1, const std::weak_ptr<T>& p2){
+                return !p1.owner_before(p2) && !p2.owner_before(p1);
+            }
+            template<class T>
+            static bool owner_equal(const std::weak_ptr<T>& p1, const std::weak_ptr<T>& p2){
+                return !p1.owner_before(p2) && !p2.owner_before(p1);
+            }
+        }
         static constexpr std::streamsize MAX_BUFSIZE = 65536 * 4096; /* 256MiB */
         static int set_flags(int fd){
             int flags = 0;
@@ -134,7 +148,7 @@ namespace cloudbus{
                                     const auto&[sockfd, nsp] = stream;
                                     if(sockfd == ev->fd && ev->revents & (POLLOUT | POLLERR))
                                         for(auto& c: connections())
-                                            if( !(c.north.owner_before(nsp) || nsp.owner_before(c.north)) )
+                                            if(owner_equal(c.north, nsp))
                                                 if(auto s = c.south.lock(); s && !s->eof())
                                                     ev = read_restart(s->native_handle(), triggers(), events, ev, put);
                                     return sockfd == ev->fd;
@@ -157,7 +171,7 @@ namespace cloudbus{
                                         const auto&[sockfd, ssp] = stream;
                                         if(sockfd==ev->fd && ev->revents & (POLLOUT | POLLERR))
                                             for(auto& c: connections())
-                                                if( !(c.south.owner_before(ssp) || ssp.owner_before(c.south)) )
+                                                if(owner_equal(c.south, ssp))
                                                     if(auto n = c.north.lock(); n && !n->eof())
                                                         ev = read_restart(n->native_handle(), triggers(), events, ev, put);
                                         return sockfd == ev->fd;
@@ -193,7 +207,7 @@ namespace cloudbus{
                 while(conn != end) {
                     if(conn->south.expired()) {
                         *conn = std::move(*(--end));
-                    } else if(conn->uuid == *eid && !(conn->north.owner_before(nsp) || nsp.owner_before(conn->north)) ) {
+                    } else if (conn->uuid == *eid && owner_equal(conn->north, nsp)) {
                         connections().resize(end-connections().begin());
                         if(auto s = conn->south.lock()) {
                             auto sockfd = s->native_handle();
@@ -252,7 +266,7 @@ namespace cloudbus{
             while(conn != end) {
                 if(conn->north.expired()) {
                     *conn = std::move(*(--end));
-                } else if( !(conn->south.owner_before(ssp) || ssp.owner_before(conn->south)) ) {
+                } else if( owner_equal(conn->south, ssp) ) {
                     if(auto n = conn->north.lock()){
                         connections().resize(end-connections().begin());
                         messages::msgtype t = {messages::DATA, 0};
@@ -286,7 +300,7 @@ namespace cloudbus{
         ){
             auto conn=connections.begin(), end=connections.end();
             while(conn != end) {
-                if( !(conn->north.owner_before(nsp) || nsp.owner_before(conn->north)) ) {
+                if(owner_equal(conn->north, nsp)) {
                     messages::msgheader abort {
                         conn->uuid, {1, sizeof(abort)},
                         {0,0}, {messages::STOP, messages::ABORT}
@@ -350,7 +364,7 @@ namespace cloudbus{
             auto conn=connections().begin(), cur=conn;
             while((cur=conn) != connections().end()) {
                 ++conn;
-                if( !(cur->north.owner_before(nsp) || nsp.owner_before(cur->north)) ) {
+                if(owner_equal(cur->north, nsp)) {
                     if(auto s = cur->south.lock()) {
                         state_update(*cur, {messages::STOP, 0}, time);
                         triggers().set(s->native_handle(), POLLOUT);
@@ -456,7 +470,7 @@ namespace cloudbus{
             const auto&[sfd, ssp] = stream;
             const auto time = connection_type::clock_type::now();
             for(auto conn=connections().begin(); conn != connections().end(); ++conn){
-                if( !(conn->south.owner_before(ssp) || ssp.owner_before(conn->south)) ) {
+                if(owner_equal(conn->south, ssp)) {
                     if(auto n = conn->north.lock()) {
                         messages::msgheader stop{
                             conn->uuid, {1, sizeof(stop)},
@@ -519,7 +533,7 @@ namespace cloudbus{
             auto conn = connections().begin(), cur=conn;
             while((cur=conn) != connections().end()) {
                 ++conn;
-                if( !(cur->south.owner_before(ssp) || ssp.owner_before(cur->south)) ) {
+                if(owner_equal(cur->south, ssp)) {
                     switch(cur->state){
                         case connection_type::CLOSED:
                             conn = connections().erase(cur);

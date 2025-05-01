@@ -16,7 +16,7 @@
 #include "metrics.hpp"
 namespace cloudbus {
     static constexpr std::size_t span = 3;
-    static constexpr stream_metrics::duration_type init_response{60*1000}, init_interarrival{0};
+    static constexpr stream_metrics::duration_type init_intercompletion{60*1000}, init_interarrival{0};
     static constexpr stream_metrics::time_point init_time{init_interarrival};
     static stream_metrics::metrics_type::iterator find_metric(
         stream_metrics::metrics_type& measurements,
@@ -35,17 +35,21 @@ namespace cloudbus {
         }
         return measurements.end();
     }
-    static stream_metrics::duration_type update_response_time_lockfree(
+    static stream_metrics::duration_type add_completion_lockfree(
         stream_metrics::metric_type& m,
-        const stream_metrics::duration_type& t
+        const stream_metrics::time_point& t
     ){
         using duration_type = stream_metrics::duration_type;
-        auto delta = t - m.response;
+        auto intercompletion = std::chrono::duration_cast<duration_type>(
+            t - m.last_completion
+        );
+        auto delta = intercompletion - m.intercompletion;
+        m.last_completion = t;
         if(delta > duration_type::max()/2)
         {
             auto overflow = delta - duration_type::max() % delta;
             auto rem1 = duration_type::max() % (span+1), rem2 = overflow % (span+1);
-            return m.interarrival += duration_type::max()/(span+1) +
+            return m.intercompletion += duration_type::max()/(span+1) +
                 overflow/(span+1) +
                 (rem1+rem2)/(span+1);
         }
@@ -53,39 +57,49 @@ namespace cloudbus {
         {
             auto underflow = delta - duration_type::min() % delta;
             auto rem1 = duration_type::min() % (span+1), rem2 = underflow % (span+1);
-            return m.interarrival += duration_type::min()/(span+1) +
+            return m.intercompletion += duration_type::min()/(span+1) +
                 underflow/(span+1) +
                 (rem1+rem2)/(span+1);
         }
-        else return m.response += 2*delta/(span+1);
+        else return m.intercompletion += 2*delta/(span+1);
     }
-    stream_metrics::duration_type stream_metrics::update_response_time(
-        weak_ptr ptr,
-        const duration_type& t
+    stream_metrics::duration_type stream_metrics::add_completion(
+        weak_ptr ptr
     ){
         if(ptr.expired())
             return duration_type(-1);
-        stream_metrics::metric_type *mptr = nullptr;
+        metric_type *mptr = nullptr;
+        time_point t;
         {
             std::lock_guard<std::mutex> lk(mtx);
+            t = clock_type::now();
             auto it = find_metric(measurements, ptr);
             if(it == measurements.end()) {
-                measurements.push_back({ptr, t, init_interarrival, init_time});
-                return t;
+                auto intercompletion = std::chrono::duration_cast<duration_type>(
+                    t.time_since_epoch()
+                );
+                measurements.push_back({
+                    ptr,
+                    init_interarrival,
+                    intercompletion,
+                    init_time,
+                    t
+                });
+                return intercompletion;
             } else {
                 mptr = &*it;
             }
         }
-        return update_response_time_lockfree(*mptr, t);
+        return add_completion_lockfree(*mptr, t);
     }
     static stream_metrics::duration_type add_arrival_lockfree(
         stream_metrics::metric_type& m,
         const stream_metrics::time_point& t
     ){
         using duration_type = stream_metrics::duration_type;
-        auto interval = std::chrono::duration_cast<duration_type>(t - m.last);
-        m.last = t;
-        auto delta = interval - m.interarrival;
+        auto interarrival = std::chrono::duration_cast<duration_type>(t - m.last_arrival);
+        m.last_arrival = t;
+        auto delta = interarrival - m.interarrival;
         if(delta > duration_type::max()/2)
         {
             auto overflow = delta - duration_type::max() % delta;
@@ -114,9 +128,13 @@ namespace cloudbus {
             t = clock_type::now();
             auto it = find_metric(measurements, ptr);
             if(it == measurements.end()) {
-                auto interval = std::chrono::duration_cast<duration_type>(t.time_since_epoch());
-                measurements.push_back({ptr, init_response, interval, t});
-                return interval;
+                measurements.push_back({
+                    ptr,
+                    init_interarrival,
+                    init_intercompletion,
+                    t, t
+                });
+                return init_interarrival;
             } else {
                 mptr = &*it;
             }
@@ -130,8 +148,8 @@ namespace cloudbus {
         auto it = find_metric(measurements, ptr);
         return it != measurements.end() ? *it : metric_type();
     }
-    std::vector<stream_metrics::metric_type> stream_metrics::get_all_measurements() {
-        std::vector<metric_type> metrics;
+    stream_metrics::metrics_vec stream_metrics::get_all_measurements() {
+        metrics_vec metrics;
         metrics.reserve(measurements.size());
         std::lock_guard<std::mutex> lk(mtx);
         auto it = measurements.begin();

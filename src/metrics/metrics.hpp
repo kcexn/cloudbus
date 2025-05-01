@@ -31,20 +31,20 @@ namespace cloudbus {
             using weak_ptr = std::weak_ptr<stream_type>;
             struct metric_type {
                 weak_ptr wp;
-                duration_type response;
-                duration_type interarrival;
-                time_point last;
+                duration_type interarrival, intercompletion;
+                time_point last_arrival, last_completion;
             };
             using metrics_type = std::list<metric_type>;
+            using metrics_vec = std::vector<metric_type>;
             static inline stream_metrics& get() {
                 static stream_metrics m;
                 return m;
             }
 
-            duration_type update_response_time(weak_ptr ptr, const duration_type& t);
+            duration_type add_completion(weak_ptr ptr);
             duration_type add_arrival(weak_ptr ptr);
             metric_type find(weak_ptr ptr);
-            std::vector<metric_type> get_all_measurements();
+            metrics_vec get_all_measurements();
 
             stream_metrics(const stream_metrics& other) = delete;
             stream_metrics& operator=(const stream_metrics& other) = delete;

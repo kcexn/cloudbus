@@ -63,12 +63,8 @@ namespace cloudbus {
                 default:
                     break;
             }
-            if(conn.state != prev && conn.state == connection_type::CLOSED) {
-                auto response_time = std::chrono::duration_cast<stream_metrics::duration_type>(
-                    conn.timestamps.back()-conn.timestamps.front()
-                );
-                metrics::get_stream_metrics().update_response_time(conn.south, response_time);
-            }
+            if(conn.state != prev && conn.state == connection_type::CLOSED)
+                metrics::get_stream_metrics().add_completion(conn.south);
         }
         static std::ostream& stream_write(std::ostream& os, std::istream& is){
             std::array<char, 256> buf;
@@ -375,10 +371,10 @@ namespace cloudbus {
                 );
                 if(itm == measurements.end())
                     return *it;
-                if(ratio*itm->response <= itm->interarrival)
+                if(itm->intercompletion <= itm->interarrival/ratio)
                     return *it;
-                if(itm->response - itm->interarrival <
-                    min->response - min->interarrival
+                if(itm->intercompletion - itm->interarrival <
+                    min->intercompletion - min->interarrival
                 ){
                     min = itm;
                     ll = it;

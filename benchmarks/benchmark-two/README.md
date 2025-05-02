@@ -108,7 +108,7 @@ gcloud compute ssh "${SEGMENT_NAME}" \
 #### Install and Configure Cloudbus on the Controller and the Segment
 Copy the cloudbus distribution:
 ```
-$ VERSION=0.2.0 && \
+$ VERSION=0.3.2 && \
 CLOUDBUS_PATH="./cloudbus-${VERSION}.tar.gz" && \
 gcloud compute scp "${CLOUDBUS_PATH}" \
     "${CONTROLLER_NAME}":~ \
@@ -119,7 +119,7 @@ gcloud compute scp "${CLOUDBUS_PATH}" \
 ```
 Install cloudbus:
 ```
-$ VERSION=0.2.0 && \
+$ VERSION=0.3.2 && \
 COMMAND="/usr/bin/sh -c 'tar -zxvf cloudbus-${VERSION}.tar.gz && \
     cd cloudbus-${VERSION} && \
     ./configure CXXFLAGS=-flto && \

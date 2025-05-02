@@ -13,6 +13,7 @@
 *   You should have received a copy of the GNU General Public License along with Cloudbus.
 *   If not, see <https://www.gnu.org/licenses/>.
 */
+#include "../metrics.hpp"
 #include "manager.hpp"
 #include <thread>
 #include <fcntl.h>
@@ -62,7 +63,10 @@ namespace cloudbus {
             set_flags(hnd);
         mask_handlers();
         _threads.try_emplace(name, p, std::thread([](node_type& n, int noticefd){
-            return n.run(noticefd);
+            metrics::get().make_node();
+            int rc = n.run(noticefd);
+            metrics::get().erase_node();
+            return rc;
         }, std::ref(node), p[0]));
         unmask_handlers();
     }

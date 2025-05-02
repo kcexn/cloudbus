@@ -317,7 +317,7 @@ namespace cloudbus{
             constexpr std::size_t SHRINK_THRESHOLD = 4096;
             auto& sbd = south().front();
             auto&[sfd, ssp] = sbd.make();
-            metrics::get().arrivals.fetch_add(1, std::memory_order_relaxed);
+            metrics::get().arrivals() += 1;
             sbd.register_connect(
                 ssp,
                 [&](

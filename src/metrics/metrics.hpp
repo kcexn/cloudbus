@@ -14,8 +14,8 @@
 *   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "../interfaces.hpp"
-#include <atomic>
-#include <list>
+#include <thread>
+#include <map>
 #include <mutex>
 #pragma once
 #ifndef CLOUDBUS_METRICS
@@ -26,59 +26,56 @@ namespace cloudbus {
             using stream_type = interface_base::stream_type;
             using clock_type = std::chrono::steady_clock;
             using duration_type = std::chrono::milliseconds;
-            using time_point = clock_type::time_point;
-
             using weak_ptr = std::weak_ptr<stream_type>;
+
             struct metric_type {
                 weak_ptr wp;
                 duration_type interarrival, intercompletion;
-                time_point last_arrival, last_completion;
+                clock_type::time_point last_arrival, last_completion;
             };
-            using metrics_type = std::list<metric_type>;
             using metrics_vec = std::vector<metric_type>;
-            static inline stream_metrics& get() {
-                static stream_metrics m;
-                return m;
-            }
 
             duration_type add_completion(weak_ptr ptr);
             duration_type add_arrival(weak_ptr ptr);
-            metric_type find(weak_ptr ptr);
-            metrics_vec get_all_measurements();
-
-            stream_metrics(const stream_metrics& other) = delete;
-            stream_metrics& operator=(const stream_metrics& other) = delete;
-            stream_metrics(stream_metrics&& other) = delete;
-            stream_metrics& operator=(stream_metrics&& other) = delete;
+            const metrics_vec& get_all_measurements() const { return measurements; }
         private:
-            std::mutex mtx;
-            metrics_type measurements;
-            stream_metrics() = default;
-            ~stream_metrics() = default;
+            metrics_vec measurements;
+    };
+    class node_metrics {
+        public:
+            /* carried traffic = offered traffic unless offered traffic *
+             * exceeds capacity. I only need to count arrivals if I am  *
+             * interested in throughput. I will need to compute capacity*
+             * using a different method.                                */
+            std::size_t arrivals;
+            stream_metrics streams;
+
+            node_metrics() : arrivals{0}{}
+            ~node_metrics() = default;
     };
     class metrics {
         public:
-            using counter_type = std::atomic<std::size_t>;
+            using node_pair = std::pair<std::thread::id, node_metrics>;
+            using node_registry = std::map<std::thread::id, node_metrics>;
+            using node_metrics_vec = std::vector<node_pair>;
             static inline metrics& get() {
                 static metrics m;
                 return m;
             }
 
-            /* carried traffic = offered traffic unless offered traffic *
-             * exceeds capacity. I only need to count arrivals if I am  *
-             * interested in throughput. I will need to compute capacity*
-             * using a different method.                                */
-            counter_type arrivals;
-            static inline auto& get_stream_metrics() {
-                return stream_metrics::get();
-            }
+            node_metrics& make_node(const std::thread::id& tid = std::this_thread::get_id());
+            std::size_t& arrivals(const std::thread::id& tid = std::this_thread::get_id());
+            stream_metrics& streams(const std::thread::id& tid = std::this_thread::get_id());
+            node_metrics_vec get_all_measurements();
+            void erase_node(const std::thread::id& tid = std::this_thread::get_id());
 
             metrics(const metrics& other) = delete;
             metrics& operator=(const metrics& other) = delete;
             metrics(metrics&& other) = delete;
             metrics& operator=(metrics&& other) = delete;
-
         private:
+            std::mutex mtx;
+            node_registry nodes;
             metrics() = default;
             ~metrics() = default;
     };

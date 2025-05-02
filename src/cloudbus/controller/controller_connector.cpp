@@ -78,7 +78,7 @@ namespace cloudbus {
                     break;
             }
             if(conn.state != prev && conn.state == connection_type::CLOSED)
-                metrics::get_stream_metrics().add_completion(conn.south);
+                metrics::get().streams().add_completion(conn.south);
         }
         static std::ostream& stream_write(std::ostream& os, std::istream& is){
             std::array<char, 256> buf;
@@ -372,18 +372,18 @@ namespace cloudbus {
 
         static const interface_base::handle_type& select_stream(interface_base& sbd) {
             constexpr std::size_t ratio = 2;
-            auto measurements = metrics::get_stream_metrics().get_all_measurements();
-            auto min = measurements.begin();
+            const auto& measurements = metrics::get().streams().get_all_measurements();
+            auto min = measurements.cbegin();
             auto ll = sbd.streams().begin();
             for(auto it=ll; it != sbd.streams().end(); ++it) {
                 auto&[fd, sp] = *it;
                 auto itm = std::find_if(
-                        measurements.begin(), measurements.end(),
+                        measurements.cbegin(), measurements.cend(),
                     [&](const auto& metric) {
                         return owner_equal(metric.wp, sp);
                     }
                 );
-                if(itm == measurements.end())
+                if(itm == measurements.cend())
                     return *it;
                 if(itm->intercompletion <= itm->interarrival/ratio)
                     return *it;
@@ -406,11 +406,11 @@ namespace cloudbus {
             auto eid = messages::make_uuid_v7();
             if(eid == messages::uuid{})
                 return -1;
-            metrics::get().arrivals.fetch_add(1, std::memory_order_relaxed);
+            metrics::get().arrivals() += 1;
             connections_type connect;
             for(auto& sbd: south()){
                 auto&[sockfd, sptr] = select_stream(sbd);
-                metrics::get_stream_metrics().add_arrival(sptr);
+                metrics::get().streams().add_arrival(sptr);
                 sbd.register_connect(
                     sptr,
                     [&](

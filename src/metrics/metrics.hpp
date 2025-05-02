@@ -27,16 +27,17 @@ namespace cloudbus {
             using clock_type = std::chrono::steady_clock;
             using duration_type = std::chrono::milliseconds;
             using weak_ptr = std::weak_ptr<stream_type>;
+            using time_point = clock_type::time_point;
 
             struct metric_type {
                 weak_ptr wp;
                 duration_type interarrival, intercompletion;
-                clock_type::time_point last_arrival, last_completion;
+                time_point last_arrival, last_completion;
             };
             using metrics_vec = std::vector<metric_type>;
 
-            duration_type add_completion(weak_ptr ptr);
-            duration_type add_arrival(weak_ptr ptr);
+            duration_type add_completion(weak_ptr ptr, const time_point& t=clock_type::now());
+            duration_type add_arrival(weak_ptr ptr, const time_point& t=clock_type::now());
             const metrics_vec& get_all_measurements() const { return measurements; }
         private:
             metrics_vec measurements;

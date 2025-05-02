@@ -44,9 +44,9 @@ namespace cloudbus {
         return measurements.end();
     }
     stream_metrics::duration_type stream_metrics::add_completion(
-        weak_ptr ptr
+        weak_ptr ptr,
+        const time_point& t
     ){
-        const auto t = clock_type::now();
         auto metric_it = find_metric(measurements, ptr);
         if(metric_it == measurements.end()) {
             measurements.push_back({ptr, init_interarrival, init_intercompletion, t, t});
@@ -77,9 +77,9 @@ namespace cloudbus {
         else return metric_it->intercompletion += 2*delta/(span+1);
     }
     stream_metrics::duration_type stream_metrics::add_arrival(
-        weak_ptr ptr
+        weak_ptr ptr,
+        const time_point& t
     ){
-        const auto t = clock_type::now();
         auto metric_it = find_metric(measurements, ptr);
         if(metric_it == measurements.end()) {
             measurements.push_back({ptr, init_interarrival, init_intercompletion, t, t});

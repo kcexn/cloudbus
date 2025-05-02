@@ -15,13 +15,34 @@
 */
 #include "metrics.hpp"
 namespace cloudbus {
+    static constexpr std::size_t span = 3;
     namespace {
         template<class T>
         static bool owner_equal(std::weak_ptr<T> p1, std::weak_ptr<T> p2) {
             return !p1.owner_before(p2) && !p2.owner_before(p1);
         }
+
+        static auto update_ewma(const stream_metrics::duration_type& delta) {
+            using duration_type = stream_metrics::duration_type;
+            auto denom = duration_type(span+1);
+            if(delta > duration_type::max()/2)
+            {
+                auto overflow = delta - duration_type::max() % delta;
+                auto rem1 = duration_type::max() % denom, rem2 = overflow % denom;
+                return duration_type(duration_type::max()/denom +
+                    overflow/denom +
+                    (rem1+rem2)/denom);
+            }
+            else if (delta < duration_type::min()/2)
+            {
+                auto underflow = delta - duration_type::min() % delta;
+                auto rem1 = duration_type::min() % denom, rem2 = underflow % denom;
+                return duration_type(duration_type::min()/denom +
+                    underflow/denom +
+                    (rem1+rem2)/denom);
+            } else return duration_type(2*delta/denom);
+        }
     }
-    static constexpr std::size_t span = 3;
     static constexpr stream_metrics::duration_type init_intercompletion{60*1000}, init_interarrival{0};
     static constexpr stream_metrics::clock_type::time_point init_time{init_interarrival};
     static stream_metrics::metrics_vec::iterator find_metric(
@@ -47,6 +68,8 @@ namespace cloudbus {
         weak_ptr ptr,
         const time_point& t
     ){
+        if(ptr.expired())
+            return duration_type{-1};
         auto metric_it = find_metric(measurements, ptr);
         if(metric_it == measurements.end()) {
             measurements.push_back({ptr, init_interarrival, init_intercompletion, t, t});
@@ -58,28 +81,14 @@ namespace cloudbus {
         );
         metric_it->last_completion = t;
         auto delta = intercompletion - metric_it->intercompletion;
-        if(delta > duration_type::max()/2)
-        {
-            auto overflow = delta - duration_type::max() % delta;
-            auto rem1 = duration_type::max() % (span+1), rem2 = overflow % (span+1);
-            return metric_it->intercompletion += duration_type::max()/(span+1) +
-                overflow/(span+1) +
-                (rem1+rem2)/(span+1);
-        }
-        else if (delta < duration_type::min()/2)
-        {
-            auto underflow = delta - duration_type::min() % delta;
-            auto rem1 = duration_type::min() % (span+1), rem2 = underflow % (span+1);
-            return metric_it->intercompletion += duration_type::min()/(span+1) +
-                underflow/(span+1) +
-                (rem1+rem2)/(span+1);
-        }
-        else return metric_it->intercompletion += 2*delta/(span+1);
+        return metric_it->intercompletion += update_ewma(delta);
     }
     stream_metrics::duration_type stream_metrics::add_arrival(
         weak_ptr ptr,
         const time_point& t
     ){
+        if(ptr.expired())
+            return duration_type{-1};
         auto metric_it = find_metric(measurements, ptr);
         if(metric_it == measurements.end()) {
             measurements.push_back({ptr, init_interarrival, init_intercompletion, t, t});
@@ -91,23 +100,7 @@ namespace cloudbus {
         );
         metric_it->last_arrival = t;
         auto delta = interarrival - metric_it->interarrival;
-        if(delta > duration_type::max()/2)
-        {
-            auto overflow = delta - duration_type::max() % delta;
-            auto rem1 = duration_type::max() % (span+1), rem2 = overflow % (span+1);
-            return metric_it->interarrival += duration_type::max()/(span+1) +
-                overflow/(span+1) +
-                (rem1+rem2)/(span+1);
-        }
-        else if (delta < duration_type::min()/2)
-        {
-            auto underflow = delta - duration_type::min() % delta;
-            auto rem1 = duration_type::min() % (span+1), rem2 = underflow % (span+1);
-            return metric_it->interarrival += duration_type::min()/(span+1) +
-                underflow/(span+1) +
-                (rem1+rem2)/(span+1);
-        }
-        else return metric_it->interarrival += 2*delta/(span+1);
+        return metric_it->interarrival += update_ewma(delta);
     }
     node_metrics& metrics::make_node(const std::thread::id& tid) {
         std::lock_guard<std::mutex> lk(mtx);

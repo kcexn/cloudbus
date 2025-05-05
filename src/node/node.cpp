@@ -108,8 +108,8 @@ namespace cloudbus{
                     return notice;
                 if(++i == FAIRNESS) {
                     if( (i = triggers().wait()) != trigger_type::npos ){
-                        for(const auto& e: triggers().events()){
-                            if(e.revents && i--){
+                        for(const auto& e: triggers().events()) {
+                            if(e.revents && i--) {
                                 auto it = std::find_if(
                                         events.begin(),
                                         events.end(),
@@ -122,7 +122,8 @@ namespace cloudbus{
                                 if(it == events.end())
                                     events.push_back(e);
                             }
-                            if(!i) break;
+                            if(!i)
+                                break;
                         }
                     } else return notice;
                     if(check_for_signal(events, notify_pipe, notice))

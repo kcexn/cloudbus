@@ -108,35 +108,33 @@ namespace cloudbus{
             return 0;
         }
         static connector::events_type::iterator read_restart(
-            const int& sockfd,
+            int sockfd,
             connector::trigger_type& triggers,
             connector::events_type& events,
-            const connector::events_type::iterator& ev,
+            connector::events_type::iterator& get,
             connector::events_type::iterator& put
         ){
             triggers.set(sockfd, POLLIN);
-            auto it = std::find_if(events.begin(), events.end(),
+            auto it = std::find_if(get, events.end(),
                 [&](const auto& e){
                     return e.fd == sockfd;
                 }
             );
-            if(it == events.end()){
-                auto goff=ev-events.begin(), poff=put-events.begin();
-                events.emplace_back(connector::event_type{sockfd, POLLIN, POLLIN});
+            if(it == events.end()) {
+                auto goff=get-events.begin(), poff=put-events.begin();
+                events.push_back({sockfd, POLLIN, POLLIN});
                 put = events.begin()+poff;
                 return events.begin()+goff;
             }
             it->revents |= POLLIN;
-            if(it < ev && it >= put)
-                std::swap(*put++, *it);
-            return ev;
+            return get;
         }
 
         connector::size_type connector::_handle(events_type& events){
             size_type handled = 0;
             auto put = events.begin();
-            for(auto ev = events.begin(); ev < events.end(); ++ev){
-                if(ev->revents){
+            for(auto get = events.begin(); get < events.end(); ++get){
+                if(get->revents){
                     auto nit = std::find_if(
                             north().begin(),
                             north().end(),
@@ -146,16 +144,16 @@ namespace cloudbus{
                                     interface.streams().cend(),
                                 [&](const auto& stream){
                                     const auto&[sockfd, nsp] = stream;
-                                    if(sockfd == ev->fd && ev->revents & (POLLOUT | POLLERR))
+                                    if(sockfd == get->fd && get->revents & (POLLOUT | POLLERR))
                                         for(auto& c: connections())
                                             if(owner_equal(c.north, nsp))
                                                 if(auto s = c.south.lock(); s && !s->eof())
-                                                    ev = read_restart(s->native_handle(), triggers(), events, ev, put);
-                                    return sockfd == ev->fd;
+                                                    get = read_restart(s->native_handle(), triggers(), events, get, put);
+                                    return sockfd == get->fd;
                                 }
                             );
                             if(it != interface.streams().cend())
-                                handled += _handle(static_cast<north_type&>(interface), *it, ev->revents);
+                                handled += _handle(static_cast<north_type&>(interface), *it, get->revents);
                             return it != interface.streams().cend();
                         }
                     );
@@ -169,22 +167,22 @@ namespace cloudbus{
                                         interface.streams().cend(),
                                     [&](const auto& stream){
                                         const auto&[sockfd, ssp] = stream;
-                                        if(sockfd==ev->fd && ev->revents & (POLLOUT | POLLERR))
+                                        if(sockfd==get->fd && get->revents & (POLLOUT | POLLERR))
                                             for(auto& c: connections())
                                                 if(owner_equal(c.south, ssp))
                                                     if(auto n = c.north.lock(); n && !n->eof())
-                                                        ev = read_restart(n->native_handle(), triggers(), events, ev, put);
-                                        return sockfd == ev->fd;
+                                                        get = read_restart(n->native_handle(), triggers(), events, get, put);
+                                        return sockfd == get->fd;
                                     }
                                 );
                                 if(it != interface.streams().cend())
-                                    handled += _handle(static_cast<south_type&>(interface), *it, ev->revents);
+                                    handled += _handle(static_cast<south_type&>(interface), *it, get->revents);
                                 return it != interface.streams().cend();
                             }
                         );
                     }
-                    if(ev->revents)
-                        *put++ = *ev;
+                    if(get->revents)
+                        *put++ = std::move(*get);
                 }
             }
             events.resize(put-events.begin());

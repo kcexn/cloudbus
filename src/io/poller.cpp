@@ -14,37 +14,43 @@
 *   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "io.hpp"
-#include <poll.h>
 namespace io{
-    static constexpr std::size_t SHRINK_THRESHOLD = 4096;
-    poller::size_type poller::_add(native_handle_type handle, events_type& events, event_type event){
-        for(const auto& e: events)
-            if(e.fd == handle)
-                return npos;
-        events.push_back(event);
-        if(events.capacity() > SHRINK_THRESHOLD)
+    poller::size_type poller::_add(native_handle_type handle, events_type& events, event_type event) {
+        auto lb = std::lower_bound(events.begin(), events.end(), event,
+            [](const auto& lhs, const auto& rhs) {
+                return lhs.fd < rhs.fd;
+            }
+        );
+        if(lb == events.end() || lb->fd != handle) {
+            events.insert(lb, event);
             events.shrink_to_fit();
+            return events.size();
+        }
+        return npos;
+    }
+
+    poller::size_type poller::_update(native_handle_type handle, events_type& events, event_type event) {
+        auto lb = std::lower_bound(events.begin(), events.end(), event,
+            [](const auto& lhs, const auto& rhs) {
+                return lhs.fd < rhs.fd;
+            }
+        );
+        if(lb == events.end() || lb->fd != handle)
+            return npos;
+        lb->events = event.events;
         return events.size();
     }
 
-    poller::size_type poller::_update(native_handle_type handle, events_type& events, event_type event){
-        for(auto& e: events){
-            if(e.fd == handle){
-                e.events = event.events;
-                return events.size();
+    poller::size_type poller::_del(native_handle_type handle, events_type& events) {
+        auto lb = std::lower_bound(events.begin(), events.end(), event_type{handle, 0, 0},
+            [](const auto& lhs, const auto& rhs) {
+                return lhs.fd < rhs.fd;
             }
-        }
-        return npos;
-    }
-
-    poller::size_type poller::_del(native_handle_type handle, events_type& events){
-        for(auto cit=events.cbegin(); cit < events.cend(); ++cit){
-            if(cit->fd == handle){
-                events.erase(cit);
-                return events.size();
-            }
-        }
-        return npos;
+        );
+        if(lb == events.end() || lb->fd != handle)
+            return npos;
+        events.erase(lb);
+        return events.size();
     }
 
     poller::size_type poller::_poll(duration_type timeout){

@@ -110,84 +110,63 @@ namespace cloudbus {
             triggers.clear(sockfd, mask);
             return 0;
         }
-        static connector::events_type::iterator read_restart(
-            int sockfd,
-            connector::trigger_type& triggers,
-            connector::events_type& events,
-            connector::events_type::iterator& get,
-            connector::events_type::iterator& put
-        ){
-            triggers.set(sockfd, POLLIN);
-            auto it = std::find_if(get, events.end(),
-                [&](const auto& e){
-                    return e.fd == sockfd;
-                }
-            );
-            if(it == events.end()) {
-                auto goff=get-events.begin(), poff=put-events.begin();
-                events.push_back({sockfd, POLLIN, POLLIN});
-                put = events.begin()+poff;
-                return events.begin()+goff;
-            }
-            it->revents |= POLLIN;
-            return get;
-        }
         connector::size_type connector::_handle(events_type& events){
             size_type handled = 0;
-            auto put = events.begin();
-            for(auto get = put; get != events.end(); ++get) {
-                if(get->revents) {
-                    auto sit = std::find_if(
-                            south().begin(),
-                            south().end(),
-                        [&](auto& interface){
-                            auto it = std::find_if(
-                                    interface.streams().cbegin(),
-                                    interface.streams().cend(),
-                                [&](const auto& stream){
-                                    const auto&[sockfd, ssp] = stream;
-                                    if(sockfd==get->fd && get->revents & (POLLOUT | POLLERR))
-                                        for(auto& c: connections())
-                                            if(owner_equal(c.south, ssp))
-                                                if(auto n = c.north.lock(); n && !n->eof())
-                                                    get = read_restart(n->native_handle(), triggers(), events, get, put);
-                                    return sockfd == get->fd;
-                                }
-                            );
-                            if(it != interface.streams().cend())
-                                handled += _handle(static_cast<south_type&>(interface), *it, get->revents);
-                            return it != interface.streams().cend();
-                        }
-                    );
-                    if(sit == south().end()){
-                        std::find_if(
-                                north().begin(),
-                                north().end(),
+            auto end = std::remove_if(
+                    events.begin(), events.end(),
+                [&](auto& ev) {
+                    if(ev.revents) {
+                        auto sit = std::find_if(
+                                south().begin(),
+                                south().end(),
                             [&](auto& interface){
                                 auto it = std::find_if(
                                         interface.streams().cbegin(),
                                         interface.streams().cend(),
                                     [&](const auto& stream){
-                                        const auto&[sockfd, nsp] = stream;
-                                        if(sockfd == get->fd && get->revents & (POLLOUT | POLLERR))
+                                        const auto&[sockfd, ssp] = stream;
+                                        if(sockfd==ev.fd && ev.revents & (POLLOUT | POLLERR))
                                             for(auto& c: connections())
-                                                if(owner_equal(c.north, nsp))
-                                                    if(auto s = c.south.lock(); s && !s->eof())
-                                                        get = read_restart(s->native_handle(), triggers(), events, get, put);
-                                        return sockfd == get->fd;
+                                                if(owner_equal(c.south, ssp))
+                                                    if(auto n = c.north.lock(); n && !n->eof())
+                                                        triggers().set(n->native_handle(), POLLIN);
+                                        return sockfd == ev.fd;
                                     }
                                 );
                                 if(it != interface.streams().cend())
-                                    handled += _handle(static_cast<north_type&>(interface), *it, get->revents);
+                                    handled += _handle(static_cast<south_type&>(interface), *it, ev.revents);
                                 return it != interface.streams().cend();
                             }
                         );
+                        if(sit == south().end()){
+                            std::find_if(
+                                    north().begin(),
+                                    north().end(),
+                                [&](auto& interface){
+                                    auto it = std::find_if(
+                                            interface.streams().cbegin(),
+                                            interface.streams().cend(),
+                                        [&](const auto& stream){
+                                            const auto&[sockfd, nsp] = stream;
+                                            if(sockfd == ev.fd && ev.revents & (POLLOUT | POLLERR))
+                                                for(auto& c: connections())
+                                                    if(owner_equal(c.north, nsp))
+                                                        if(auto s = c.south.lock(); s && !s->eof())
+                                                            triggers().set(s->native_handle(), POLLIN);
+                                            return sockfd == ev.fd;
+                                        }
+                                    );
+                                    if(it != interface.streams().cend())
+                                        handled += _handle(static_cast<north_type&>(interface), *it, ev.revents);
+                                    return it != interface.streams().cend();
+                                }
+                            );
+                        }
                     }
-                    if(get->revents)
-                        *put++ = std::move(*get);
+                    return !ev.revents;
                 }
-            }
-            events.resize(put-events.begin());
+            );
+            events.resize(end-events.begin());
             return handled + Base::_handle(events);
         }
         static connector::connections_type::const_iterator write_prepare(

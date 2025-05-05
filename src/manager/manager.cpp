@@ -19,38 +19,47 @@
 #include <fcntl.h>
 #include <ctime>
 namespace cloudbus {
-    static void set_flags(int handle){
-        if(fcntl(handle, F_SETFD, FD_CLOEXEC))
-            throw std::runtime_error("Unable to set CLOEXEC flag.");
-    }  
     volatile std::sig_atomic_t manager_base::sigterm=0, manager_base::sighup=0, manager_base::sigint=0, manager_base::sigusr1=0;
-    extern "C" {
-        static void sighandler(int sig) {
-            switch(sig) {
-                case SIGTERM:
-                    return (void)(manager_base::sigterm = sig);
-                case SIGINT:
-                    return (void)(manager_base::sigint = sig);
-                case SIGHUP:
-                    return (void)(manager_base::sighup = sig);
-                case SIGUSR1:
-                    return (void)(manager_base::sigusr1 = sig);
-                default:
-                    break;
+    namespace {
+        static void throw_system_error(const std::string& what) {
+            throw std::system_error(
+                std::error_code(errno, std::system_category()),
+                what
+            );
+        }
+        static int set_flags(int handle) {
+            if(fcntl(handle, F_SETFD, FD_CLOEXEC))
+                throw_system_error("Unable to set the CLOEXEC flag.");
+            return handle;
+        }
+        extern "C" {
+            static void sighandler(int sig) {
+                switch(sig) {
+                    case SIGTERM:
+                        return (void)(manager_base::sigterm = sig);
+                    case SIGINT:
+                        return (void)(manager_base::sigint = sig);
+                    case SIGHUP:
+                        return (void)(manager_base::sighup = sig);
+                    case SIGUSR1:
+                        return (void)(manager_base::sigusr1 = sig);
+                    default:
+                        break;
+                }
             }
         }
-    }
-    static void unmask_handlers() {
-        std::signal(SIGTERM, sighandler);
-        std::signal(SIGHUP, sighandler);
-        std::signal(SIGINT, sighandler);
-        std::signal(SIGUSR1, sighandler);
-    }
-    static void mask_handlers() {
-        std::signal(SIGTERM, SIG_IGN);
-        std::signal(SIGHUP, SIG_IGN);
-        std::signal(SIGINT, SIG_IGN);
-        std::signal(SIGUSR1, SIG_IGN);
+        static void unmask_handlers() {
+            std::signal(SIGTERM, sighandler);
+            std::signal(SIGHUP, sighandler);
+            std::signal(SIGINT, sighandler);
+            std::signal(SIGUSR1, sighandler);
+        }
+        static void mask_handlers() {
+            std::signal(SIGTERM, SIG_IGN);
+            std::signal(SIGHUP, SIG_IGN);
+            std::signal(SIGINT, SIG_IGN);
+            std::signal(SIGUSR1, SIG_IGN);
+        }        
     }
     manager_base::manager_base(const config_type& config):
         _config{config}
@@ -58,7 +67,7 @@ namespace cloudbus {
     void manager_base::start(const std::string& name, node_type& node) {
         pipe_type p{};
         if(pipe(p.data()))
-            throw std::runtime_error("Unable to open pipe.");
+            throw_system_error("Unable to open pipe.");
         for(const auto& hnd: p)
             set_flags(hnd);
         mask_handlers();
@@ -88,7 +97,7 @@ namespace cloudbus {
                     case EINTR:
                         continue;
                     default:
-                        return -errno;
+                        return len;
                 }
             }
             if((off+=len) == sizeof(sig))
@@ -101,12 +110,8 @@ namespace cloudbus {
             return it;
         auto&[name, thrd] = *it;
         auto&[p, t] = thrd;
-        if(int ec = notify_thread(p[1], SIGTERM)) {
-            throw std::system_error (
-                std::error_code(-ec, std::system_category()),
-                "Unable to terminate thread."
-            );
-        }
+        if(notify_thread(p[1], SIGTERM))
+            throw_system_error("Unable to terminate thread.");
         join(it);
         return _threads.erase(it);
     }

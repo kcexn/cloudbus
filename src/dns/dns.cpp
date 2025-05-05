@@ -340,18 +340,21 @@ namespace cloudbus {
             }
         }
         extern "C" {
-            static void ares_socket_cb(void *data, ares_socket_t socket_fd, int readable, int writable){
-                auto *hnds = static_cast<resolver_base::socket_handles*>(data);
-                auto it = std::find_if(
-                        hnds->begin(),
-                        hnds->end(),
-                    [&](const auto& hnd){
-                        return socket_fd == std::get<ares_socket_t>(hnd);
+            static void ares_socket_cb(void *data, ares_socket_t socket_fd, int readable, int writable) {
+                using socket_handle = resolver_base::socket_handle;
+                using socket_handles = resolver_base::socket_handles;
+                auto *hnds = static_cast<socket_handles*>(data);
+                auto lb = std::lower_bound(
+                        hnds->begin(), hnds->end(), socket_handle{socket_fd, 0},
+                    [](const auto& lhs, const auto& rhs) {
+                        return std::get<ares_socket_t>(lhs) < std::get<ares_socket_t>(rhs);
                     }
                 );
-                auto& hnd = (it == hnds->end()) ? hnds->emplace_back() : *it;
-                hnds->shrink_to_fit();
-                auto&[sockfd, sockstate] = hnd;
+                if(lb == hnds->end() || std::get<ares_socket_t>(*lb) != socket_fd) {
+                    lb = hnds->insert(lb, {socket_fd, 0});
+                    hnds->shrink_to_fit();
+                }
+                auto&[sockfd, sockstate] = *lb;
                 sockfd = socket_fd;
                 sockstate = 0;
                 if(readable)

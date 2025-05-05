@@ -350,6 +350,7 @@ namespace cloudbus {
                     }
                 );
                 auto& hnd = (it == hnds->end()) ? hnds->emplace_back() : *it;
+                hnds->shrink_to_fit();
                 auto&[sockfd, sockstate] = hnd;
                 sockfd = socket_fd;
                 sockstate = 0;

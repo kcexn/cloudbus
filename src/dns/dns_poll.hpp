@@ -37,49 +37,50 @@ namespace cloudbus {
             protected:
                 virtual size_type _handle(events_type& events) override {
                     size_type handled = 0;
-                    auto hit=handles().begin();
-                    while(hit != handles().end()) {
-                        auto& hnd = *hit++;
-                        auto&[sockfd, sockev] = hnd;
-                        if(!sockev) {
-                            this->triggers().clear(sockfd);
-                            hit = handles().erase(--hit);
-                            continue;
-                        }
-                        
-                        event_mask curr=0, set=0, unset=0;
-                        auto cit = std::find_if(
-                                events.cbegin(),
-                                events.cend(),
-                            [&](const auto& event){
-                                if(event.fd==sockfd) {
-                                    curr = event.events;
-                                    if(event.revents && ++handled)
+                    auto it = std::remove_if(
+                            handles().begin(), handles().end(),
+                        [&](auto& hnd) {
+                            auto&[sockfd, sockev] = hnd;
+                            if(!sockev) {
+                                this->triggers().clear(sockfd);
+                            } else {
+                                event_mask curr=0, set=0, unset=0;
+                                auto cit = std::find_if(
+                                        events.cbegin(),
+                                        events.cend(),
+                                    [&](const auto& event){
+                                        if(event.fd==sockfd) {
+                                            curr = event.events;
+                                            if(event.revents && ++handled)
+                                                process_event(hnd);
+                                        }
+                                        return event.fd==sockfd;
+                                    }
+                                );
+        
+                                if(cit == events.cend()){
+                                    auto&[time, interval] = timeout();
+                                    if(clock_type::now() > time+interval && ++handled)
                                         process_event(hnd);
-                                }
-                                return event.fd==sockfd;
+                                } else cit=events.erase(cit);
+        
+                                if( (sockev & READABLE) && !(curr & POLLIN) )
+                                    set |= POLLIN;
+                                if( !(sockev & READABLE) && (curr & POLLIN) )
+                                    unset |= POLLIN;
+                                if( (sockev & WRITABLE) && !(curr & POLLOUT) )
+                                    set |= POLLOUT;
+                                if( !(sockev & WRITABLE) && (curr & POLLOUT) )
+                                    unset |= POLLOUT;
+                                if(set)
+                                    this->triggers().set(sockfd, set);
+                                if(unset)
+                                    this->triggers().clear(sockfd, unset);
                             }
-                        );
-
-                        if(cit == events.cend()){
-                            auto&[time, interval] = timeout();
-                            if(clock_type::now() > time+interval && ++handled)
-                                process_event(hnd);
-                        } else cit=events.erase(cit);
-
-                        if( (sockev & READABLE) && !(curr & POLLIN) )
-                            set |= POLLIN;
-                        if( !(sockev & READABLE) && (curr & POLLIN) )
-                            unset |= POLLIN;
-                        if( (sockev & WRITABLE) && !(curr & POLLOUT) )
-                            set |= POLLOUT;
-                        if( !(sockev & WRITABLE) && (curr & POLLOUT) )
-                            unset |= POLLOUT;
-                        if(set)
-                            this->triggers().set(sockfd, set);
-                        if(unset)
-                            this->triggers().clear(sockfd, unset);
-                    }
+                            return !sockev;
+                        }
+                    );
+                    handles().resize(it-handles().begin());
                     return handled;
                 }
         };

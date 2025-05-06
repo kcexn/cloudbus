@@ -16,6 +16,12 @@
 #include "interfaces.hpp"
 #include <cstring>
 namespace cloudbus {
+    namespace {
+        template<class T>
+        static bool owner_equal(const std::shared_ptr<T>& p1, const std::shared_ptr<T>& p2){
+            return !p1.owner_before(p2) && !p2.owner_before(p1);
+        }
+    }    
     const interface_base::address_type interface_base::NULLADDR = interface_base::address_type{};
     interface_base::address_type interface_base::make_address(const struct sockaddr *addr, socklen_t addrlen, const ttl_type& ttl, const weight_type& weight){
         auto address = address_type();
@@ -38,15 +44,15 @@ namespace cloudbus {
         return address;
     }
     interface_base::handle_type interface_base::make_handle(){
-        return std::make_tuple(stream_type::BAD_SOCKET, std::make_shared<stream_type>());
+        return std::make_tuple(std::make_shared<stream_type>(), stream_type::BAD_SOCKET);
     }
     interface_base::handle_type interface_base::make_handle(int domain, int type, int protocol, std::ios_base::openmode which){
         auto s = std::make_shared<stream_type>(domain, type, protocol, which);
         auto fd = s->native_handle();
-        return std::make_tuple(fd, std::move(s));
+        return std::make_tuple(std::move(s), fd);
     }
     interface_base::handle_type interface_base::make_handle(int sockfd, bool connected){
-        return std::make_tuple(sockfd, std::make_shared<stream_type>(sockfd, connected));
+        return std::make_tuple(std::make_shared<stream_type>(sockfd, connected), sockfd);
     }
 
     interface_base::interface_base(
@@ -197,52 +203,45 @@ namespace cloudbus {
         _resolve_callbacks();
         return _addresses;
     }
-    interface_base::handle_type& interface_base::make(){
-        _streams.push_back(make_handle());
-        _streams.shrink_to_fit();
-        return _streams.back();
+    interface_base::handle_type& interface_base::make(handle_type&& hnd) {
+        auto ub = std::upper_bound(
+                _streams.begin(), _streams.end(), hnd,
+            [&](const auto& lhs, const auto& rhs) {
+                auto& lptr = std::get<stream_ptr>(lhs);
+                auto& rptr = std::get<stream_ptr>(rhs);
+                return lptr.owner_before(rptr);
+            }
+        );
+        ub = _streams.insert(ub, std::move(hnd));
+        return *ub;
     }
     interface_base::handle_type& interface_base::make(int domain, int type, int protocol, std::ios_base::openmode which){
-        _streams.push_back(make_handle(domain, type, protocol, which));
-        _streams.shrink_to_fit();
-        return _streams.back();
+        return make(make_handle(domain, type, protocol, which));
     }
     interface_base::handle_type& interface_base::make(native_handle_type sockfd, bool connected){
-        _streams.push_back(make_handle(sockfd, connected));
-        _streams.shrink_to_fit();
-        return _streams.back();
+        return make(make_handle(sockfd, connected));
     }
-    interface_base::handles_type::const_iterator interface_base::erase(handles_type::const_iterator cit){
+    interface_base::handles_type::iterator interface_base::erase(handles_type::const_iterator cit){
         return _streams.erase(cit);
     }
-    interface_base::handles_type::iterator interface_base::erase(handles_type::iterator it){
-        return _streams.erase(it);
-    }
-    interface_base::handles_type::const_iterator interface_base::erase(const handle_type& handle){
-        auto cit = std::find_if(
+    interface_base::handles_type::iterator interface_base::erase(const handle_type& handle) {
+        auto cit = std::lower_bound(
                 _streams.cbegin(),
                 _streams.cend(),
-            [&ptr=std::get<stream_ptr>(handle)]
-            (const auto& hnd){
-                return std::get<stream_ptr>(hnd)==ptr;
+                handle,
+            [&](const auto& lhs, const auto& rhs) {
+                const auto& lptr = std::get<stream_ptr>(lhs);
+                const auto& rptr = std::get<stream_ptr>(rhs);
+                return lptr.owner_before(rptr);
             }
         );
-        return erase(cit);
-    }
-    interface_base::handles_type::iterator interface_base::erase(handle_type& handle){
-        auto it = std::find_if(
-                _streams.begin(),
-                _streams.end(),
-            [&ptr=std::get<stream_ptr>(handle)]
-            (auto& hnd){
-                return std::get<stream_ptr>(hnd)==ptr;
-            }
-        );
-        return erase(it);
-    }
-    void interface_base::register_connect(const stream_ptr& ptr, const callback_type& connect_callback){
-        _pending.emplace_back(ptr, connect_callback);
-        return _resolve_callbacks();
+        if(cit != _streams.cend()) {
+            const auto& hptr = std::get<stream_ptr>(handle);
+            const auto& ptr = std::get<stream_ptr>(*cit);
+            if(owner_equal(hptr, ptr))
+                return erase(cit);
+        }
+        return _streams.end();
     }
     void interface_base::register_connect(const stream_ptr& ptr, callback_type&& connect_callback){
         _pending.emplace_back(ptr, std::move(connect_callback));

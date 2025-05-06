@@ -229,8 +229,8 @@ namespace io{
             sendbuf_.iov_len = std::min(buflen, MIN_BUFSIZE);
             ssize_t len = 0;
             while( !(_errno=0) && (len=sendmsg(_socket, &header, MSG_DONTWAIT | MSG_NOSIGNAL)) ){
-                if(len > 0){
-                    if(header.msg_control){
+                if(len > 0) {
+                    if(header.msg_control) {
                         header.msg_control = nullptr;
                         header.msg_controllen = 0;
                         cbuf.clear();
@@ -240,8 +240,7 @@ namespace io{
                         break;
                     sendbuf_.iov_base = static_cast<char*>(sendbuf_.iov_base)+len;
                     sendbuf_.iov_len = std::min(buflen, MIN_BUFSIZE);
-                } else switch(_errno = errno){
-                    case EALREADY:
+                } else switch(_errno = errno) {
                     case EISCONN:
                         _connected = true;
                         header.msg_name = nullptr;
@@ -263,9 +262,9 @@ namespace io{
             while(it < _buffers.end()){
                 auto& buf = *it;
             SEND:
-                while(_send(buf)){
+                while(_send(buf)) {
                     auto&[address, addrlen] = buf->addr;
-                    switch(_errno){
+                    switch(_errno) {
                         case ENOTCONN:
                             if(address.ss_family == AF_UNSPEC)
                                 return 0;

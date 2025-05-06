@@ -52,45 +52,41 @@ namespace cloudbus{
         marshaller::north_buffers::iterator marshaller::_unmarshal(const north_type::handle_type& stream){
             using stream_ptr = north_type::stream_ptr;
             const auto& nsp = std::get<stream_ptr>(stream);
-            auto it=north().begin(), end=north().end();
-            while(it != end){
+            auto it=north().begin();
+            while(it != north().end()){
                 auto&[n, buf] = *it;
                 if(n.expired()) {
-                    *it = std::move(*(--end));
-                } else if ( !(n.owner_before(nsp) || nsp.owner_before(n)) ) {
-                    north().resize(end-north().begin());
-                    if(buf.tellg() == buf.tellp()){
-                        buf.seekg(0);
-                        stream_copy(buf.seekp(0), *nsp);
+                    *it = std::move(north().back());
+                    north().pop_back();
+                } else if (owner_equal(n, nsp)) {
+                    if(buf->tellg() == buf->tellp()){
+                        buf->seekg(0);
+                        stream_copy(buf->seekp(0), *nsp);
                     }
                     return it;
                 } else ++it;
             }
-            north().resize(end-north().begin());
-            auto&[ptr, buf] = north().emplace_back();
-            ptr = nsp;
-            stream_copy(buf, *nsp);
+            auto&[ptr, buf] = north().emplace_back(marshaller::make_north(nsp));
+            stream_copy(*buf, *nsp);
             return --north().end();
         }
         marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_type& stream){
             using stream_ptr = south_type::stream_ptr;
             const auto& ssp = std::get<stream_ptr>(stream);
-            auto it=south().begin(), end=south().end();
-            while(it != end){
+            auto it=south().begin();
+            while(it != south().end()){
                 auto&[s, buf] = *it;
                 if(s.expired()) {
-                    *it = std::move(*(--end));
-                } else if( !(s.owner_before(ssp) || ssp.owner_before(s)) ) {
-                    south().resize(end-south().begin());
-                    if(xmsg_read(buf, *ssp).bad())
+                    *it = std::move(south().back());
+                    south().pop_back();
+                } else if(owner_equal(s, ssp)) {
+                    if(xmsg_read(*buf, *ssp).bad())
                         return south().end();
                     return it;
                 } else ++it;
             }
-            south().resize(end-south().begin());
-            auto&[ptr, buf] = south().emplace_back();
-            ptr = ssp;
-            xmsg_read(buf, *ssp);
+            auto&[ptr, buf] = south().emplace_back(marshaller::make_south(ssp));
+            xmsg_read(*buf, *ssp);
             return --south().end();
         }
     }

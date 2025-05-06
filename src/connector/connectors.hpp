@@ -28,11 +28,30 @@ namespace cloudbus {
         using clock_type = std::chrono::steady_clock;
         using time_point = clock_type::time_point;
         using times_type = std::array<time_point, 4>;
+        using times_ptr = std::unique_ptr<times_type>;
+        static connection make(
+            const uuid_type& uuid,
+            const socket_type& north,
+            const socket_type& south,
+            short state,
+            const time_point& t = clock_type::now()
+        ){
+            times_type times{};
+            for(short i=0; i <= state; ++i)
+                times[i] = t;
+            return connection{
+                uuid,
+                north,
+                south,
+                std::make_unique<times_type>(std::move(times)),
+                state
+            };
+        }
         enum states {HALF_OPEN, OPEN, HALF_CLOSED, CLOSED};
-        times_type timestamps;
         uuid_type uuid;
         socket_type north, south;
-        int state;
+        times_ptr timestamps;
+        short state;      
     };
 
     template<class MarshallerT>

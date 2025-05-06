@@ -28,13 +28,31 @@ namespace cloudbus {
             using north_type = NorthT;
             using north_ptr = std::weak_ptr<typename north_type::stream_type>;
             using north_format = typename north_type::format_type;
-            using north_buffer = std::tuple<north_ptr, north_format>;
+            struct north_buffer {
+                north_ptr ptr;
+                std::unique_ptr<north_format> pbuf;
+            };
             using north_buffers = std::vector<north_buffer>;
             using south_type = SouthT;
             using south_ptr = std::weak_ptr<typename south_type::stream_type>;
             using south_format = typename south_type::format_type;
-            using south_buffer = std::tuple<south_ptr, south_format>;
+            struct south_buffer {
+                south_ptr ptr;
+                std::unique_ptr<south_format> pbuf;
+            };
             using south_buffers = std::vector<south_buffer>;
+            static north_buffer make_north(north_ptr ptr){ 
+                return north_buffer{
+                    std::move(ptr),
+                    std::make_unique<north_format>()
+                };
+            }
+            static south_buffer make_south(south_ptr ptr) {
+                return south_buffer{
+                    std::move(ptr),
+                    std::make_unique<south_format>()
+                };
+            }
 
             basic_marshaller() = default;
 

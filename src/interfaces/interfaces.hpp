@@ -42,7 +42,7 @@ namespace cloudbus {
             using stream_type = ::io::streams::sockstream;
             using native_handle_type = stream_type::native_handle_type;
             using stream_ptr = std::shared_ptr<stream_type>;
-            using handle_type = std::tuple<native_handle_type, stream_ptr>;
+            using handle_type = std::tuple<stream_ptr, native_handle_type>;
             using handles_type = std::vector<handle_type>;
             using clock_type = std::chrono::system_clock;
             using time_point = clock_type::time_point;
@@ -99,16 +99,13 @@ namespace cloudbus {
             const addresses_type& addresses(addresses_type&& addrs);
 
             const handles_type& streams() const { return _streams; }
-            handle_type& make();
+            handle_type& make(handle_type&& handle=make_handle());
             handle_type& make(int domain, int type, int protocol, std::ios_base::openmode which=(std::ios_base::in | std::ios_base::out));
             handle_type& make(native_handle_type sockfd, bool connected=false);
 
-            handles_type::const_iterator erase(handles_type::const_iterator it);
-            handles_type::iterator erase(handles_type::iterator it);
-            handles_type::const_iterator erase(const handle_type& handle);
-            handles_type::iterator erase(handle_type& handle);
+            handles_type::iterator erase(handles_type::const_iterator it);
+            handles_type::iterator erase(const handle_type& handle);
 
-            void register_connect(const stream_ptr& ptr, const callback_type& connect_callback);
             void register_connect(const stream_ptr& ptr, callback_type&& connect_callback);
 
             virtual ~interface_base() = default;

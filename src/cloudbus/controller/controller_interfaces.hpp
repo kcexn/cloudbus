@@ -19,6 +19,20 @@
 #define CLOUDBUS_CONTROLLER_INTERFACES
 namespace cloudbus{
     namespace controller {
+        namespace {
+            template<class T>
+            static bool owner_equal(const std::weak_ptr<T>& p1, const std::shared_ptr<T>& p2){
+                return !p1.owner_before(p2) && !p2.owner_before(p1);
+            }
+            template<class T>
+            static bool owner_equal(const std::shared_ptr<T>& p1, const std::weak_ptr<T>& p2){
+                return !p1.owner_before(p2) && !p2.owner_before(p1);
+            }
+            template<class T>
+            static bool owner_equal(const std::weak_ptr<T>& p1, const std::weak_ptr<T>& p2){
+                return !p1.owner_before(p2) && !p2.owner_before(p1);
+            }
+        }        
         struct cs_north : public ss_interface{};
         struct cs_south : public cs_interface{};
     }

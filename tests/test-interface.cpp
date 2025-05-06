@@ -88,20 +88,20 @@ static int test_streams() {
 
     interface_base base{"test.localhost:8080", "TCP"};
     {
-        auto&[fd, ptr] = base.make();
+        auto&[ptr, fd] = base.make();
         FAIL_IF(fd != ptr->BAD_SOCKET);
         FAIL_IF(ptr->native_handle() != fd);
     }
     {
-        auto&[fd, ptr] = base.make(AF_INET, SOCK_STREAM, 0);
+        auto&[ptr, fd] = base.make(AF_INET, SOCK_STREAM, 0);
         FAIL_IF(fd == ptr->BAD_SOCKET);
         FAIL_IF(ptr->native_handle() != fd);
     }
     auto& streams_ = base.streams();
     FAIL_IF(streams_.size() != 2);
     {
-        auto&[fd, _] = streams_.back();
-        auto&[fd_, ptr] = base.make(fd);
+        auto&[_, fd] = streams_.back();
+        auto&[ptr, fd_] = base.make(fd);
         FAIL_IF(fd_ != fd);
         FAIL_IF(fd_ == ptr->BAD_SOCKET);
         FAIL_IF(ptr->native_handle() != fd_);
@@ -112,7 +112,7 @@ static int test_streams() {
     const auto& hnd = streams_.back();
     base.erase(hnd);
     FAIL_IF(streams_.size() != 1);
-    auto&[fd, ptr] = streams_.back();
+    auto&[ptr, fd] = streams_.back();
     base.register_connect(
         ptr,
         [&](

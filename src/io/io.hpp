@@ -142,8 +142,9 @@ namespace io {
                     return _poller.add(handle, traits_type::mkevent(handle, trigger));
                 }
                 auto& trig = std::get<trigger_type>(*lb);
-                trig |= trigger;
-                return _poller.update(handle, traits_type::mkevent(handle, trig));
+                if( (trig & trigger) != trigger )
+                    return _poller.update(handle, traits_type::mkevent(handle, trig |= trigger));
+                return _list.size();
             }
 
             size_type clear(native_handle_type handle, trigger_type trigger=UINT32_MAX) {
@@ -155,11 +156,13 @@ namespace io {
                 if(lb == _list.end() || std::get<native_handle_type>(*lb) != handle)
                     return npos;
                 auto& trig = std::get<trigger_type>(*lb);
-                if( !(trig &= ~trigger) ) {
+                if( !(trig & ~trigger) ) {
                     _list.erase(lb);
                     return _poller.del(handle);
                 }
-                return _poller.update(handle, traits_type::mkevent(handle, trig));
+                if( (trig & ~trigger) != trig )
+                    return _poller.update(handle, traits_type::mkevent(handle, trig &= ~trigger));
+                return _list.size();
             }
 
             size_type wait(duration_type timeout = duration_type(0)){ return _poller(timeout); }

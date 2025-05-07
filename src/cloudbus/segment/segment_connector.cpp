@@ -316,7 +316,7 @@ namespace cloudbus{
                         connection_type::HALF_OPEN
                 )
             );
-            if(connections().size() < connections().capacity()/4)
+            if(connections().size() < connections().capacity()/8)
                 connections().shrink_to_fit();
             return _north_write(ssp, buf);
         }

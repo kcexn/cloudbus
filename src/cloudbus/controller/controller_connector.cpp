@@ -437,7 +437,7 @@ namespace cloudbus {
                 std::make_move_iterator(connect.begin()),
                 std::make_move_iterator(connect.end())
             );
-            if(connections().size() < connections().capacity()/4)
+            if(connections().size() < connections().capacity()/8)
                 connections().shrink_to_fit();
             return len;
         }      

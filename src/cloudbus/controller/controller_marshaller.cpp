@@ -69,7 +69,7 @@ namespace cloudbus{
             north().erase(end, north().end());
             auto&[ptr, pbuf] = north().emplace_back(marshaller::make_north(nsp));
             stream_copy(*pbuf, *nsp);
-            if(north().size() < north().capacity()/4)
+            if(north().size() < north().capacity()/8)
                 north().shrink_to_fit();
             return --north().end();
         }
@@ -91,7 +91,7 @@ namespace cloudbus{
             south().erase(end, south().end());
             auto&[ptr, pbuf] = south().emplace_back(marshaller::make_south(ssp));
             xmsg_read(*pbuf, *ssp);
-            if(south().size() < south().capacity()/4)
+            if(south().size() < south().capacity()/8)
                 south().shrink_to_fit();
             return --south().end();
         }

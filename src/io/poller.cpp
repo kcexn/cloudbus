@@ -23,7 +23,7 @@ namespace io{
         );
         if(lb == events.end() || lb->fd != handle) {
             events.insert(lb, event);
-            if(events.size() < events.capacity()/4)
+            if(events.size() < events.capacity()/8)
                 events.shrink_to_fit();
             return events.size();
         }

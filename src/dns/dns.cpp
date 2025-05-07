@@ -352,7 +352,7 @@ namespace cloudbus {
                 );
                 if(lb == hnds->end() || std::get<ares_socket_t>(*lb) != socket_fd) {
                     lb = hnds->insert(lb, {socket_fd, 0});
-                    if(hnds->size() < hnds->capacity()/4)
+                    if(hnds->size() < hnds->capacity()/8)
                         hnds->shrink_to_fit();
                 }
                 auto&[sockfd, sockstate] = *lb;

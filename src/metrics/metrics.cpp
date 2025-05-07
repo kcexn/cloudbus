@@ -73,8 +73,12 @@ namespace cloudbus {
         auto metric_it = find_metric(measurements, ptr);
         if(metric_it == measurements.end()) {
             measurements.push_back({std::move(ptr), init_interarrival, init_intercompletion, t, t});
-            if(measurements.size() < measurements.capacity()/8)
-                measurements.shrink_to_fit();
+            if(measurements.size() < measurements.capacity()/8) {
+                measurements = metrics_vec(
+                    std::make_move_iterator(measurements.begin()),
+                    std::make_move_iterator(measurements.end())
+                );
+            }
             return init_intercompletion;
         }
         auto intercompletion = std::chrono::duration_cast<duration_type>(
@@ -94,8 +98,12 @@ namespace cloudbus {
         auto metric_it = find_metric(measurements, ptr);
         if(metric_it == measurements.end()) {
             measurements.push_back({std::move(ptr), init_interarrival, init_intercompletion, t, t});
-            if(measurements.size() < measurements.capacity()/8)
-                measurements.shrink_to_fit();
+            if(measurements.size() < measurements.capacity()/8) {
+                measurements = metrics_vec(
+                    std::make_move_iterator(measurements.begin()),
+                    std::make_move_iterator(measurements.end())
+                );
+            }
             return init_interarrival;
         }
         auto interarrival = std::chrono::duration_cast<duration_type>(

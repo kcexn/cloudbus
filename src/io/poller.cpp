@@ -23,8 +23,12 @@ namespace io{
         );
         if(lb == events.end() || lb->fd != handle) {
             events.insert(lb, event);
-            if(events.size() < events.capacity()/8)
-                events.shrink_to_fit();
+            if(events.size() < events.capacity()/8) {
+                events = events_type(
+                    std::make_move_iterator(events.begin()),
+                    std::make_move_iterator(events.end())
+                );
+            }
             return events.size();
         }
         return npos;

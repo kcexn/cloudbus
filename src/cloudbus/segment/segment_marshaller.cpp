@@ -69,8 +69,12 @@ namespace cloudbus{
             north().erase(end, north().end());
             auto&[ptr, pbuf] = north().emplace_back(marshaller::make_north(nsp));
             xmsg_read(*pbuf, *nsp);
-            if(north().size() < north().capacity()/8)
-                north().shrink_to_fit();
+            if(north().size() < north().capacity()/8) {
+                north() = north_buffers(
+                    std::make_move_iterator(north().begin()),
+                    std::make_move_iterator(north().end())
+                );
+            }
             return --north().end();
         }
         marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_type& stream){
@@ -93,8 +97,12 @@ namespace cloudbus{
             south().erase(end, south().end());
             auto&[ptr, pbuf] = south().emplace_back(marshaller::make_south(ssp));
             stream_copy(*pbuf, *ssp);
-            if(south().size() < south().capacity()/8)
-                south().shrink_to_fit();
+            if(south().size() < south().capacity()/8) {
+                south() = south_buffers(
+                    std::make_move_iterator(south().begin()),
+                    std::make_move_iterator(south().end())
+                );
+            }
             return --south().end();
         }
     }

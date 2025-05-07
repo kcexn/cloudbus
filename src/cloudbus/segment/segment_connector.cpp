@@ -316,8 +316,12 @@ namespace cloudbus{
                         connection_type::HALF_OPEN
                 )
             );
-            if(connections().size() < connections().capacity()/8)
-                connections().shrink_to_fit();
+            if(connections().size() < connections().capacity()/8) {
+                connections() = connections_type(
+                    std::make_move_iterator(connections().begin()),
+                    std::make_move_iterator(connections().end())
+                );
+            }
             return _north_write(ssp, buf);
         }
         void connector::_north_err_handler(north_type& interface, const north_type::handle_type& stream, event_mask& revents){

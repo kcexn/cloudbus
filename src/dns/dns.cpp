@@ -350,11 +350,8 @@ namespace cloudbus {
                         return std::get<ares_socket_t>(lhs) < std::get<ares_socket_t>(rhs);
                     }
                 );
-                if(lb == hnds->end() || std::get<ares_socket_t>(*lb) != socket_fd) {
+                if(lb == hnds->end() || std::get<ares_socket_t>(*lb) != socket_fd)
                     lb = hnds->insert(lb, {socket_fd, 0});
-                    if(hnds->size() < hnds->capacity()/8)
-                        hnds->shrink_to_fit();
-                }
                 auto&[sockfd, sockstate] = *lb;
                 sockfd = socket_fd;
                 sockstate = 0;
@@ -362,6 +359,12 @@ namespace cloudbus {
                     sockstate |= resolver_base::READABLE;
                 if(writable)
                     sockstate |= resolver_base::WRITABLE;
+                if(hnds->size() < hnds->capacity()/8) {
+                    *hnds = socket_handles(
+                        std::make_move_iterator(hnds->begin()),
+                        std::make_move_iterator(hnds->end())
+                    );
+                }
             }
             static void ares_addrinfo_cb(
                 void *arg,

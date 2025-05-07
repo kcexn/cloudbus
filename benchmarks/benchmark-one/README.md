@@ -9,7 +9,7 @@ like AWS EC2, private clouds (e.g., OpenStack), or traditional networks are not 
 supported.
 
 ## Results:
-Latencies (ms): mean=29, median=29, p99=30
+Latencies (ms): mean=29, median=29, p95=30, p99=32
 
 ## Benchmarking on Google Compute Engine with Gcloud CLI:
 ### Building the Test Infrastructure

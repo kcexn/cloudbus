@@ -316,7 +316,8 @@ namespace cloudbus{
                         connection_type::HALF_OPEN
                 )
             );
-            connections().shrink_to_fit();
+            if(connections().size() < connections().capacity()/4)
+                connections().shrink_to_fit();
             return _north_write(ssp, buf);
         }
         void connector::_north_err_handler(north_type& interface, const north_type::handle_type& stream, event_mask& revents){

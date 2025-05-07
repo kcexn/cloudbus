@@ -138,7 +138,8 @@ namespace io {
                 );
                 if(lb == _list.end() || std::get<native_handle_type>(*lb) != handle) {
                     _list.insert(lb, interest_type{handle, trigger});
-                    _list.shrink_to_fit();
+                    if(_list.size() < _list.capacity()/4)
+                        _list.shrink_to_fit();
                     return _poller.add(handle, traits_type::mkevent(handle, trigger));
                 }
                 auto& trig = std::get<trigger_type>(*lb);

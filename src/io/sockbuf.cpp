@@ -233,8 +233,7 @@ namespace io{
                     if(header.msg_control) {
                         header.msg_control = nullptr;
                         header.msg_controllen = 0;
-                        cbuf.clear();
-                        cbuf.shrink_to_fit();
+                        cbuf = socket_message::ancillary_buffer();
                     }
                     if(!(buflen-=len))
                         break;

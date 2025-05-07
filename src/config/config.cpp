@@ -320,6 +320,8 @@ namespace cloudbus{
                         case '\n':
                             if(line.empty() || !std::isspace(line.back())) {
                                 line.push_back('\n');
+                            } else if(line.back() == '\n') {
+                                parse_line(line, heading, sections);
                             } else {
                                 line.back() = '\n';
                             }

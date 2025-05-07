@@ -285,9 +285,8 @@ namespace cloudbus{
                             }
                         );
                         if(value_start != end) {
-                            while(std::isspace(*--end));
                             while(std::isspace(*--key_end));
-                            section.emplace_back(std::string(start, ++key_end), std::string(value_start, ++end));
+                            section.emplace_back(std::string(start, ++key_end), std::string(value_start, end));
                         }
                     }
                 }

@@ -277,17 +277,17 @@ namespace cloudbus{
                     }
                 } else if(!sections.empty()) {
                     auto& section = sections.at(heading);
-                    auto kend = std::find(start, ++end, '=');
-                    if(kend != end) {
-                        auto vstart = std::find_if(kend+1, end,
+                    auto key_end = std::find(start, ++end, '=');
+                    if(key_end != end) {
+                        auto value_start = std::find_if(key_end+1, end,
                             [](unsigned char c) {
                                 return !std::isspace(c);
                             }
                         );
-                        if(vstart != end) {
+                        if(value_start != end) {
                             while(std::isspace(*--end));
-                            while(std::isspace(*--kend));
-                            section.emplace_back(std::string(start, ++kend), std::string(vstart, ++end));
+                            while(std::isspace(*--key_end));
+                            section.emplace_back(std::string(start, ++key_end), std::string(value_start, ++end));
                         }
                     }
                 }

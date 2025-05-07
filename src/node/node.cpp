@@ -110,17 +110,18 @@ namespace cloudbus{
                     if( (i = triggers().wait()) != trigger_type::npos ){
                         for(const auto& e: triggers().events()) {
                             if(e.revents && i--) {
-                                auto it = std::find_if(
-                                        events.begin(),
-                                        events.end(),
-                                    [&](auto& ev){
-                                        if(e.fd==ev.fd)
-                                            ev.revents |= e.revents;
-                                        return e.fd==ev.fd;
+                                auto lb = std::lower_bound(
+                                        events.begin(), events.end(),
+                                        e,
+                                    [&](const auto& lhs, const auto& rhs) {
+                                        return lhs.fd < rhs.fd;
                                     }
                                 );
-                                if(it == events.end())
-                                    events.push_back(e);
+                                if(lb == events.end() || lb->fd != e.fd) {
+                                    events.insert(lb, e);
+                                } else {
+                                    lb->revents |= e.revents;
+                                }
                             }
                             if(!i)
                                 break;

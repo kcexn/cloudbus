@@ -37,7 +37,7 @@ namespace cloudbus {
             protected:
                 virtual size_type _handle(events_type& events) override {
                     size_type handled = 0;
-                    auto it = std::remove_if(
+                    auto end = std::remove_if(
                             handles().begin(), handles().end(),
                         [&](auto& hnd) {
                             auto&[sockfd, sockev] = hnd;
@@ -80,7 +80,7 @@ namespace cloudbus {
                             return !sockev;
                         }
                     );
-                    handles().resize(it-handles().begin());
+                    handles().erase(end, handles().end());
                     return handled;
                 }
         };

@@ -160,7 +160,7 @@ namespace cloudbus {
                     return !ev.revents;
                 }
             );
-            events.resize(end-events.begin());
+            events.erase(end, events.end());
             return handled + Base::_handle(events);
         }
         static connector::connections_type::const_iterator write_prepare(
@@ -169,7 +169,8 @@ namespace cloudbus {
             const std::streamsize& tellp
         ){
             const std::streamsize pos = MAX_BUFSIZE-(tellp+sizeof(messages::msgheader));
-            for(auto conn=connections.cbegin(); conn != connections.cend(); ++conn) {
+            const auto cbegin=connections.cbegin(), cend=connections.cend();
+            for(auto conn=cbegin; conn != cend; ++conn) {
                 if(owner_equal(conn->north, np)) {
                     if(auto s = conn->south.lock()) {
                         if(s->fail())
@@ -181,7 +182,7 @@ namespace cloudbus {
                     }
                 }
             }
-            return connections.cend();
+            return cend;
         }
         int connector::_route(marshaller_type::north_format& buf, north_type& interface, const north_type::handle_type& stream, event_mask& revents){
             constexpr std::streamsize HDRLEN = sizeof(messages::msgheader);
@@ -229,67 +230,64 @@ namespace cloudbus {
             const auto&[ssp, sfd] = stream;
             const auto eof = ssp->eof();
             if(const auto *type = buf.type()){
-                const auto *eid = buf.eid();
                 const std::streamsize pos=buf.tellp(), gpos=buf.tellg();
-                const std::streamsize seekpos =
-                    (gpos <= HDRLEN)
-                    ? HDRLEN
-                    : gpos;
-                const auto rem = buf.len()->length - pos;
-                const auto time = connection_type::clock_type::now();
-                messages::msgheader abort = {
-                    *eid, {1, sizeof(abort)},
-                    {0,0},{messages::STOP, messages::ABORT}
-                };
-                for(auto conn=connections().begin(); conn != connections().end(); ++conn) {
-                    if (
-                        !messages::uuidcmp_node(&conn->uuid, eid) &&
-                        owner_equal(conn->south, ssp)
-                    ){
-                        if(rem && !eof)
-                            break;
-                        if(conn->state == connection_type::CLOSED)
-                            break;
-                        if(auto n = conn->north.lock()) {
-                            if(conn->state == connection_type::HALF_CLOSED &&
-                                !n->eof() && !(type->flags & messages::ABORT)
-                            ){
+                if(const auto rem=buf.len()->length-pos; !rem) {
+                    const auto *eid = buf.eid();
+                    const std::streamsize seekpos =
+                        (gpos <= HDRLEN)
+                        ? HDRLEN
+                        : gpos;
+                    const auto time = connection_type::clock_type::now();
+                    const messages::msgheader abort = {
+                        *eid, {1, sizeof(abort)},
+                        {0,0},{messages::STOP, messages::ABORT}
+                    };
+                    for(auto& conn: connections()) {
+                        if (
+                            !messages::uuidcmp_node(&conn.uuid, eid) &&
+                            owner_equal(conn.south, ssp)
+                        ){
+                            if(conn.state == connection_type::CLOSED)
                                 break;
-                            }
-                            triggers().set(n->native_handle(), POLLOUT);
-                            if(pos > seekpos){
-                                buf.seekg(seekpos);
-                                if(!_south_write(n, buf))
-                                    return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
-                            }
-                            auto prev = conn->state;
-                            state_update(*conn, *type, time);
-                            if(mode() == HALF_DUPLEX &&
-                                    prev == connection_type::HALF_OPEN &&
-                                    conn->state != connection_type::HALF_OPEN &&
-                                    seekpos == HDRLEN && pos > seekpos
-                            ){
-                                for(auto& c: connections()){
-                                    if(c.uuid == *eid && c.state < connection_type::HALF_CLOSED) {
-                                        if(!owner_equal(c.south, ssp)) {
-                                            if(auto sp = c.south.lock()) {
-                                                sp->write(reinterpret_cast<const char*>(&abort), sizeof(abort));
-                                                triggers().set(sp->native_handle(), POLLOUT);
-                                                state_update(c, abort.type, time);
+                            if(auto n = conn.north.lock()) {
+                                if(conn.state == connection_type::HALF_CLOSED &&
+                                    !n->eof() && !(type->flags & messages::ABORT)
+                                ){
+                                    break;
+                                }
+                                triggers().set(n->native_handle(), POLLOUT);
+                                if(pos > seekpos){
+                                    buf.seekg(seekpos);
+                                    if(!_south_write(n, buf))
+                                        return clear_triggers(sfd, triggers(), revents, (POLLIN | POLLHUP));
+                                }
+                                auto prev = conn.state;
+                                state_update(conn, *type, time);
+                                if(mode() == HALF_DUPLEX &&
+                                        prev == connection_type::HALF_OPEN &&
+                                        conn.state != connection_type::HALF_OPEN &&
+                                        seekpos == HDRLEN && pos > seekpos
+                                ){
+                                    for(auto& c: connections()){
+                                        if(c.uuid == *eid && c.state < connection_type::HALF_CLOSED) {
+                                            if(!owner_equal(c.south, ssp)) {
+                                                if(auto sp = c.south.lock()) {
+                                                    sp->write(reinterpret_cast<const char*>(&abort), sizeof(abort));
+                                                    triggers().set(sp->native_handle(), POLLOUT);
+                                                    state_update(c, abort.type, time);
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
+                            buf.setstate(buf.eofbit);
+                            return eof ? -1 : 0;
                         }
-                        buf.setstate(buf.eofbit);
-                        return eof ? -1 : 0;
                     }
-                }
-                if(!rem) {
                     buf.setstate(buf.eofbit);
                     if(!eof && !(type->flags & messages::ABORT)) {
-                        ssp->write(reinterpret_cast<char*>(&abort), sizeof(abort));
+                        ssp->write(reinterpret_cast<const char*>(&abort), sizeof(abort));
                         triggers().set(ssp->native_handle(), POLLOUT);
                     }
                 }
@@ -315,7 +313,7 @@ namespace cloudbus {
                     return owner_equal(conn.south, ssp);
                 }
             );
-            connections.resize(end-connections.begin());
+            connections.erase(end, connections.end());
             auto it = std::find_if(
                     nbd.streams().begin(),
                     nbd.streams().end(),
@@ -332,8 +330,8 @@ namespace cloudbus {
             constexpr std::size_t ratio = 2;
             const auto& measurements = metrics::get().streams().get_all_measurements();
             auto min = measurements.cbegin();
-            auto ll = sbd.streams().begin();
-            for(auto it=ll; it != sbd.streams().end(); ++it) {
+            auto ll = sbd.streams().begin(), end=sbd.streams().end();
+            for(auto it=ll; it != end; ++it) {
                 auto&[sp, fd] = *it;
                 auto itm = std::find_if(
                         measurements.cbegin(), measurements.cend(),
@@ -362,9 +360,9 @@ namespace cloudbus {
             auto eid = messages::make_uuid_v7();
             if(eid == messages::uuid{})
                 return -1;
-            metrics::get().arrivals() += 1;
+            metrics::get().arrivals().fetch_add(1, std::memory_order_relaxed);
             connections_type connect;
-            for(auto& sbd: south()){
+            for(auto& sbd: south()) {
                 auto&[sptr, sockfd] = select_stream(sbd);
                 metrics::get().streams().add_arrival(sptr);
                 if(sockfd != sptr->BAD_SOCKET) {
@@ -464,7 +462,7 @@ namespace cloudbus {
                     return owner_equal(conn.north, nsp);
                 }
             );
-            connections().resize(end-connections().begin());
+            connections().erase(end, connections().end());
             revents = 0;
             triggers().clear(nfd);
             interface.erase(stream);
@@ -573,7 +571,7 @@ namespace cloudbus {
                         !std::memcmp(&addr, &addr_, addrlen);
                 }
             );
-            addresses.resize(end-addresses.begin());
+            addresses.erase(end, addresses.end());
             iface.addresses(std::move(addresses));
         }
         void connector::_south_err_handler(south_type& interface, const south_type::handle_type& stream, event_mask& revents){
@@ -594,7 +592,7 @@ namespace cloudbus {
                     return false;
                 }
             );
-            connections().resize(end-connections().begin());
+            connections().erase(end, connections().end());
             revents = 0;
             triggers().clear(sfd);
             switch(ssp->err()) {

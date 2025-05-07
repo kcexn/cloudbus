@@ -81,7 +81,7 @@ namespace io {
             virtual size_type _add(native_handle_type handle, events_type& events, event_type event) { return npos; }
             virtual size_type _update(native_handle_type handle, events_type& events, event_type event) { return npos; }
             virtual size_type _del(native_handle_type handle, events_type& events ) { return npos; }
-            virtual size_type _poll(duration_type timeout) { return npos; }
+            virtual size_type _poll(const duration_type& timeout) { return npos; }
 
         private:
             events_type _events{};
@@ -108,7 +108,7 @@ namespace io {
             size_type _add(native_handle_type handle, events_type& events, event_type event) override;
             size_type _update(native_handle_type handle, events_type& events, event_type event) override;
             size_type _del(native_handle_type handle, events_type& events ) override;
-            size_type _poll(duration_type timeout) override;
+            size_type _poll(const duration_type& timeout) override;
     };
 
     template<class PollT, class Traits = poll_traits<PollT> >

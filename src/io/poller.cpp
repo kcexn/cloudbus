@@ -53,19 +53,20 @@ namespace io{
         return events.size();
     }
 
-    poller::size_type poller::_poll(duration_type timeout){
-        while(int nfds = poll(events().data(), events().size(), timeout.count())){
-            if(nfds < 0){
-                switch(errno){
-                    case EAGAIN:
-                    case EINTR:
-                        return 0;
-                    default:
-                        return npos;
-                }
+    poller::size_type poller::_poll(const duration_type& timeout)
+    {
+        int nfds = 0;
+        if( (nfds=poll(events().data(), events().size(), timeout.count())) < 0 )
+        {
+            switch(errno)
+            {
+                case EAGAIN:
+                case EINTR:
+                    return 0;
+                default:
+                    return npos;
             }
-            return nfds;
         }
-        return 0;
+        return nfds;
     }
 }

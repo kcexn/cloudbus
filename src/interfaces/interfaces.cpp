@@ -293,7 +293,7 @@ namespace cloudbus {
         }
     }
     std::size_t interface_base::expire_addresses(const time_point& t){
-        auto it = std::remove_if(
+        auto end = std::remove_if(
                 _addresses.begin(), _addresses.end(),
             [&](auto& addr){
                 const auto&[time, interval] = std::get<ttl_type>(addr);
@@ -301,7 +301,7 @@ namespace cloudbus {
                     !std::get<weight_type>(addr).max;
             }
         );
-        _addresses.resize(it-_addresses.begin());
+        _addresses.erase(end, _addresses.end());
         auto[weight, prio] = find_weights(_addresses);
         _total_weight = weight, _prio = prio;
         if(_addresses.empty() &&

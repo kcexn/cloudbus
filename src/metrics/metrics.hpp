@@ -14,6 +14,7 @@
 *   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "../interfaces.hpp"
+#include <atomic>
 #include <thread>
 #include <map>
 #include <mutex>
@@ -38,36 +39,37 @@ namespace cloudbus {
 
             duration_type add_completion(weak_ptr ptr, const time_point& t=clock_type::now());
             duration_type add_arrival(weak_ptr ptr, const time_point& t=clock_type::now());
-            const metrics_vec& get_all_measurements() const { return measurements; }
+            metrics_vec get_all_measurements();
         private:
+            std::mutex mtx;
             metrics_vec measurements;
     };
-    class node_metrics {
-        public:
+    struct node_metrics {
             /* carried traffic = offered traffic unless offered traffic *
              * exceeds capacity. I only need to count arrivals if I am  *
              * interested in throughput. I will need to compute capacity*
              * using a different method.                                */
-            std::size_t arrivals;
+            std::atomic<std::size_t> arrivals;
             stream_metrics streams;
-
-            node_metrics() : arrivals{0}{}
-            ~node_metrics() = default;
     };
     class metrics {
         public:
-            using node_pair = std::pair<std::thread::id, node_metrics>;
             using node_registry = std::map<std::thread::id, node_metrics>;
-            using node_metrics_vec = std::vector<node_pair>;
+            struct metric {
+                std::thread::id tid;
+                std::size_t arrivals;
+                stream_metrics::metrics_vec measurements;
+            };
+            using metrics_vec = std::vector<metric>;
             static inline metrics& get() {
                 static metrics m;
                 return m;
             }
 
             node_metrics& make_node(const std::thread::id& tid = std::this_thread::get_id());
-            std::size_t& arrivals(const std::thread::id& tid = std::this_thread::get_id());
+            std::atomic<std::size_t>& arrivals(const std::thread::id& tid = std::this_thread::get_id());
             stream_metrics& streams(const std::thread::id& tid = std::this_thread::get_id());
-            node_metrics_vec get_all_measurements();
+            metrics_vec get_all_measurements();
             void erase_node(const std::thread::id& tid = std::this_thread::get_id());
 
             metrics(const metrics& other) = delete;

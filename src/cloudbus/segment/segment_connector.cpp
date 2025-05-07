@@ -157,7 +157,7 @@ namespace cloudbus{
                     return !ev.revents;
                 }
             );
-            events.resize(end-events.begin());
+            events.erase(end, events.end());
             return handled + Base::_handle(events);
         }
         int connector::_route(marshaller_type::north_format& buf, north_type& interface, const north_type::handle_type& stream, event_mask& revents){
@@ -165,45 +165,42 @@ namespace cloudbus{
             const auto&[nsp, nfd] = stream;
             const auto eof = nsp->eof();
             if(const auto *type = buf.type()) {
-                const auto *eid = buf.eid();
                 const std::streamsize pos=buf.tellp(), gpos=buf.tellg();
-                const std::streamsize seekpos =
-                    (gpos <= HDRLEN)
-                        ? HDRLEN
-                        : gpos;
-                const auto rem = buf.len()->length - pos;
-                const auto time = connection_type::clock_type::now();
-                for(auto& conn: connections()) {
-                    if (conn.uuid == *eid && owner_equal(conn.north, nsp)) {
-                        if(rem && !eof)
-                            break;
-                        if(conn.state == connection_type::CLOSED)
-                            break;
-                        if(auto s = conn.south.lock()) {
-                            auto sockfd = s->native_handle();
-                            if(sockfd != s->BAD_SOCKET)
-                                triggers().set(sockfd, POLLOUT);
-                            if(pos > seekpos) {
-                                buf.seekg(seekpos);
-                                if(!_north_write(s, buf))
-                                    return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
+                if(const auto rem=buf.len()->length-pos; !rem) {
+                    const auto *eid = buf.eid();
+                    const std::streamsize seekpos =
+                        (gpos <= HDRLEN)
+                            ? HDRLEN
+                            : gpos;
+                    const auto time = connection_type::clock_type::now();
+                    for(auto& conn: connections()) {
+                        if(conn.uuid == *eid && owner_equal(conn.north, nsp)) {
+                            if(conn.state == connection_type::CLOSED)
+                                break;
+                            if(auto s = conn.south.lock()) {
+                                auto sockfd = s->native_handle();
+                                if(sockfd != s->BAD_SOCKET)
+                                    triggers().set(sockfd, POLLOUT);
+                                if(pos > seekpos) {
+                                    buf.seekg(seekpos);
+                                    if(!_north_write(s, buf))
+                                        return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
+                                }
+                                if(type->flags & messages::ABORT)
+                                    s->setstate(s->badbit); 
                             }
-                            if(type->flags & messages::ABORT)
-                                s->setstate(s->badbit); 
+                            state_update(conn, *type, time);
+                            buf.setstate(buf.eofbit);
+                            return eof ? -1 : 0;
                         }
-                        state_update(conn, *type, time);
-                        buf.setstate(buf.eofbit);
-                        return eof ? -1 : 0;
                     }
-                }
-                if(!rem) {
                     buf.setstate(buf.eofbit);
                     if(!eof) {
                         if( (type->flags & messages::INIT) &&
                             pos > HDRLEN
                         ){
                             buf.seekg(HDRLEN);
-                            if(auto status = north_connect(interface, nsp, buf)){
+                            if(auto status = north_connect(interface, nsp, buf)) {
                                 if(status < 0)
                                     return -1;
                             } else return clear_triggers(nfd, triggers(), revents, (POLLIN | POLLHUP));
@@ -272,13 +269,13 @@ namespace cloudbus{
                     return owner_equal(conn.south, ssp);
                 }
             );
-            connections.resize(end-connections.begin());
+            connections.erase(end, connections.end());
             return (void)sbd.erase(hnd);
         }
         std::streamsize connector::_north_connect(north_type& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
             auto& sbd = south().front();
             auto&[ssp, sfd] = sbd.make();
-            metrics::get().arrivals() += 1;
+            metrics::get().arrivals().fetch_add(1, std::memory_order_relaxed);
             sbd.register_connect(
                 ssp,
                 [&](
@@ -340,7 +337,7 @@ namespace cloudbus{
                     return false;
                 }
             );
-            connections().resize(end-connections().begin());
+            connections().erase(end, connections().end());
             revents = 0;
             triggers().clear(nfd);
             interface.erase(stream);
@@ -432,7 +429,7 @@ namespace cloudbus{
                         !std::memcmp(&addr, &addr_, addrlen);
                 }
             );
-            addresses.resize(end-addresses.begin());
+            addresses.erase(end, addresses.end());
             iface.addresses(std::move(addresses));
         }        
         void connector::_south_err_handler(south_type& interface, const south_type::handle_type& stream, event_mask& revents){
@@ -457,7 +454,7 @@ namespace cloudbus{
                     return owner_equal(conn.south, ssp);
                 }
             );
-            connections().resize(end-connections().begin());
+            connections().erase(end, connections().end());
             revents = 0;
             triggers().clear(sfd);
             switch(ssp->err()) {

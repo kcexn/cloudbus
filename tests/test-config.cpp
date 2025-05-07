@@ -139,6 +139,25 @@ static int test_make_naptr() {
 
     return TEST_PASS;
 }
+static int test_line_wrap() {
+    using namespace cloudbus;
+    config::configuration conf;
+    std::stringstream ss{
+        "[ Test  Service ]\r\n"
+        "option=test\r\n"
+        "\t\t value\r\n"
+        "\r\n"
+    };
+    ss >> conf;
+    for(auto&[heading, section]: conf.sections()) {
+        FAIL_IF(heading != "Test Service");
+        for(auto&[k,v]: section) {
+            FAIL_IF(k != "option");
+            FAIL_IF(v != "test value");
+        }
+    }
+    return TEST_PASS;
+}
 int main(int argc, char **argv) {
     std::cout << "================================= TEST CONFIG ==================================" << std::endl;
     EXEC_TEST(test_ingest_config);
@@ -150,6 +169,7 @@ int main(int argc, char **argv) {
     EXEC_TEST(test_make_srv);
     EXEC_TEST(test_invalid_uri);
     EXEC_TEST(test_make_naptr);
+    EXEC_TEST(test_line_wrap);
     std::cout << "================================================================================" << std::endl;
     return TEST_PASS;
 }

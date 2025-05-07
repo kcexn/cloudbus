@@ -14,6 +14,7 @@
 *   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "config.hpp"
+#include <array>
 #include <algorithm>
 #include <string_view>
 #include <charconv>
@@ -250,37 +251,85 @@ namespace cloudbus{
             _sections = std::move(other._sections);
             return *this;
         }
-
-        std::istream& operator>>(std::istream& is, configuration& conf){
+        static void parse_line(
+            std::string& line,
+            std::string& heading,
+            configuration::sections_type& sections
+        ){
+            auto start = line.cbegin(), end = line.cend();
+            start = std::find_if(start, end,
+                [](unsigned char c){
+                    return !std::isspace(c);
+                }
+            );
+            if(start != end) {
+                while(std::isspace(*--end));
+                if(*start == '[' && *end == ']') {
+                    start = std::find_if(++start, end,
+                        [](unsigned char c){
+                            return !std::isspace(c);
+                        }
+                    );
+                    if(start != end) {
+                        while(std::isspace(*--end));
+                        heading = std::string(start, ++end);
+                        sections.try_emplace(heading);
+                    }
+                } else if(!sections.empty()) {
+                    auto& section = sections.at(heading);
+                    auto kend = std::find(start, ++end, '=');
+                    if(kend != end) {
+                        auto vstart = std::find_if(kend+1, end,
+                            [](unsigned char c) {
+                                return !std::isspace(c);
+                            }
+                        );
+                        if(vstart != end) {
+                            while(std::isspace(*--end));
+                            while(std::isspace(*--kend));
+                            section.emplace_back(std::string(start, ++kend), std::string(vstart, ++end));
+                        }
+                    }
+                }
+            }
+            line.clear();
+        }
+        std::istream& operator>>(std::istream& is, configuration& conf) {
+            static constexpr std::streamsize buflen = 256;
             auto& sections = conf._sections;
             sections.clear();
             std::string line, heading;
-            while(std::getline(is, line)){
-                auto start = std::find_if(line.begin(), line.end(), [](const unsigned char c){ return !std::isspace(c); });
-                std::string_view entry(&*start, line.end()-start);
-                if(entry.size() == 0)
-                    continue;
-                if(entry.front() == '['){
-                    auto end = std::find(entry.cbegin()+1, entry.cend(), ']');
-                    if(end == entry.cend())
-                        continue;
-                    while(std::isspace(*(--end)));
-                    heading = std::string(entry.cbegin()+1, ++end);
-                    sections.try_emplace(heading);
-                } else if(!sections.empty()) {
-                    auto& section = sections.at(heading);
-                    auto delim = std::find(entry.cbegin(), entry.cend(), '=');
-                    if(delim == entry.cend())
-                        continue;
-                    auto sval = std::find_if(delim+1, entry.cend(), [](const unsigned char c){ return !std::isspace(c); });
-                    if(sval == entry.cend())
-                        continue;
-                    auto end = entry.cend();
-                    while(std::isspace(*(--end)));
-                    while(std::isspace(*(--delim)));
-                    section.emplace_back(std::string(entry.cbegin(), ++delim), std::string(sval, ++end));
+            std::array<char, buflen> buf{};
+            do {
+                is.read(buf.data(), buf.max_size());
+                auto begin=buf.begin(), end=begin+is.gcount();
+                for(auto c=begin; c != end; ++c) {
+                    if(!std::isspace(*c)) {
+                        if(!line.empty() && line.back() == '\n')
+                            parse_line(line, heading, sections);
+                        line.push_back(*c);
+                    } else switch(*c) {
+                        case ' ':
+                        case '\t':
+                            if(line.empty() || !std::isspace(line.back())) {
+                                line.push_back(' ');
+                            } else {
+                                line.back() = ' ';
+                            }
+                            break;
+                        case '\n':
+                            if(line.empty() || !std::isspace(line.back())) {
+                                line.push_back('\n');
+                            } else {
+                                line.back() = '\n';
+                            }
+                        default:
+                            break;
+                    }
                 }
-            }
+            } while(is.good());
+            if(!line.empty() && line.back() == '\n')
+                parse_line(line, heading, sections);
             return is;
         }
         std::ostream& operator<<(std::ostream& os, const configuration& config){

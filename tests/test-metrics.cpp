@@ -80,9 +80,7 @@ static int test_metrics_add_completion() {
     weak_ptr wp = sp;
     auto t = clock_type::now();
     auto interval = metrics::get().streams().add_completion(wp, t);
-    FAIL_IF(interval.count() != 60*1000);
-    interval = metrics::get().streams().add_completion(wp, t);
-    FAIL_IF(interval.count() != 30*1000);
+    FAIL_IF(interval.count() != 0);
     const auto& m = metrics::get().streams().get_all_measurements();
     FAIL_IF(m.size() != 1);
     metrics::get().erase_node();

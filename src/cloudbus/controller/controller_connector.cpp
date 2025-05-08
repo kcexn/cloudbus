@@ -327,11 +327,11 @@ namespace cloudbus {
             return (void)nbd.erase(it);
         }
         static const interface_base::handle_type& select_stream(interface_base& sbd) {
-            constexpr std::size_t ratio = 2;
+            static constexpr std::size_t ratio = 2;
             const auto& measurements = metrics::get().streams().get_all_measurements();
             auto min = measurements.cbegin();
-            auto ll = sbd.streams().begin(), end=sbd.streams().end();
-            for(auto it=ll; it != end; ++it) {
+            auto rr = sbd.streams().begin(), end=sbd.streams().end();
+            for(auto it=rr; it != end; ++it) {
                 auto&[sp, fd] = *it;
                 auto itm = std::find_if(
                         measurements.cbegin(), measurements.cend(),
@@ -341,19 +341,20 @@ namespace cloudbus {
                 );
                 if(itm == measurements.cend())
                     return *it;
+                /* least-loaded up until rho=0.5. */
                 if(itm->intercompletion <= itm->interarrival/ratio)
                     return *it;
-                if(itm->intercompletion - itm->interarrival <
-                    min->intercompletion - min->interarrival
-                ){
+                /* If no nodes are loaded less than rho=0.5 use round-robin. */
+                if(itm->last_arrival < min->last_arrival) {
                     min = itm;
-                    ll = it;
+                    rr = it;
                 }
             }
+            /* Try and scale out first before applying round-robin. */
             auto max_streams = std::max(sbd.addresses().size(), 1UL);
             if(sbd.streams().size() < max_streams)
                 return sbd.make();
-            return *ll;
+            return *rr;
         }
         std::streamsize connector::_north_connect(north_type& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
             const auto n = connection_type::clock_type::now();

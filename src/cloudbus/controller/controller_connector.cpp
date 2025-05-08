@@ -302,9 +302,10 @@ namespace cloudbus {
             connector::connections_type& connections
         ){
             auto&[ssp, sfd] = hnd;
-            auto end = std::remove_if(
-                    connections.begin(),
-                    connections.end(),
+            auto begin = connections.begin(), end = connections.end();
+            auto new_end = std::remove_if(
+                    begin,
+                    end,
                 [&](auto& conn) {
                     if(owner_equal(conn.south, ssp)) {
                         if(sfd != ssp->BAD_SOCKET)
@@ -313,7 +314,7 @@ namespace cloudbus {
                     return owner_equal(conn.south, ssp);
                 }
             );
-            connections.erase(end, connections.end());
+            connections.erase(new_end, end);
             auto it = std::find_if(
                     nbd.streams().begin(),
                     nbd.streams().end(),
@@ -356,7 +357,11 @@ namespace cloudbus {
                 return sbd.make();
             return *rr;
         }
-        std::streamsize connector::_north_connect(north_type& interface, const north_type::stream_ptr& nsp, marshaller_type::north_format& buf){
+        std::streamsize connector::_north_connect(
+            north_type& interface,
+            const north_type::stream_ptr& nsp,
+            marshaller_type::north_format& buf
+        ){
             const auto n = connection_type::clock_type::now();
             auto eid = messages::make_uuid_v7();
             if(eid == messages::uuid{})
@@ -438,7 +443,10 @@ namespace cloudbus {
                 std::make_move_iterator(connect.begin()),
                 std::make_move_iterator(connect.end())
             );
-            if(connections().size() < connections().capacity()/8) {
+            static constexpr std::size_t THRESH=32;
+            if( connections().size() > THRESH &&
+                connections().size() < connections().capacity()/8
+            ){
                 connections() = connections_type(
                     std::make_move_iterator(connections().begin()),
                     std::make_move_iterator(connections().end())
@@ -447,14 +455,15 @@ namespace cloudbus {
             return len;
         }      
         void connector::_north_err_handler(north_type& interface, const north_type::handle_type& stream, event_mask& revents){
+            auto begin = connections().begin(), end = connections().end();
             messages::msgheader abort = {
                 {}, {1, static_cast<std::uint16_t>(sizeof(abort))},
                 {0,0}, {messages::STOP, messages::ABORT}
             };
             const auto&[nsp, nfd] = stream;
-            auto end = std::remove_if(
-                    connections().begin(),
-                    connections().end(),
+            auto new_end = std::remove_if(
+                    begin,
+                    end,
                 [&](auto& conn) {
                     if(owner_equal(conn.north, nsp)) {
                         if(auto s = conn.south.lock()) {
@@ -468,7 +477,7 @@ namespace cloudbus {
                     return owner_equal(conn.north, nsp);
                 }
             );
-            connections().erase(end, connections().end());
+            connections().erase(new_end, end);
             revents = 0;
             triggers().clear(nfd);
             interface.erase(stream);
@@ -566,9 +575,10 @@ namespace cloudbus {
         static void expire_address_of(const interface_base::stream_ptr& sptr, interface_base& iface) {
             const auto&[addr, addrlen] = sptr->sendbuf()->data;
             auto addresses = iface.addresses();
-            auto end = std::remove_if(
-                    addresses.begin(),
-                    addresses.end(),
+            auto begin = addresses.begin(), end = addresses.end();
+            auto new_end = std::remove_if(
+                    begin,
+                    end,
                 [&](auto& a){
                     const auto&[addr_, addrlen_, ttl_, weight_] = a;
                     const auto&[time, interval] = ttl_;
@@ -577,15 +587,16 @@ namespace cloudbus {
                         !std::memcmp(&addr, &addr_, addrlen);
                 }
             );
-            addresses.erase(end, addresses.end());
+            addresses.erase(new_end, end);
             iface.addresses(std::move(addresses));
         }
         void connector::_south_err_handler(south_type& interface, const south_type::handle_type& stream, event_mask& revents){
             const auto&[ssp, sfd] = stream;
             const auto time = connection_type::clock_type::now();
-            auto end = std::remove_if(
-                    connections().begin(),
-                    connections().end(),
+            auto begin = connections().begin(), end = connections().end();
+            auto new_end = std::remove_if(
+                    begin,
+                    end,
                 [&](auto& conn) {
                     if(owner_equal(conn.south, ssp)) {
                         if(auto n = conn.north.lock())
@@ -598,7 +609,7 @@ namespace cloudbus {
                     return false;
                 }
             );
-            connections().erase(end, connections().end());
+            connections().erase(new_end, end);
             revents = 0;
             triggers().clear(sfd);
             switch(ssp->err()) {

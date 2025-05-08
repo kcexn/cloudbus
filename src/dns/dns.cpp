@@ -344,13 +344,14 @@ namespace cloudbus {
                 using socket_handle = resolver_base::socket_handle;
                 using socket_handles = resolver_base::socket_handles;
                 auto *hnds = static_cast<socket_handles*>(data);
+                auto begin = hnds->begin(), end = hnds->end();
                 auto lb = std::lower_bound(
-                        hnds->begin(), hnds->end(), socket_handle{socket_fd, 0},
+                        begin, end, socket_handle{socket_fd, 0},
                     [](const auto& lhs, const auto& rhs) {
                         return std::get<ares_socket_t>(lhs) < std::get<ares_socket_t>(rhs);
                     }
                 );
-                if(lb == hnds->end() || std::get<ares_socket_t>(*lb) != socket_fd)
+                if(lb == end || std::get<ares_socket_t>(*lb) != socket_fd)
                     lb = hnds->insert(lb, {socket_fd, 0});
                 auto&[sockfd, sockstate] = *lb;
                 sockfd = socket_fd;
@@ -359,7 +360,11 @@ namespace cloudbus {
                     sockstate |= resolver_base::READABLE;
                 if(writable)
                     sockstate |= resolver_base::WRITABLE;
-                if(hnds->size() < hnds->capacity()/8) {
+                static constexpr std::size_t THRESH = 32;
+                const std::size_t size = hnds->size();
+                if( size > THRESH &&
+                    size < hnds->capacity()/8
+                ){
                     *hnds = socket_handles(
                         std::make_move_iterator(hnds->begin()),
                         std::make_move_iterator(hnds->end())

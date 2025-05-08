@@ -131,17 +131,21 @@ namespace io {
             explicit basic_trigger(poller_type& poller): _poller{poller}{}
 
             size_type set(native_handle_type handle, trigger_type trigger) {
-                auto lb = std::lower_bound(_list.begin(), _list.end(), interest_type{handle, trigger},
+                auto begin = _list.begin(), end = _list.end();
+                auto lb = std::lower_bound(begin, end, interest_type{handle, trigger},
                     [](const auto& lhs, const auto& rhs) {
                         return std::get<native_handle_type>(lhs) < std::get<native_handle_type>(rhs);
                     }
                 );
-                if(lb == _list.end() || std::get<native_handle_type>(*lb) != handle) {
+                if(lb == end || std::get<native_handle_type>(*lb) != handle) {
                     _list.insert(lb, interest_type{handle, trigger});
-                    if(_list.size() < _list.capacity()/8) {
+                    static constexpr std::size_t THRESH=32;
+                    if( _list.size() > THRESH &&
+                        _list.size() < _list.capacity()/8
+                    ){
                         _list = interest_list(
-                            std::make_move_iterator(_list.begin()),
-                            std::make_move_iterator(_list.end())
+                            std::make_move_iterator(begin),
+                            std::make_move_iterator(end)
                         );
                     }
                     return _poller.add(handle, traits_type::mkevent(handle, trigger));
@@ -153,12 +157,13 @@ namespace io {
             }
 
             size_type clear(native_handle_type handle, trigger_type trigger=UINT32_MAX) {
-                auto lb = std::lower_bound(_list.begin(), _list.end(), interest_type{handle, trigger},
+                auto begin = _list.begin(), end = _list.end();
+                auto lb = std::lower_bound(begin, end, interest_type{handle, trigger},
                     [](const auto& lhs, const auto& rhs) {
                         return std::get<native_handle_type>(lhs) < std::get<native_handle_type>(rhs);
                     }
                 );
-                if(lb == _list.end() || std::get<native_handle_type>(*lb) != handle)
+                if(lb == end || std::get<native_handle_type>(*lb) != handle)
                     return npos;
                 auto& trig = std::get<trigger_type>(*lb);
                 if( !(trig & ~trigger) ) {

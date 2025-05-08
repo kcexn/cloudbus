@@ -15,18 +15,26 @@
 */
 #include "io.hpp"
 namespace io{
-    poller::size_type poller::_add(native_handle_type handle, events_type& events, event_type event) {
-        auto lb = std::lower_bound(events.begin(), events.end(), event,
+    poller::size_type poller::_add(
+        native_handle_type handle,
+        events_type& events,
+        event_type event
+    ){
+        auto begin = events.begin(), end = events.end();
+        auto lb = std::lower_bound(begin, end, event,
             [](const auto& lhs, const auto& rhs) {
                 return lhs.fd < rhs.fd;
             }
         );
-        if(lb == events.end() || lb->fd != handle) {
+        if(lb == end || lb->fd != handle) {
             events.insert(lb, event);
-            if(events.size() < events.capacity()/8) {
+            static constexpr std::size_t THRESH = 32;
+            if( events.size() > THRESH &&
+                events.size() < events.capacity()/8
+            ){
                 events = events_type(
-                    std::make_move_iterator(events.begin()),
-                    std::make_move_iterator(events.end())
+                    std::make_move_iterator(begin),
+                    std::make_move_iterator(end)
                 );
             }
             return events.size();
@@ -34,25 +42,31 @@ namespace io{
         return npos;
     }
 
-    poller::size_type poller::_update(native_handle_type handle, events_type& events, event_type event) {
-        auto lb = std::lower_bound(events.begin(), events.end(), event,
+    poller::size_type poller::_update(
+        native_handle_type handle,
+        events_type& events,
+        event_type event
+    ){
+        auto begin = events.begin(), end = events.end();
+        auto lb = std::lower_bound(begin, end, event,
             [](const auto& lhs, const auto& rhs) {
                 return lhs.fd < rhs.fd;
             }
         );
-        if(lb == events.end() || lb->fd != handle)
+        if(lb == end || lb->fd != handle)
             return npos;
         lb->events = event.events;
         return events.size();
     }
 
     poller::size_type poller::_del(native_handle_type handle, events_type& events) {
-        auto lb = std::lower_bound(events.begin(), events.end(), event_type{handle, 0, 0},
+        auto begin = events.begin(), end = events.end();
+        auto lb = std::lower_bound(begin, end, event_type{handle, 0, 0},
             [](const auto& lhs, const auto& rhs) {
                 return lhs.fd < rhs.fd;
             }
         );
-        if(lb == events.end() || lb->fd != handle)
+        if(lb == end || lb->fd != handle)
             return npos;
         events.erase(lb);
         return events.size();

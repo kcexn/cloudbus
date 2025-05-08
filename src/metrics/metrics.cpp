@@ -20,7 +20,7 @@ namespace cloudbus {
     static constexpr stream_metrics::clock_type::time_point init_time{init_interarrival};    
     namespace {
         template<class T>
-        static bool owner_equal(std::weak_ptr<T> p1, std::weak_ptr<T> p2) {
+        static bool owner_equal(const std::weak_ptr<T>& p1, const std::weak_ptr<T>& p2) {
             return !p1.owner_before(p2) && !p2.owner_before(p1);
         }
         static auto update_ewma(const stream_metrics::duration_type& delta) {
@@ -45,22 +45,78 @@ namespace cloudbus {
         }
         static stream_metrics::metrics_vec::iterator find_metric(
             stream_metrics::metrics_vec& measurements,
-            stream_metrics::weak_ptr& ptr
+            const stream_metrics::weak_ptr& ptr
         ){
+            using metric_type = stream_metrics::metric_type;
+            using weak_ptr = stream_metrics::weak_ptr;
+            auto begin = measurements.begin(), end = measurements.end();
             if(ptr.expired())
-                return measurements.end();
-            auto it = measurements.begin(), end = measurements.end();
-            while(it != end) {
-                auto& wp = it->wp;
-                if(wp.expired()) {
-                    *it = std::move(*--end);
-                    measurements.pop_back();
-                    end = measurements.end();
-                } else if(owner_equal(wp, ptr)) {
-                    return it;
-                } else ++it;
-            }
+                return end;
+            struct {
+                bool operator()(const metric_type& lhs, const weak_ptr& rhs) {
+                    return lhs.wp.owner_before(rhs);
+                }
+            } comp{};
+            auto lb = std::lower_bound(begin, end, ptr, comp);
+            if(lb == end || owner_equal(lb->wp, ptr))
+                return lb;
             return end;
+        }
+        static stream_metrics::metrics_vec::iterator insert_metric(
+            stream_metrics::metrics_vec& measurements,
+            stream_metrics::weak_ptr&& ptr,
+            const stream_metrics::time_point& t
+        ){
+            using metrics_vec = stream_metrics::metrics_vec;
+            /* Find the insert position, marking expired elements for deletion as we go. */
+            auto begin = measurements.begin(), end = measurements.end();
+            auto put = begin, get = put;
+            while(get != end) {
+                auto& wp = get->wp;
+                if(wp.expired()) {
+                    ++get;
+                } else if (ptr.owner_before(wp)) {
+                    break;
+                } else {
+                    *put++ = std::move(*get++);
+                }
+            }
+            /* Insert the new element at put position. */
+            if(put != get) {
+                *put = {
+                    std::move(ptr),
+                    init_interarrival,
+                    init_intercompletion,
+                    t,
+                    t
+                };
+                get = --measurements.erase(++put, get);
+            } else {
+                get = measurements.insert(
+                    put,
+                    {
+                        std::move(ptr),
+                        init_interarrival,
+                        init_intercompletion,
+                        t,
+                        t
+                    }
+                );
+            }
+            /* Conditionally realloc measurements down to size. */
+            const auto index = std::distance(begin, get);
+            static constexpr std::size_t THRESH = 32;
+            const auto size = measurements.size();
+            if( size > THRESH &&
+                size < measurements.capacity()/8
+            ){
+                measurements = metrics_vec(
+                    std::make_move_iterator(begin),
+                    std::make_move_iterator(end)
+                );
+                begin = measurements.begin();
+            }
+            return begin + index;
         }
     }
     stream_metrics::duration_type stream_metrics::add_completion(
@@ -68,17 +124,15 @@ namespace cloudbus {
         const time_point& t
     ){
         if(ptr.expired())
-            return duration_type{-1};
+            return duration_type(-1);
         std::lock_guard<std::mutex> lk(mtx);
         auto metric_it = find_metric(measurements, ptr);
         if(metric_it == measurements.end()) {
-            measurements.push_back({std::move(ptr), init_interarrival, init_intercompletion, t, t});
-            if(measurements.size() < measurements.capacity()/8) {
-                measurements = metrics_vec(
-                    std::make_move_iterator(measurements.begin()),
-                    std::make_move_iterator(measurements.end())
-                );
-            }
+            insert_metric(
+                measurements,
+                std::move(ptr),
+                t
+            );
             return init_intercompletion;
         }
         auto intercompletion = std::chrono::duration_cast<duration_type>(
@@ -93,17 +147,15 @@ namespace cloudbus {
         const time_point& t
     ){
         if(ptr.expired())
-            return duration_type{-1};
+            return duration_type(-1);
         std::lock_guard<std::mutex> lk(mtx);
         auto metric_it = find_metric(measurements, ptr);
         if(metric_it == measurements.end()) {
-            measurements.push_back({std::move(ptr), init_interarrival, init_intercompletion, t, t});
-            if(measurements.size() < measurements.capacity()/8) {
-                measurements = metrics_vec(
-                    std::make_move_iterator(measurements.begin()),
-                    std::make_move_iterator(measurements.end())
-                );
-            }
+            insert_metric(
+                measurements,
+                std::move(ptr),
+                t
+            );
             return init_interarrival;
         }
         auto interarrival = std::chrono::duration_cast<duration_type>(

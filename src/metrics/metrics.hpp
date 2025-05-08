@@ -28,6 +28,7 @@ namespace cloudbus {
             using clock_type = std::chrono::steady_clock;
             using duration_type = std::chrono::milliseconds;
             using weak_ptr = std::weak_ptr<stream_type>;
+            using shared_ptr = std::shared_ptr<stream_type>;
             using time_point = clock_type::time_point;
 
             struct metric_type {

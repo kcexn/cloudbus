@@ -52,13 +52,14 @@ namespace cloudbus{
         marshaller::north_buffers::iterator marshaller::_unmarshal(const north_type::handle_type& stream){
             using stream_ptr = north_type::stream_ptr;
             const auto& nsp = std::get<stream_ptr>(stream);
-            auto it=north().begin(), end=north().end();
-            while(it != end){
+            auto begin = north().begin(), end = north().end();
+            auto it = begin, new_end = end;
+            while(it != new_end){
                 auto&[n, pbuf] = *it;
                 if(n.expired()) {
-                    *it = std::move(*--end);
+                    *it = std::move(*--new_end);
                 } else if (owner_equal(n, nsp)) {
-                    north().erase(end, north().end());
+                    north().erase(new_end, end);
                     if(auto& buf = *pbuf; buf.tellg()==buf.tellp()){
                         buf.seekg(0);
                         stream_copy(buf.seekp(0), *nsp);
@@ -66,10 +67,13 @@ namespace cloudbus{
                     return it;
                 } else ++it;
             }
-            north().erase(end, north().end());
+            north().erase(new_end, end);
             auto&[ptr, pbuf] = north().emplace_back(marshaller::make_north(nsp));
             stream_copy(*pbuf, *nsp);
-            if(north().size() < north().capacity()/8) {
+            static constexpr std::size_t THRESH = 32;
+            if( north().size() > THRESH &&
+                north().size() < north().capacity()/8
+            ){
                 north() = north_buffers(
                     std::make_move_iterator(north().begin()),
                     std::make_move_iterator(north().end())
@@ -80,22 +84,26 @@ namespace cloudbus{
         marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_type& stream){
             using stream_ptr = south_type::stream_ptr;
             const auto& ssp = std::get<stream_ptr>(stream);
-            auto it=south().begin(), end=south().end();
-            while(it != end) {
+            auto begin = south().begin(), end = south().end();
+            auto it = begin, new_end = end;
+            while(it != new_end) {
                 auto&[s, pbuf] = *it;
                 if(s.expired()) {
-                    *it = std::move(*--end);
+                    *it = std::move(*--new_end);
                 } else if(owner_equal(s, ssp)) {
-                    south().erase(end, south().end());
+                    south().erase(new_end, end);
                     if(xmsg_read(*pbuf, *ssp).bad())
                         return south().end();
                     return it;
                 } else ++it;
             }
-            south().erase(end, south().end());
+            south().erase(new_end, end);
             auto&[ptr, pbuf] = south().emplace_back(marshaller::make_south(ssp));
             xmsg_read(*pbuf, *ssp);
-            if(south().size() < south().capacity()/8) {
+            static constexpr std::size_t THRESH = 32;
+            if( south().size() > THRESH &&
+                south().size() < south().capacity()/8
+            ){
                 south() = south_buffers(
                     std::make_move_iterator(south().begin()),
                     std::make_move_iterator(south().end())

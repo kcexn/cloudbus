@@ -316,7 +316,10 @@ namespace cloudbus{
                         connection_type::HALF_OPEN
                 )
             );
-            if(connections().size() < connections().capacity()/8) {
+            static constexpr std::size_t THRESH = 32;
+            if( connections().size() > THRESH &&
+                connections().size() < connections().capacity()/8
+            ){
                 connections() = connections_type(
                     std::make_move_iterator(connections().begin()),
                     std::make_move_iterator(connections().end())

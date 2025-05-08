@@ -62,14 +62,11 @@ namespace cloudbus {
                 return lb;
             return end;
         }
-        static stream_metrics::metrics_vec::iterator insert_metric(
-            stream_metrics::metrics_vec& measurements,
-            stream_metrics::weak_ptr&& ptr,
-            const stream_metrics::time_point& t
+        static auto remove_and_find_insertion_point(
+            const stream_metrics::metrics_vec::iterator& begin,
+            const stream_metrics::metrics_vec::iterator& end,
+            const stream_metrics::weak_ptr& ptr
         ){
-            using metrics_vec = stream_metrics::metrics_vec;
-            /* Find the insert position, marking expired elements for deletion as we go. */
-            auto begin = measurements.begin(), end = measurements.end();
             auto put = begin, get = put;
             while(get != end) {
                 auto& wp = get->wp;
@@ -81,7 +78,15 @@ namespace cloudbus {
                     *put++ = std::move(*get++);
                 }
             }
-            /* Insert the new element at put position. */
+            return std::make_tuple(put, get);
+        }
+        static auto insert_at_pos(
+            stream_metrics::metrics_vec& measurements,
+            stream_metrics::metrics_vec::iterator put,
+            stream_metrics::metrics_vec::iterator get,
+            stream_metrics::weak_ptr&& ptr,
+            const stream_metrics::time_point& t
+        ){
             if(put != get) {
                 *put = {
                     std::move(ptr),
@@ -90,9 +95,9 @@ namespace cloudbus {
                     t,
                     t
                 };
-                get = --measurements.erase(++put, get);
+                return --measurements.erase(++put, get);
             } else {
-                get = measurements.insert(
+                return measurements.insert(
                     put,
                     {
                         std::move(ptr),
@@ -103,6 +108,18 @@ namespace cloudbus {
                     }
                 );
             }
+        }
+        static stream_metrics::metrics_vec::iterator insert_metric(
+            stream_metrics::metrics_vec& measurements,
+            stream_metrics::weak_ptr&& ptr,
+            const stream_metrics::time_point& t
+        ){
+            using metrics_vec = stream_metrics::metrics_vec;
+            /* Find the insert position, marking expired elements for deletion as we go. */
+            auto begin = measurements.begin(), end = measurements.end();
+            auto[put, get] = remove_and_find_insertion_point(begin, end, ptr);
+            /* Insert the new element at put position. */
+            get = insert_at_pos(measurements, put, get, std::move(ptr), t);
             /* Conditionally realloc measurements down to size. */
             const auto index = std::distance(begin, get);
             static constexpr std::size_t THRESH = 32;

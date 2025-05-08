@@ -16,8 +16,7 @@
 #include "metrics.hpp"
 namespace cloudbus {
     static constexpr std::size_t span = 3;
-    static constexpr stream_metrics::duration_type init_intercompletion{60*1000}, init_interarrival{0};
-    static constexpr stream_metrics::clock_type::time_point init_time{init_interarrival};    
+    static constexpr stream_metrics::duration_type init_intercompletion{0}, init_interarrival{0};
     namespace {
         template<class T>
         static bool owner_equal(const std::weak_ptr<T>& p1, const std::weak_ptr<T>& p2) {

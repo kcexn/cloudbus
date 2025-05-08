@@ -328,33 +328,42 @@ namespace cloudbus {
             return (void)nbd.erase(it);
         }
         static const interface_base::handle_type& select_stream(interface_base& sbd) {
+            using stream_ptr = interface_base::stream_ptr;
             static constexpr std::size_t ratio = 2;
             const auto& measurements = metrics::get().streams().get_all_measurements();
-            auto min = measurements.cbegin();
+            std::size_t loaded = 0;
+            auto mbegin = measurements.cbegin(), mend = measurements.cend();
+            auto min = mbegin;
             auto rr = sbd.streams().begin(), end=sbd.streams().end();
             for(auto it=rr; it != end; ++it) {
                 auto&[sp, fd] = *it;
-                auto itm = std::find_if(
-                        measurements.cbegin(), measurements.cend(),
-                    [&](const auto& metric) {
-                        return owner_equal(metric.wp, sp);
+                auto lb = std::lower_bound(
+                    mbegin,
+                    mend,
+                    sp,
+                    [](const auto& lhs, const stream_ptr& sp) {
+                        return lhs.wp.owner_before(sp);
                     }
                 );
-                if(itm == measurements.cend())
+                /* return the stream if there are no associated metrics. */
+                if(lb == mend || !owner_equal(lb->wp, sp))
                     return *it;
-                /* least-loaded up until rho=0.5. */
-                if(itm->intercompletion <= itm->interarrival/ratio)
-                    return *it;
-                /* If no nodes are loaded less than rho=0.5 use round-robin. */
-                if(itm->last_arrival < min->last_arrival) {
-                    min = itm;
+                /* count number of loaded nodes. */
+                if(lb->intercompletion > lb->interarrival/ratio)
+                    ++loaded;
+                /* round-robin */
+                if(lb->last_arrival < min->last_arrival) {
+                    min = lb;
                     rr = it;
                 }
             }
-            /* Try and scale out first before applying round-robin. */
-            auto max_streams = std::max(sbd.addresses().size(), 1UL);
-            if(sbd.streams().size() < max_streams)
-                return sbd.make();
+            const auto num_streams = sbd.streams().size();
+            if(loaded == num_streams) {
+                /* Try and scale out first before applying round-robin. */
+                const auto max_streams = std::max(sbd.addresses().size(), 1UL);
+                if(num_streams < max_streams)
+                    return sbd.make();
+            }
             return *rr;
         }
         std::streamsize connector::_north_connect(

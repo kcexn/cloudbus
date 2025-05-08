@@ -82,8 +82,8 @@ namespace cloudbus {
         }
         static auto insert_at_pos(
             stream_metrics::metrics_vec& measurements,
-            stream_metrics::metrics_vec::iterator put,
-            stream_metrics::metrics_vec::iterator get,
+            const stream_metrics::metrics_vec::iterator& put,
+            const stream_metrics::metrics_vec::iterator& get,
             stream_metrics::weak_ptr&& ptr,
             const stream_metrics::time_point& t
         ){
@@ -95,7 +95,7 @@ namespace cloudbus {
                     t,
                     t
                 };
-                return --measurements.erase(++put, get);
+                return --measurements.erase(put+1, get);
             } else {
                 return measurements.insert(
                     put,

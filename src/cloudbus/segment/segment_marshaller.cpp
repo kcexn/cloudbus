@@ -55,63 +55,93 @@ namespace cloudbus{
             using stream_ptr = north_type::stream_ptr;
             const auto& nsp = std::get<stream_ptr>(stream);
             auto begin = north().begin(), end = north().end();
-            auto it = begin, new_end = end;
-            while(it != new_end){
-                auto&[n, pbuf] = *it;
-                if(n.expired()) {
-                    *it = std::move(*--new_end);
-                } else if (owner_equal(n, nsp)) {
-                    north().erase(new_end, end);
-                    if(xmsg_read(*pbuf, *nsp).bad())
-                        return north().end();
-                    return it;
-                } else ++it;
-            }
-            north().erase(new_end, end);
-            auto&[ptr, pbuf] = north().emplace_back(marshaller::make_north(nsp));
-            xmsg_read(*pbuf, *nsp);
-            static constexpr std::size_t THRESH = 32;
-            if( north().size() > THRESH &&
-                north().size() < north().capacity()/8
-            ){
-                north() = north_buffers(
-                    std::make_move_iterator(north().begin()),
-                    std::make_move_iterator(north().end())
+            auto lb = std::lower_bound(
+                begin,
+                end,
+                nsp,
+                [](const auto& lhs, const stream_ptr& nsp) {
+                    return lhs.ptr.owner_before(nsp);
+                }
+            );
+            if(lb == end || !owner_equal(lb->ptr, nsp)) {
+                auto put = std::remove_if(
+                    begin,
+                    lb,
+                    [&](const auto& handle) {
+                        return handle.ptr.expired();
+                    }
                 );
+                if(put != lb) {
+                    *put = marshaller::make_north(nsp);
+                    lb = --north().erase(++put, lb);
+                } else {
+                    lb = north().insert(lb, marshaller::make_north(nsp));
+                }
+                begin = north().begin();
+                static constexpr std::size_t THRESH = 32;
+                const auto index = std::distance(begin, lb);
+                const auto size = north().size();
+                if( size > THRESH &&
+                    size < north().capacity()/8
+                ){
+                    north() = north_buffers(
+                        std::make_move_iterator(begin),
+                        std::make_move_iterator(north().end())
+                    );
+                    begin = north().begin();
+                }
+                lb = begin + index;
             }
-            return --north().end();
+            xmsg_read(*lb->pbuf, *nsp);
+            return lb;
         }
         marshaller::south_buffers::iterator marshaller::_marshal(const south_type::handle_type& stream){
             using stream_ptr = south_type::stream_ptr;
             const auto& ssp = std::get<stream_ptr>(stream);
             auto begin = south().begin(), end = south().end();
-            auto it = begin, new_end = end;
-            while(it != new_end){
-                auto&[s, pbuf] = *it;
-                if(s.expired()) {
-                    *it = std::move(*--new_end);
-                } else if(owner_equal(s, ssp)) {
-                    south().erase(new_end, end);
-                    if(auto& buf=*pbuf; buf.tellg()==buf.tellp()){
-                        buf.seekg(0);
-                        stream_copy(buf.seekp(0), *ssp);
+            auto lb = std::lower_bound(
+                begin,
+                end,
+                ssp,
+                [](const auto& lhs, const stream_ptr& ssp) {
+                    return lhs.ptr.owner_before(ssp);
+                }
+            );
+            if(lb == end || !owner_equal(lb->ptr, ssp)) {
+                auto put = std::remove_if(
+                    begin,
+                    lb,
+                    [&](const auto& handle) {
+                        return handle.ptr.expired();
                     }
-                    return it;
-                } else ++it;
-            }
-            south().erase(new_end, end);
-            auto&[ptr, pbuf] = south().emplace_back(marshaller::make_south(ssp));
-            stream_copy(*pbuf, *ssp);
-            static constexpr std::size_t THRESH = 32;
-            if( south().size() > THRESH &&
-                south().size() < south().capacity()/8
-            ){
-                south() = south_buffers(
-                    std::make_move_iterator(south().begin()),
-                    std::make_move_iterator(south().end())
                 );
+                if(put != lb) {
+                    *put = marshaller::make_south(ssp);
+                    lb = --south().erase(++put, lb);
+                } else {
+                    lb = south().insert(lb, marshaller::make_south(ssp));
+                }
+                begin = south().begin();
+                static constexpr std::size_t THRESH = 32;
+                const auto index = std::distance(begin, lb);
+                const auto size = south().size();
+                if( size > THRESH &&
+                    size < north().capacity()/8
+                ){
+                    south() = south_buffers(
+                        std::make_move_iterator(begin),
+                        std::make_move_iterator(south().end())
+                    );
+                    begin = south().begin();
+                }
+                lb = begin + index;
             }
-            return --south().end();
+            auto& buf = *lb->pbuf;
+            if(buf.tellg() == buf.tellp()) {
+                buf.seekg(0);
+                stream_copy(buf.seekp(0), *ssp);
+            }
+            return lb;
         }
     }
 }

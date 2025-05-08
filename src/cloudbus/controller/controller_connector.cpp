@@ -327,15 +327,26 @@ namespace cloudbus {
             );
             return (void)nbd.erase(it);
         }
+        static std::size_t rescale(const std::size_t& size) {
+            if(size == 3)
+                return 4;
+            const auto half = size/2;
+            return half <= SIZE_MAX/3 ?
+                std::max(3*half, 1UL) :
+                size;
+        }
         static const interface_base::handle_type& select_stream(interface_base& sbd) {
             using stream_ptr = interface_base::stream_ptr;
             static constexpr std::size_t ratio = 2;
+            const auto num_streams = sbd.streams().size();
+            if(!num_streams)
+                return sbd.make();
             const auto& measurements = metrics::get().streams().get_all_measurements();
             std::size_t loaded = 0;
             auto mbegin = measurements.cbegin(), mend = measurements.cend();
             auto min = mbegin;
-            auto rr = sbd.streams().begin(), end=sbd.streams().end();
-            for(auto it=rr; it != end; ++it) {
+            auto lru = sbd.streams().begin(), end=sbd.streams().end();
+            for(auto it=lru; it != end; ++it) {
                 auto&[sp, fd] = *it;
                 auto lb = std::lower_bound(
                     mbegin,
@@ -351,20 +362,25 @@ namespace cloudbus {
                 /* count number of loaded nodes. */
                 if(lb->intercompletion > lb->interarrival/ratio)
                     ++loaded;
-                /* round-robin */
+                /* least recently used */
                 if(lb->last_arrival < min->last_arrival) {
                     min = lb;
-                    rr = it;
+                    lru = it;
                 }
             }
-            const auto num_streams = sbd.streams().size();
-            if(loaded == num_streams) {
-                /* Try and scale out first before applying round-robin. */
-                const auto max_streams = std::max(sbd.addresses().size(), 1UL);
-                if(num_streams < max_streams)
+            if(loaded >= num_streams) {
+                /* Try and scale-out before applying LRU. It is         *
+                 * possible for multiple streams to be assigned the     *
+                 * same destination address if DNS TTL's have expired,  *
+                 * or if we have opened and closed streams enough for   *
+                 * DNS round-robin host selection to have wrapped       *
+                 * around on itself. rescale() adds extra streams so    *
+                 * that even with duplicates we will eventually load    *
+                 * balance across all possible backend hosts.           */
+                if(num_streams < rescale(sbd.addresses().size()))
                     return sbd.make();
             }
-            return *rr;
+            return *lru;
         }
         std::streamsize connector::_north_connect(
             north_type& interface,
@@ -462,7 +478,7 @@ namespace cloudbus {
                 );
             }
             return len;
-        }      
+        }
         void connector::_north_err_handler(north_type& interface, const north_type::handle_type& stream, event_mask& revents){
             auto begin = connections().begin(), end = connections().end();
             messages::msgheader abort = {

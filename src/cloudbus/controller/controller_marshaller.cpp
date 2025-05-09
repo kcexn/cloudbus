@@ -75,11 +75,11 @@ namespace cloudbus{
                     lb = north().insert(lb, marshaller::make_north(nsp));
                 }
                 begin = north().begin();
-                static constexpr std::size_t THRESH = 32;
+                static constexpr std::size_t THRESH = 256;
                 const auto index = std::distance(begin, lb);
-                const auto size = north().size();
-                if( size > THRESH &&
-                    size < north().capacity()/8
+                const auto capacity = north().capacity();
+                if( capacity > THRESH &&
+                    north().size() < capacity/8
                 ){
                     north() = north_buffers(
                         std::make_move_iterator(begin),
@@ -123,11 +123,11 @@ namespace cloudbus{
                     lb = south().insert(lb, marshaller::make_south(ssp));
                 }
                 begin = south().begin();
-                static constexpr std::size_t THRESH = 32;
+                static constexpr std::size_t THRESH = 256;
                 const auto index = std::distance(begin, lb);
-                const auto size = south().size();
-                if( size > THRESH &&
-                    size < north().capacity()/8
+                const auto capacity = south().capacity();
+                if( capacity > THRESH &&
+                    south().size() < capacity/8
                 ){
                     south() = south_buffers(
                         std::make_move_iterator(begin),

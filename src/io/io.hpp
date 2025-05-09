@@ -139,9 +139,10 @@ namespace io {
                 );
                 if(lb == end || std::get<native_handle_type>(*lb) != handle) {
                     _list.insert(lb, interest_type{handle, trigger});
-                    static constexpr std::size_t THRESH=32;
-                    if( _list.size() > THRESH &&
-                        _list.size() < _list.capacity()/8
+                    static constexpr std::size_t THRESH=256;
+                    const auto capacity = _list.capacity();
+                    if( capacity > THRESH &&
+                        _list.size() < capacity/8
                     ){
                         _list = interest_list(
                             std::make_move_iterator(begin),

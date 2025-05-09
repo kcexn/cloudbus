@@ -360,10 +360,10 @@ namespace cloudbus {
                     sockstate |= resolver_base::READABLE;
                 if(writable)
                     sockstate |= resolver_base::WRITABLE;
-                static constexpr std::size_t THRESH = 32;
-                const std::size_t size = hnds->size();
-                if( size > THRESH &&
-                    size < hnds->capacity()/8
+                static constexpr std::size_t THRESH = 256;
+                const std::size_t capacity = hnds->capacity();
+                if( capacity > THRESH &&
+                    hnds->size() < capacity/8
                 ){
                     *hnds = socket_handles(
                         std::make_move_iterator(hnds->begin()),

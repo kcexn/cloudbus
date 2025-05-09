@@ -121,10 +121,10 @@ namespace cloudbus {
             get = insert_at_pos(measurements, put, get, std::move(ptr), t);
             /* Conditionally realloc measurements down to size. */
             const auto index = std::distance(begin, get);
-            static constexpr std::size_t THRESH = 32;
-            const auto size = measurements.size();
-            if( size > THRESH &&
-                size < measurements.capacity()/8
+            static constexpr std::size_t THRESH = 256;
+            const auto capacity = measurements.capacity();
+            if( capacity > THRESH &&
+                measurements.size() < capacity/8
             ){
                 measurements = metrics_vec(
                     std::make_move_iterator(begin),

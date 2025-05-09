@@ -28,9 +28,10 @@ namespace io{
         );
         if(lb == end || lb->fd != handle) {
             events.insert(lb, event);
-            static constexpr std::size_t THRESH = 32;
-            if( events.size() > THRESH &&
-                events.size() < events.capacity()/8
+            static constexpr std::size_t THRESH = 256;
+            const auto capacity = events.capacity();
+            if( capacity > THRESH &&
+                events.size() < capacity/8
             ){
                 events = events_type(
                     std::make_move_iterator(begin),

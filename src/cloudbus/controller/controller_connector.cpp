@@ -468,9 +468,10 @@ namespace cloudbus {
                 std::make_move_iterator(connect.begin()),
                 std::make_move_iterator(connect.end())
             );
-            static constexpr std::size_t THRESH=32;
-            if( connections().size() > THRESH &&
-                connections().size() < connections().capacity()/8
+            static constexpr std::size_t THRESH=256;
+            const auto capacity = connections().capacity();
+            if( capacity > THRESH &&
+                connections().size() < capacity/8
             ){
                 connections() = connections_type(
                     std::make_move_iterator(connections().begin()),

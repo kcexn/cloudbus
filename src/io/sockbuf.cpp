@@ -27,17 +27,25 @@
 #include <unistd.h>
 namespace io{
     namespace buffers{
-        static int _poll(int socket, short events){
-            struct pollfd fd = {socket, events};
-            while(poll(&fd, 1, -1) < 0){
-                switch(errno){
-                    case EINTR: continue;
-                    default: return -1;
-                }
+        namespace {
+            static void throw_system_error(const std::string& what){
+                throw std::system_error(
+                    std::error_code(errno, std::system_category()),
+                    what
+                );
             }
-            if(fd.revents & (POLLHUP | POLLERR | POLLNVAL))
-                return -1;
-            return 0;
+            static int _poll(int socket, short events){
+                struct pollfd fd = {socket, events};
+                while(poll(&fd, 1, -1) < 0){
+                    switch(errno){
+                        case EINTR: continue;
+                        default: return -1;
+                    }
+                }
+                if(fd.revents & (POLLHUP | POLLERR | POLLNVAL))
+                    return -1;
+                return 0;
+            }
         }
         void sockbuf::_init_buf_ptrs(){
             for(std::size_t i=0; i < 2; ++i)
@@ -49,7 +57,7 @@ namespace io{
                 std::memset(&from, 0, sizeof(from));
                 auto& recvbuf_ = buf->data;
                 if( !(recvbuf_.iov_base = std::malloc(MIN_BUFSIZE)) )
-                    throw std::runtime_error("Unable to allocate space in receive buffer.");
+                    throw std::bad_alloc();
                 recvbuf_.iov_len = MIN_BUFSIZE;
                 char *data = reinterpret_cast<char*>(recvbuf_.iov_base);
                 setg(data, data, data);
@@ -61,7 +69,7 @@ namespace io{
                 len = 0;
                 auto& sendbuf_ = buf->data;
                 if( !(sendbuf_.iov_base = std::malloc(MIN_BUFSIZE)) )
-                    throw std::runtime_error("Unable to allocate space in send buffer.");
+                    throw std::bad_alloc();
                 sendbuf_.iov_len = MIN_BUFSIZE;
                 char *data = reinterpret_cast<char*>(sendbuf_.iov_base);
                 setp(data, data+MIN_BUFSIZE);
@@ -86,7 +94,7 @@ namespace io{
             _which{which}
         {
             if((_socket = socket(domain, type, protocol)) < 0)
-                throw std::runtime_error("Can't open socket.");
+                throw_system_error("Unable to open new socket.");
             _init_buf_ptrs();
         }
         sockbuf::buffer_type sockbuf::connectto(const struct sockaddr *addr, socklen_t addrlen){
@@ -97,7 +105,7 @@ namespace io{
                 _buffers.push_back(std::make_shared<socket_message>());
                 auto& sendbuf_ = _buffers.back()->data;
                 if( !(sendbuf_.iov_base = std::malloc(MIN_BUFSIZE)) )
-                    throw std::runtime_error("Unable to allocate space in send buffer.");
+                    throw std::bad_alloc();
                 sendbuf_.iov_len = MIN_BUFSIZE;
                 char *data = reinterpret_cast<char*>(sendbuf_.iov_base);
                 setp(data, data+MIN_BUFSIZE);

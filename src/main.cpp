@@ -17,6 +17,9 @@
 #include "options.hpp"
 #include <fstream>
 #include <cstdlib>
+#ifndef CONFDIR
+#define CONFDIR "."
+#endif
 static void throw_system_error(const std::string& what){
     throw std::system_error(
         std::error_code(errno, std::system_category()),
@@ -31,9 +34,6 @@ int main(int argc, char* argv[]) {
     if(cloudbus::options::parse(argc, argv)) {
         return 0;
     } else if( !(path = std::getenv("CONFIG_PATH")) ) {
-        #ifndef CONFDIR
-        #define CONFDIR "."
-        #endif
         #ifdef COMPILE_CONTROLLER
             path = CONFDIR "/controller.ini";
         #elif defined(COMPILE_SEGMENT)

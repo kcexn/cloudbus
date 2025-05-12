@@ -43,7 +43,7 @@ namespace cloudbus {
             }
             static int invalid(const std::string_view& component, const std::string_view& opt) {
                 auto begin = opt.begin(), end = opt.end();
-                while(*begin == '-')
+                while(begin != end && *begin == '-')
                     ++begin;
                 std::cout << component << ": invalid option -- " 
                     << std::string_view(&*begin, std::distance(begin, end)) << "\n"

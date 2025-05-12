@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.25)
 
 # Define the project name, version (optional), and language
 project(Cloudbus VERSION 0.4.0 LANGUAGES CXX)
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_RELEASE} -g -Og")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -Og")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -O3 -flto")
 
 find_path(CARES_INCLUDE_DIR_MANUAL NAMES ares.h

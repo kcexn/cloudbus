@@ -14,26 +14,53 @@
 *   If not, see <https://www.gnu.org/licenses/>.
 */
 #include "manager.hpp"
+#include "options.hpp"
 #include <fstream>
+#include <cstdlib>
+static void throw_system_error(const std::string& what){
+    throw std::system_error(
+        std::error_code(errno, std::system_category()),
+        what
+    );
+}
+static void throw_invalid_argument(const std::string& what){
+    throw std::invalid_argument(what);
+}
 int main(int argc, char* argv[]) {
-    #ifdef CONFDIR
-        std::string path = CONFDIR;
-    #else
-        std::string path = ".";
-    #endif
-    #ifdef COMPILE_CONTROLLER
-        path += "/controller.ini";
-    #elif defined(COMPILE_SEGMENT)
-        path += "/segment.ini";
-    #endif
+    const char *path = nullptr;
+    if(cloudbus::options::parse(argc, argv)) {
+        return 0;
+    } else if( !(path = std::getenv("CONFIG_PATH")) ) {
+        #ifdef CONFDIR
+            #ifdef COMPILE_CONTROLLER
+                path = CONFDIR "/controller.ini";
+            #elif defined(COMPILE_SEGMENT)
+                path = CONFDIR "/segment.ini";
+            #endif
+        #else
+            #ifdef COMPILE_CONTROLLER
+                path = "controller.ini";
+            #elif defined(COMPILE_SEGMENT)
+                path = "segment.ini";
+            #else
+                throw_invalid_argument("Invalid Cloudbus Component.");
+            #endif
+        #endif
+        if(setenv("CONFIG_PATH", path, 1))
+            throw_system_error("Unable to set CONFIG_PATH.");
+    }
     cloudbus::config::configuration config;
-    if(std::fstream f{path, f.in}; f.good())
+    if(std::fstream f{path, f.in}; f.good()) {
         f >> config;
-    else return -1;
+    } else {
+        throw_invalid_argument("Unable to open file: " + std::string(path));
+    }
     #ifdef COMPILE_CONTROLLER
         return cloudbus::basic_manager<cloudbus::controller_type>(config).run();
     #elif defined(COMPILE_SEGMENT)
         return cloudbus::basic_manager<cloudbus::segment_type>(config).run();
+    #else
+        throw_invalid_argument("Invalid Cloudbus Component.");
     #endif
     return 0;
 }

@@ -148,20 +148,16 @@ namespace cloudbus {
             }
             virtual int _handle_signal(int sig) override {
                 if(sig == SIGUSR1) {
-                    #ifdef CONFDIR
-                        std::string path{CONFDIR};
-                    #else
-                        std::string path{"."};
-                    #endif
-                    #ifdef COMPILE_CONTROLLER
-                        path += "/controller.ini";
-                    #elif defined(COMPILE_SEGMENT)
-                        path += "/segment.ini";
-                    #endif
-                    config::configuration conf;
-                    if(std::fstream f{path, f.in}; f.good()) {
-                        f >> conf;
-                        merge(conf);
+                    if(const auto *path = std::getenv("CONFIG_PATH")) {
+                        config::configuration conf;
+                        if(std::fstream f{path, f.in}; f.good()) {
+                            f >> conf;
+                            merge(conf);
+                        } else {
+                            throw std::invalid_argument("Unable to open file: " + std::string(path));
+                        }
+                    } else {
+                        throw std::invalid_argument("CONFIG_PATH not set.");
                     }
                     return 0;
                 }

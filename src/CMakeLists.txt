@@ -11,6 +11,7 @@ set(CBUTILS_SOURCES
     manager/manager.cpp
     dns/dns.cpp
     metrics/metrics.cpp
+    options/options.cpp
 )
 
 # Define the header files associated with the library
@@ -27,6 +28,7 @@ set(CBUTILS_HEADERS
     marshallers/marshallers.hpp
     messages/messages.hpp
     node/node.hpp
+    options/options.hpp
     # Top-level headers - ensure these paths are correct relative to CMAKE_CURRENT_SOURCE_DIR
     config.hpp
     connectors.hpp
@@ -43,6 +45,7 @@ set(CBUTILS_HEADERS
     dns.hpp
     metrics/metrics.hpp
     metrics.hpp
+    options.hpp
 )
 
 # Add the static library target

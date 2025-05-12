@@ -18,15 +18,23 @@
 #include <unistd.h>
 #include <sys/un.h>
 namespace cloudbus {
-    static int set_flags(interface_base::native_handle_type fd){
-        int flags = 0;
-        if(fcntl(fd, F_SETFD, FD_CLOEXEC))
-            throw std::runtime_error("Unable to set the cloexec flag.");
-        if((flags = fcntl(fd, F_GETFL)) == -1)
-            throw std::runtime_error("Unable to get file flags.");
-        if(fcntl(fd, F_SETFL, flags | O_NONBLOCK))
-            throw std::runtime_error("Unable to set the socket to nonblocking mode.");
-        return fd;
+    namespace {
+        static void throw_system_error(const std::string& what) {
+            throw std::system_error(
+                std::error_code(errno, std::system_category()),
+                what
+            );
+        }
+        static int set_flags(interface_base::native_handle_type fd){
+            int flags = 0;
+            if(fcntl(fd, F_SETFD, FD_CLOEXEC))
+                throw_system_error("Unable to set the cloexec flag.");
+            if((flags = fcntl(fd, F_GETFL)) == -1)
+                throw_system_error("Unable to get file flags.");
+            if(fcntl(fd, F_SETFL, flags | O_NONBLOCK))
+                throw_system_error("Unable to set the socket to nonblocking mode.");
+            return fd;
+        }
     }
     connector_base::connector_base(
         const config::section& section,
@@ -92,10 +100,16 @@ namespace cloudbus {
                     );
                 }
             }
-            if(bind(sockfd, addr, addrlen))
-                throw std::runtime_error("bind()");
+            if(bind(sockfd, addr, addrlen)) {
+                if(protocol == "UNIX")
+                {
+                    const auto *path = reinterpret_cast<const sockaddr_un*>(addr)->sun_path;
+                    throw_system_error("Unable to bind() to path: " + std::string(path));
+                }
+                else throw_system_error("bind()");
+            }
             if(listen(sockfd, 128))
-                throw std::runtime_error("listen()");
+                throw_system_error("listen()");
             return sockfd;
         }
         return -1;

@@ -78,7 +78,7 @@ Download the [latest release](https://github.com/kcexn/cloudbus/releases/latest)
 and extract it into a local directory.
 ```
 $ URL=https://github.com/kcexn/cloudbus/releases/download && \
-    LATEST=0.3.2 && \
+    LATEST=0.4.0 && \
     wget ${URL}/v${LATEST}/cloudbus-${LATEST}.tar.gz -O - | tar -zxvf - && \
     cd cloudbus-${LATEST}
 ```
@@ -222,7 +222,7 @@ resolution can be applied, or a layer 4 load-balancer should be used.
 [Cloudbus]
 
 [Simple Service]
-bind=unix:///var/run/simple_controller.sock
+bind=unix:///var/run/cloudbus/simple_controller.sock
 backend=tcp://192.168.1.2:8082
 ```
 **Segment configuration:**
@@ -231,7 +231,7 @@ backend=tcp://192.168.1.2:8082
 
 [Simple Service]
 bind=tcp://0.0.0.0:8082
-backend=unix:///var/run/simple_service.sock
+backend=unix:///var/run/cloudbus/simple_service.sock
 ```
 
 ### Uninstalling Cloudbus

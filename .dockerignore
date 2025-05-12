@@ -1,0 +1,5 @@
+# blacklist eveerything.
+*
+# whitelist configuration.
+!conf/
+!*.ini

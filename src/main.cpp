@@ -31,20 +31,15 @@ int main(int argc, char* argv[]) {
     if(cloudbus::options::parse(argc, argv)) {
         return 0;
     } else if( !(path = std::getenv("CONFIG_PATH")) ) {
-        #ifdef CONFDIR
-            #ifdef COMPILE_CONTROLLER
-                path = CONFDIR "/controller.ini";
-            #elif defined(COMPILE_SEGMENT)
-                path = CONFDIR "/segment.ini";
-            #endif
+        #ifndef CONFDIR
+        #define CONFDIR "."
+        #endif
+        #ifdef COMPILE_CONTROLLER
+            path = CONFDIR "/controller.ini";
+        #elif defined(COMPILE_SEGMENT)
+            path = CONFDIR "/segment.ini";
         #else
-            #ifdef COMPILE_CONTROLLER
-                path = "controller.ini";
-            #elif defined(COMPILE_SEGMENT)
-                path = "segment.ini";
-            #else
-                throw_invalid_argument("Invalid Cloudbus Component.");
-            #endif
+            throw_invalid_argument("Invalid Cloudbus Component.");
         #endif
         if(setenv("CONFIG_PATH", path, 1))
             throw_system_error("Unable to set CONFIG_PATH.");

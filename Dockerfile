@@ -90,4 +90,4 @@ WORKDIR /home/appuser
 USER appuser
 
 ENV COMPONENT=${component}
-ENTRYPOINT ["sh", "-c", "exec $COMPONENT"]
+ENTRYPOINT ["sh", "-c", "exec $COMPONENT \"$@\""]

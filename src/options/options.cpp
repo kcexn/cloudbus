@@ -54,7 +54,8 @@ namespace cloudbus {
         int parse(int argc, char *argv[]) {
             for(int i = 1; i < argc; ++i) {
                 if(!strcmp(argv[i], "-f") || !strcmp(argv[i], "--file")) {
-                    file(argv[++i]);
+                    if(++i < argc)
+                        file(argv[i]);
                 } else if(!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
                     return help(argv[0]);
                 } else {

@@ -111,9 +111,9 @@ namespace cloudbus {
             case Level::NOTICE:
                 return "NOTICE   ";
             case Level::INFORMATIONAL:
-                return "INFO    ";
+                return "INFO     ";
             case Level::DEBUG:
-                return "DEBUG   ";
+                return "DEBUG    ";
             default: {
                 std::stringstream ss("Level ");
                 ss << static_cast<int>(level);

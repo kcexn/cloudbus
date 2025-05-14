@@ -2,15 +2,13 @@
 ![tests](https://github.com/kcexn/cloudbus/actions/workflows/tests.yml/badge.svg)
 
 # Cloudbus: Session-layer Control for Network Services
-Cloudbus is a framework of distributed network proxies that aims to support 
-application developers and system administrators to transition from simple 
-client-server application architectures to distributed application clusters, for 
-instance, micro-service based architectures. Cloudbus achieves this by providing 
-useful IPC tools that make the complicated parts of networking, distributed 
-messaging, service exposure, and service discovery easy (or easier). Cloudbus 
-supports one-to-one client-server communication, as well as one-to-N client-servers 
-communication in both half and full-duplex modes of operation. Cloudbus implements 
-asynchronous DNS resolution through the use of the [c-ares](https://c-ares.org/) 
+Cloudbus is a framework of distributed network proxies that aims to provide 
+richer I/O controls for networked applications at the session-layer (OSI layer 5). 
+Cloudbus achieves this by providing useful IPC tools that make the complicated parts of 
+networking, distributed messaging, service exposure, and service discovery easy 
+(or easier). Cloudbus supports one-to-one client-server communication, as well as 
+one-to-N client-servers communication in both half and full-duplex modes of operation. 
+Cloudbus implements asynchronous DNS resolution through the use of the [c-ares](https://c-ares.org/) 
 library, and implements round-robin load-balancing for hostnames with multiple A 
 and/or AAAA records.
 

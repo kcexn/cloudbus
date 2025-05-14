@@ -19,7 +19,7 @@
 #include <sstream>
 #include <ctime>
 namespace cloudbus {
-    std::ostream* Logger::s_output_stream_ = &std::cout;
+    std::atomic<std::ostream*> Logger::s_output_stream_{&std::cout};
     namespace {
         template<class ToDuration, class Rep, class Period>
         static ToDuration duration_cast(
@@ -48,15 +48,16 @@ namespace cloudbus {
     void Logger::log(Level level, const std::string_view& message) {
         if(level <= getLevel()) {
             std::lock_guard<std::mutex> lk(log_mutex_);
-            *s_output_stream_ << "<" << static_cast<int>(level) << "> "
-                    << "<" << levelToString(level) << "> "
-                    << "<" << getCurrentTimestamp() << "> "
-                    << message << '\n';
+            *s_output_stream_.load(std::memory_order_relaxed) <<
+                "<" << static_cast<int>(level) << "> " <<
+                "<" << levelToString(level) << "> " <<
+                "<" << getCurrentTimestamp() << "> " <<
+                message << '\n';
         }
     }
     void Logger::flush() {
         std::lock_guard<std::mutex> lk(log_mutex_);
-        s_output_stream_->flush();
+        s_output_stream_.load(std::memory_order_relaxed)->flush();
     }
     void Logger::emergency(const std::string_view& message){
         log(Level::EMERGENCY, message);

@@ -27,10 +27,10 @@ namespace cloudbus {
     class Logger {
     public:
         static void setOutputStream(std::ostream& stream) {
-            s_output_stream_ = &stream;
+            s_output_stream_.store(&stream, std::memory_order_relaxed);
         }
         static void resetOutputStream() {
-            s_output_stream_ = &std::cout; // Default back to std::cout
+            s_output_stream_.store(&std::cout, std::memory_order_relaxed);
         }
 
         enum class Level {
@@ -74,11 +74,11 @@ namespace cloudbus {
         ~Logger() = default;
 
         std::string getCurrentTimestamp();
-        std::string levelToString(Level level);  
+        std::string levelToString(Level level);
 
         std::mutex log_mutex_;
         std::atomic<Level> level_;
-        static std::ostream *s_output_stream_;
+        static std::atomic<std::ostream*> s_output_stream_;
     };
 }
 #endif

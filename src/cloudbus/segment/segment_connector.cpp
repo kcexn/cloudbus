@@ -405,7 +405,7 @@ namespace cloudbus{
                     nsp->err() = ec;
                 Logger::getInstance().error(
                     "northbound socket stream error: " +
-                    std::error_code(nsp->err(), std::system_category()).message()
+                    std::system_category().message(nsp->err())
                 );
             }
             if(revents & (POLLERR | POLLNVAL))
@@ -540,7 +540,7 @@ namespace cloudbus{
                     ssp->err() = ec;
                 Logger::getInstance().error(
                     "southbound socket stream error: " +
-                    std::error_code(ssp->err(), std::system_category()).message()
+                    std::system_category().message(ssp->err())
                 );
             }
             if(revents & (POLLERR | POLLNVAL))

@@ -55,6 +55,7 @@ namespace cloudbus {
         }
     }
     void Logger::flush() {
+        std::lock_guard<std::mutex> lk(log_mutex_);
         s_output_stream_->flush();
     }
     void Logger::emergency(const std::string_view& message){

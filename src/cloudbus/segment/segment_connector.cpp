@@ -31,28 +31,6 @@ namespace cloudbus{
                     what
                 );
             }
-            static std::string getStrError(int ec){
-                std::vector<char> buf(256);
-                #if (defined(_POSIX_C_SOURCE) && \
-                        _POSIX_C_SOURCE >= 200112L && \
-                        !defined(_GNU_SOURCE))
-                    while(strerror_r(ec, buf.data(), buf.size())) {
-                        switch(errno) {
-                            case ERANGE:
-                                buf.resize(buf.size()*2);
-                                break;
-                            default:
-                                return std::string();
-                        }
-                    }
-                    return std::string(buf.data());
-                #else
-                    char *message = strerror_r(ec, buf.data(), buf.size());
-                    return message ?
-                        std::string(message) :
-                        std::string();
-                #endif
-            }
             static int set_flags(int fd){
                 int flags = 0;
                 if(fcntl(fd, F_SETFD, FD_CLOEXEC))
@@ -426,7 +404,8 @@ namespace cloudbus{
                 if(ec)
                     nsp->err() = ec;
                 Logger::getInstance().error(
-                    "northbound socket stream error: " + getStrError(nsp->err())
+                    "northbound socket stream error: " +
+                    std::error_code(nsp->err(), std::system_category()).message()
                 );
             }
             if(revents & (POLLERR | POLLNVAL))
@@ -560,7 +539,8 @@ namespace cloudbus{
                 if(ec)
                     ssp->err() = ec;
                 Logger::getInstance().error(
-                    "southbound socket stream error: " + getStrError(ssp->err())
+                    "southbound socket stream error: " +
+                    std::error_code(ssp->err(), std::system_category()).message()
                 );
             }
             if(revents & (POLLERR | POLLNVAL))

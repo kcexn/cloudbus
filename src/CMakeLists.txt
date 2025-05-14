@@ -12,6 +12,7 @@ set(CBUTILS_SOURCES
     dns/dns.cpp
     metrics/metrics.cpp
     options/options.cpp
+    logging/logging.cpp
 )
 
 # Define the header files associated with the library
@@ -46,6 +47,8 @@ set(CBUTILS_HEADERS
     metrics/metrics.hpp
     metrics.hpp
     options.hpp
+    logging/logging.hpp
+    logging.hpp
 )
 
 # Add the static library target

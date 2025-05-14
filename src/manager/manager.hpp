@@ -13,6 +13,7 @@
 *   You should have received a copy of the GNU General Public License along with Cloudbus.
 *   If not, see <https://www.gnu.org/licenses/>.
 */
+#include "../logging.hpp"
 #include "../node.hpp"
 #include "../config.hpp"
 #include <fstream>
@@ -71,17 +72,18 @@ namespace cloudbus {
                 Base(config), _services{}, mtime{}
             {
                 merge(config);
-                #ifdef CONFDIR
-                    std::string path{CONFDIR};
-                #else
-                    std::string path{"."};
-                #endif
+                if( const auto *path = std::getenv("CONFIG_PATH") ) {
+                    mtime = std::filesystem::last_write_time(path);
+                } else {
+                    throw std::invalid_argument("CONFIG_PATH is not set.");
+                }
                 #ifdef COMPILE_CONTROLLER
-                    path += "/controller.ini";
+                    Logger::getInstance().info("Started Cloudbus controller.");
                 #elif defined(COMPILE_SEGMENT)
-                    path += "/segment.ini";
+                    Logger::getInstance().info("Started Cloudbus segment.");
+                #else
+                    throw std::invalid_argument("Invalid Cloudbus component.");
                 #endif
-                mtime = std::filesystem::last_write_time(path);
             }
 
             services_type& services() { return _services; }
@@ -119,7 +121,13 @@ namespace cloudbus {
                 }
             }
 
-            virtual ~basic_manager() = default;
+            virtual ~basic_manager() {
+                #ifdef COMPILE_CONTROLLER
+                    Logger::getInstance().info("Stopped Cloudbus controller.");
+                #elif defined(COMPILE_SEGMENT)
+                    Logger::getInstance().info("Stopped Cloudbus segment.");
+                #endif
+            }
 
             basic_manager() = delete;
             basic_manager(const basic_manager& other) = delete;
@@ -129,20 +137,14 @@ namespace cloudbus {
 
         protected:
             virtual int _run() override {
-                #ifdef CONFDIR
-                    std::string path{CONFDIR};
-                #else
-                    std::string path{"."};
-                #endif
-                #ifdef COMPILE_CONTROLLER
-                    path += "/controller.ini";
-                #elif defined(COMPILE_SEGMENT)
-                    path += "/segment.ini";
-                #endif
-                auto mt = std::filesystem::last_write_time(path);
-                if(mt != mtime) {
-                    mtime = mt;
-                    std::raise(SIGUSR1);
+                if(const auto *path = std::getenv("CONFIG_PATH")) {
+                    auto mt = std::filesystem::last_write_time(path);
+                    if(mt != mtime) {
+                        mtime = mt;
+                        std::raise(SIGUSR1);
+                    }
+                } else {
+                    throw std::invalid_argument("CONFIG_PATH not set.");
                 }
                 return Base::_run();
             }

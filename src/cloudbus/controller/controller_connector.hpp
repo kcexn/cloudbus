@@ -24,10 +24,7 @@ namespace cloudbus {
         {
             public:
                 using Base = basic_connector<controller::marshaller, handler_type>;
-                connector(
-                    trigger_type& triggers,
-                    const config::section& section
-                ): Base(triggers, section){}
+                connector(trigger_type& triggers, const config::section& section);
                 ~connector() = default;
 
                 connector() = delete;

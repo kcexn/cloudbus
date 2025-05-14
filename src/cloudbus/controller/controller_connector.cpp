@@ -13,6 +13,7 @@
 *   You should have received a copy of the GNU General Public License along with Cloudbus.
 *   If not, see <https://www.gnu.org/licenses/>.
 */
+#include "../../logging.hpp"
 #include "../../metrics.hpp"
 #include "controller_connector.hpp"
 #include <tuple>
@@ -23,87 +24,107 @@
 namespace cloudbus {
     namespace controller {
         static constexpr std::streamsize MAX_BUFSIZE = 65536 * 4096; /* 256MiB */
-        static void throw_system_error(const std::string& what) {
-            throw std::system_error(
-                std::error_code(errno, std::system_category()),
-                what
-            );
-        }
-        static int set_flags(int fd){
-            int flags = 0;
-            if(fcntl(fd, F_SETFD, FD_CLOEXEC))
-                throw_system_error("Unable to set the cloexec flag.");
-            if((flags = fcntl(fd, F_GETFL)) == -1)
-                throw_system_error("Unable to get file flags.");
-            if(fcntl(fd, F_SETFL, flags | O_NONBLOCK))
-                throw_system_error("Unable to set the socket to nonblocking mode.");
-            return fd;
-        }
-        static int _accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen){
-            int fd = 0;
-            while( (fd = accept(sockfd, addr, addrlen)) < 0 ){
-                switch(errno){
-                    case EINTR:
-                        continue;
-                    default:
-                        return -errno;
+        namespace {
+            static void throw_system_error(const std::string& what) {
+                throw std::system_error(
+                    std::error_code(errno, std::system_category()),
+                    what
+                );
+            }
+            static std::string getStrError(int ec){
+                std::string what;
+                what.resize(256);
+                while(!strerror_r(ec, what.data(), what.size())) {
+                    switch(errno){
+                        case ERANGE:
+                            what.resize(what.size()*2);
+                            continue;
+                        default:
+                            break;
+                    }
                 }
+                return what;
             }
-            return set_flags(fd);
-        }
-        static void state_update(
-            connector::connection_type& conn,
-            const messages::msgtype& type,
-            const connector::connection_type::time_point time
-        ){
-            using connection_type = connector::connection_type;
-            auto prev = conn.state;
-            switch(conn.state){
-                case connection_type::HALF_OPEN:
-                    conn.timestamps->at(++conn.state) = time;
-                case connection_type::OPEN:
-                case connection_type::HALF_CLOSED:
-                    if(type.op != messages::STOP)
+            static int set_flags(int fd){
+                int flags = 0;
+                if(fcntl(fd, F_SETFD, FD_CLOEXEC))
+                    throw_system_error("Unable to set the cloexec flag.");
+                if((flags = fcntl(fd, F_GETFL)) == -1)
+                    throw_system_error("Unable to get file flags.");
+                if(fcntl(fd, F_SETFL, flags | O_NONBLOCK))
+                    throw_system_error("Unable to set the socket to nonblocking mode.");
+                return fd;
+            }
+            static int _accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen){
+                int fd = 0;
+                while( (fd = accept(sockfd, addr, addrlen)) < 0 ){
+                    switch(errno){
+                        case EINTR:
+                            continue;
+                        default:
+                            return -errno;
+                    }
+                }
+                return set_flags(fd);
+            }
+            static void state_update(
+                connector::connection_type& conn,
+                const messages::msgtype& type,
+                const connector::connection_type::time_point time
+            ){
+                using connection_type = connector::connection_type;
+                auto prev = conn.state;
+                switch(conn.state){
+                    case connection_type::HALF_OPEN:
+                        conn.timestamps->at(++conn.state) = time;
+                    case connection_type::OPEN:
+                    case connection_type::HALF_CLOSED:
+                        if(type.op != messages::STOP)
+                            break;
+                        conn.timestamps->at(++conn.state) = time;
+                        if(type.flags & messages::ABORT)
+                            conn.timestamps->at(conn.state=connection_type::CLOSED) = time;
+                    default:
                         break;
-                    conn.timestamps->at(++conn.state) = time;
-                    if(type.flags & messages::ABORT)
-                        conn.timestamps->at(conn.state=connection_type::CLOSED) = time;
-                default:
-                    break;
+                }
+                if(conn.state != prev && conn.state == connection_type::CLOSED)
+                    metrics::get().streams().add_completion(conn.south);
             }
-            if(conn.state != prev && conn.state == connection_type::CLOSED)
-                metrics::get().streams().add_completion(conn.south);
-        }
-        static std::ostream& stream_write(std::ostream& os, std::istream& is){
-            std::array<char, 256> buf;
-            while(auto gcount = is.readsome(buf.data(), buf.max_size()))
-                if(os.write(buf.data(), gcount).bad())
-                    return os;
-            return os;
-        }
-        static std::ostream& stream_write(std::ostream& os, std::istream& is, std::streamsize maxlen){
-            constexpr std::streamsize BUFSIZE = 256;
-            if(maxlen <= 0)
+            static std::ostream& stream_write(std::ostream& os, std::istream& is){
+                std::array<char, 256> buf;
+                while(auto gcount = is.readsome(buf.data(), buf.max_size()))
+                    if(os.write(buf.data(), gcount).bad())
+                        return os;
                 return os;
-            std::array<char, BUFSIZE> buf;
-            while( auto gcount = is.readsome(buf.data(), std::min(maxlen, BUFSIZE)) ){
-                if(os.write(buf.data(), gcount).bad())
-                    return os;
-                if( !(maxlen-=gcount) )
-                    return os;
             }
-            return os;
+            static std::ostream& stream_write(std::ostream& os, std::istream& is, std::streamsize maxlen){
+                constexpr std::streamsize BUFSIZE = 256;
+                if(maxlen <= 0)
+                    return os;
+                std::array<char, BUFSIZE> buf;
+                while( auto gcount = is.readsome(buf.data(), std::min(maxlen, BUFSIZE)) ){
+                    if(os.write(buf.data(), gcount).bad())
+                        return os;
+                    if( !(maxlen-=gcount) )
+                        return os;
+                }
+                return os;
+            }
+            static int clear_triggers(
+                int sockfd,
+                connector::trigger_type& triggers,
+                connector::event_mask& revents,
+                const connector::event_mask& mask
+            ){
+                revents &= ~mask;
+                triggers.clear(sockfd, mask);
+                return 0;
+            }
         }
-        static int clear_triggers(
-            int sockfd,
-            connector::trigger_type& triggers,
-            connector::event_mask& revents,
-            const connector::event_mask& mask
-        ){
-            revents &= ~mask;
-            triggers.clear(sockfd, mask);
-            return 0;
-        }
+        connector::connector(
+            trigger_type& triggers,
+            const config::section& section
+        ): Base(triggers, section) {}
         connector::size_type connector::_handle(events_type& events){
             size_type handled = 0;
             auto end = std::remove_if(
@@ -566,6 +587,9 @@ namespace cloudbus {
                     throw_system_error("Unable to get SO_ERROR.");
                 if(ec)
                     nsp->err() = ec;
+                Logger::getInstance().error(
+                    "northbound socket stream error: " + getStrError(nsp->err())
+                );
             }
             if(revents & (POLLERR | POLLNVAL))
                 nsp->setstate(nsp->badbit);
@@ -687,6 +711,9 @@ namespace cloudbus {
                     throw_system_error("Unable to get SO_ERROR.");
                 if(ec)
                     ssp->err() = ec;
+                Logger::getInstance().error(
+                    "southbound socket stream error: " + getStrError(ssp->err())
+                );
             }
             if(revents & (POLLERR | POLLNVAL))
                 ssp->setstate(ssp->badbit);

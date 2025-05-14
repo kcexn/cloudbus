@@ -13,6 +13,7 @@
 *   You should have received a copy of the GNU General Public License along with Cloudbus.
 *   If not, see <https://www.gnu.org/licenses/>.
 */
+#include "../logging.hpp"
 #include "../metrics.hpp"
 #include "manager.hpp"
 #include <thread>
@@ -149,6 +150,7 @@ namespace cloudbus {
             }
             ts = tr;
         } while( (rc = nanosleep(&ts, &tr)) );
+        Logger::getInstance().flush();
         return run();
     }
 }

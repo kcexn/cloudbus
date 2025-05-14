@@ -13,6 +13,7 @@
 *   You should have received a copy of the GNU General Public License along with Cloudbus.
 *   If not, see <https://www.gnu.org/licenses/>.
 */
+#include "logging.hpp"
 #include "manager.hpp"
 #include "options.hpp"
 #include <fstream>

@@ -13,7 +13,8 @@ COMMON_CPPSOURCES = config/config.cpp \
 	manager/manager.cpp \
 	dns/dns.cpp \
     metrics/metrics.cpp \
-    options/options.cpp
+    options/options.cpp \
+    logging/logging.cpp
 
 COMMON_CPPHEADERS = config/config.hpp \
 	connector/connectors.hpp \
@@ -41,6 +42,8 @@ COMMON_CPPHEADERS = config/config.hpp \
 	metrics/metrics.hpp \
 	metrics.hpp \
     options/options.hpp \
-    options.hpp
+    options.hpp \
+    logging/logging.hpp \
+    logging.hpp
     
 libcbutils_a_SOURCES = $(COMMON_CPPSOURCES) $(COMMON_CPPHEADERS)

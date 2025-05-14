@@ -32,18 +32,26 @@ namespace cloudbus{
                 );
             }
             static std::string getStrError(int ec){
-                std::string what;
-                what.resize(256);
-                while(!strerror_r(ec, what.data(), what.size())) {
-                    switch(errno){
-                        case ERANGE:
-                            what.resize(what.size()*2);
-                            continue;
-                        default:
-                            break;
+                std::vector<char> buf(256);
+                #if (defined(_POSIX_C_SOURCE) && \
+                        _POSIX_C_SOURCE >= 200112L && \
+                        !defined(_GNU_SOURCE))
+                    while(strerror_r(ec, buf.data(), buf.size())) {
+                        switch(errno) {
+                            case ERANGE:
+                                buf.resize(buf.size()*2);
+                                break;
+                            default:
+                                return std::string();
+                        }
                     }
-                }
-                return what;
+                    return std::string(buf.data());
+                #else
+                    char *message = strerror_r(ec, buf.data(), buf.size());
+                    return message ?
+                        std::string(message) :
+                        std::string();
+                #endif
             }
             static int set_flags(int fd){
                 int flags = 0;

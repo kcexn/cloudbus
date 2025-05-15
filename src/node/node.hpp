@@ -25,6 +25,7 @@ namespace cloudbus{
         public:
             using Base = handler_type;
             using duration_type = trigger_type::duration_type;
+            static constexpr inline duration_type default_timeout = duration_type{15000};
 
             node_base();
             node_base(const config::section& section);
@@ -72,7 +73,7 @@ namespace cloudbus{
 
         protected:
             virtual size_type _handle(events_type& events) override {
-                timeout() = duration_type(-1);
+                timeout() = default_timeout;
                 size_type handled = _connector.handle(events);
                 auto&[time, interval] = _connector.resolver().timeout();
                 if(interval.count() > -1){

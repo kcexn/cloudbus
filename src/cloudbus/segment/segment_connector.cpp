@@ -417,7 +417,7 @@ namespace cloudbus{
             }
             if(revents & (POLLERR | POLLNVAL))
                 nsp->setstate(nsp->badbit);
-            if(nsp->flush().bad())
+            if(nsp->flush().fail())
                 return -1;
             if(nsp->tellp() == 0)
                 triggers().clear(nfd, POLLOUT);
@@ -552,7 +552,7 @@ namespace cloudbus{
             }
             if(revents & (POLLERR | POLLNVAL))
                 ssp->setstate(ssp->badbit);
-            if(ssp->flush().bad())
+            if(ssp->flush().fail())
                 return -1;
             if(ssp->tellp() == 0)
                 triggers().clear(sfd, POLLOUT);

@@ -423,7 +423,8 @@ namespace cloudbus {
                 auto&[sptr, sockfd] = select_stream(sbd);
                 metrics::get().streams().add_arrival(sptr);
                 if(sockfd != sptr->BAD_SOCKET) {
-                    triggers().set(sockfd, POLLOUT);
+                    triggers().set(sockfd, POLLIN | POLLOUT);
+                    sptr->clear(sptr->rdstate() & ~sptr->failbit);
                 } else {
                     sbd.register_connect(
                         sptr,
@@ -590,7 +591,7 @@ namespace cloudbus {
             }
             if(revents & (POLLERR | POLLNVAL))
                 nsp->setstate(nsp->badbit);
-            if(nsp->flush().bad())
+            if(nsp->flush().fail())
                 return -1;
             if(nsp->tellp() == 0)
                 triggers().clear(nfd, POLLOUT);
@@ -687,17 +688,41 @@ namespace cloudbus {
             } else return -1;
         }
         int connector::_south_state_handler(const south_type::handle_type& stream){
-            using stream_ptr = south_type::stream_ptr;
-            std::size_t count = 0;
-            const auto& ssp = std::get<stream_ptr>(stream);
+            const auto&[ssp, sfd] = stream;
             for(const auto& conn: connections()) {
                 if(owner_equal(conn.south, ssp) &&
                     conn.state < connection_type::CLOSED
                 ){
-                    ++count;
+                    return 0;
                 }
             }
-            return !count ? -1 : 0;
+            using milliseconds = std::chrono::milliseconds;
+            using weak_ptr = std::weak_ptr<south_type::stream_type>;
+            triggers().clear(sfd);
+            timeouts().addEvent(
+                ssp,
+                clock_type::now()+milliseconds(30000),
+                [&, wp=weak_ptr(ssp)]() {
+                    if(!wp.expired()) {
+                        auto begin = connections().begin(), end = connections().end();
+                        auto it = std::find_if(
+                            begin,
+                            end,
+                            [&](const auto& conn) {
+                                return owner_equal(conn.south, wp) &&
+                                    conn.state < connection_type::CLOSED;
+                            }
+                        );
+                        if(it == end) {
+                            if(auto sp = wp.lock()) {
+                                sp->setstate(sp->failbit);
+                                triggers().set(sp->native_handle(), POLLOUT);
+                            }
+                        }
+                    }
+                }
+            );
+            return 0;
         }
         int connector::_south_pollout_handler(const south_type::handle_type& stream, event_mask& revents){
             const auto&[ssp, sfd] = stream;
@@ -715,7 +740,7 @@ namespace cloudbus {
             }
             if(revents & (POLLERR | POLLNVAL))
                 ssp->setstate(ssp->badbit);
-            if(ssp->flush().bad())
+            if(ssp->flush().fail())
                 return -1;
             if(ssp->tellp() == 0)
                 triggers().clear(sfd, POLLOUT);

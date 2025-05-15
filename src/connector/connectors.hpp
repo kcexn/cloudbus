@@ -13,8 +13,8 @@
 *   You should have received a copy of the GNU General Public License along with Cloudbus.
 *   If not, see <https://www.gnu.org/licenses/>.
 */
+#include "connector_timerqueue.hpp"
 #include "../config.hpp"
-#include "../interfaces.hpp"
 #include "../messages.hpp"
 #include "../dns.hpp"
 #pragma once
@@ -59,7 +59,7 @@ namespace cloudbus {
         using marshaller_type = MarshallerT;
         using north_type = typename marshaller_type::north_type;
         using south_type = typename marshaller_type::south_type;
-    };
+    };   
 
     class connector_base {
         public:
@@ -68,6 +68,7 @@ namespace cloudbus {
             using stream_ptr = std::weak_ptr<interface_base::stream_type>;
 
             using connection_type = connection<stream_ptr>;
+            using clock_type = connection_type::clock_type;
             using connections_type = std::vector<connection_type>;
 
             enum modes {HALF_DUPLEX, FULL_DUPLEX};
@@ -80,6 +81,7 @@ namespace cloudbus {
             interfaces& north() { return _north; }
             interfaces& south() { return _south; }
             connections_type& connections() { return _connections; }
+            TimerQueue& timeouts() { return _timeouts; }
             int& mode() { return _mode; }
             int& drain() { return _drain; }
 
@@ -94,6 +96,7 @@ namespace cloudbus {
         private:
             interfaces _north, _south;
             connections_type _connections;
+            TimerQueue _timeouts;
             int _mode, _drain;
     };
 
@@ -127,7 +130,9 @@ namespace cloudbus {
 
         protected:
             virtual size_type _handle(events_type& events) override {
-                return _resolver.handle(events);
+                auto handled = _resolver.handle(events);
+                Base::timeouts().processEvents();
+                return handled;
             }
 
         private:

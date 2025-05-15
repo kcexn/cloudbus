@@ -3,6 +3,7 @@ AM_CXXFLAGS = -O3
 noinst_LIBRARIES = libcbutils.a
 
 COMMON_CPPSOURCES = config/config.cpp \
+    connector/connector_timerqueue.cpp \
 	connector/connectors.cpp \
 	formats/xmsg.cpp \
 	interfaces/interfaces.cpp \
@@ -17,6 +18,7 @@ COMMON_CPPSOURCES = config/config.cpp \
     logging/logging.cpp
 
 COMMON_CPPHEADERS = config/config.hpp \
+    connector/connector_timerqueue.hpp \
 	connector/connectors.hpp \
 	formats/xmsg.hpp \
 	interfaces/interfaces.hpp \

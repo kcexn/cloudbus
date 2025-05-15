@@ -29,6 +29,12 @@ add_test(NAME TestMessages COMMAND test-messages)
 
 # Tests for logging
 set(TEST_LOGGING_SOURCES test-logging.cpp ${TEST_COMMON_HEADER})
-add_executable(test-logging ${TEST_MESSAGES_SOURCES})
+add_executable(test-logging ${TEST_LOGGING_SOURCES})
 target_link_libraries(test-logging PRIVATE cbutils)
 add_test(NAME TestLogging COMMAND test-logging)
+
+# Tests for connector
+set(TEST_CONNECTOR_SOURCES test-connector.cpp ${TEST_COMMON_HEADER})
+add_executable(test-connector ${TEST_CONNECTOR_SOURCES})
+target_link_libraries(test-connector PRIVATE cbutils)
+add_test(NAME TestConnector COMMAND test-connector)

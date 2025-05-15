@@ -6,7 +6,7 @@ then one more from the controller to the segment. Each additional network hop re
 Despite this, the penalty for using Cloudbus is minimal.
 
 ## Results:
-Latencies (ms): mean=25, median=29, p95=31, p99=32
+Latencies (ms): mean=16, median=16, p95=17, p99=21
 
 ## Benchmarking on Google Compute Engine with Gcloud CLI:
 ### Building the Test Infrastructure

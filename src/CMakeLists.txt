@@ -1,6 +1,7 @@
 # Define the source files for the library
 set(CBUTILS_SOURCES
     config/config.cpp
+    connector/connector_timerqueue.cpp
     connector/connectors.cpp
     formats/xmsg.cpp
     interfaces/interfaces.cpp
@@ -20,6 +21,7 @@ set(CBUTILS_SOURCES
 # While not strictly compiled into a static library, they define its interface and implementation details.
 set(CBUTILS_HEADERS
     config/config.hpp
+    connector/connector_timerqueue.hpp
     connector/connectors.hpp
     formats/xmsg.hpp
     interfaces/interfaces.hpp

@@ -41,6 +41,7 @@ namespace cloudbus {
         int mode
     ):
         _north{}, _south{}, _connections{},
+        _timeouts{},
         _mode{mode}, _drain{0}
     {
         short dir=0;

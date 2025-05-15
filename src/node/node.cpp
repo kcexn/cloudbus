@@ -19,11 +19,11 @@
 namespace cloudbus{
     node_base::node_base():
         Base(_triggers), _triggers{},
-        _timeout{-1}, _conf{}
+        _timeout{default_timeout}, _conf{}
     {}
     node_base::node_base(const config::section& section) :
         Base(_triggers), _triggers{},
-        _timeout{-1}, _conf{section}
+        _timeout{default_timeout}, _conf{section}
     {}
 
     volatile static std::sig_atomic_t sigterm=0, sighup=0, sigint=0;

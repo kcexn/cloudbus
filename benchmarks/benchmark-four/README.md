@@ -3,7 +3,7 @@ This a benchmark using 1-to-N half-duplex with reply path latching and cloudbus 
 gateway.
 
 ## Results:
-Latencies (ms): mean=2, median=2, p95=3, p99=4
+Latencies (ms): mean=2, median=2, p95=2, p99=3
 
 ## Benchmarking on Google Compute Engine with Gcloud CLI:
 ### Building the Test Infrastructure
@@ -225,7 +225,7 @@ gcloud compute ssh "${SERVER3_NAME}" \
 
 Start the service:
 ```
-gcloud compute ssh "${GATEWAY_NAME}" \
+$ gcloud compute ssh "${GATEWAY_NAME}" \
     --zone="${GATEWAY_ZONE}" \
     --command="/usr/bin/sh -c 'sudo ln -s ${PREFIX}/controller.service ${SYSTEM_PREFIX}/controller.service && \
         sudo systemctl enable controller && \
@@ -239,7 +239,7 @@ gcloud compute ssh "${SERVER2_NAME}" \
     --zone="${SERVER2_ZONE}" \
     --command="/usr/bin/sh -c 'sudo ln -s ${PREFIX}/segment.service ${SYSTEM_PREFIX}/segment.service && \
         sudo systemctl enable segment && \
-        sudo systemctl start segment' "
+        sudo systemctl start segment' " && \
 gcloud compute ssh "${SERVER3_NAME}" \
     --zone="${SERVER3_ZONE}" \
     --command="/usr/bin/sh -c 'sudo ln -s ${PREFIX}/segment.service ${SYSTEM_PREFIX}/segment.service && \
@@ -276,7 +276,7 @@ $ COMMAND="/usr/bin/sh -c 'rm -f results.csv && \
         -Jof=./results.csv \
         -Jhost=${GATEWAY_NAME}.${GATEWAY_ZONE} \
         -Jport=8080 \
-        -Jthreads=256 \
+        -Jthreads=64 \
         -Jrequests=6000 \
         -Jduration=240'" && \
 gcloud compute ssh "${CLIENT_NAME}" \

@@ -299,6 +299,9 @@ namespace cloudbus {
                                                     triggers().set(sp->native_handle(), POLLOUT);
                                                     state_update(c, abort.type, time);
                                                 }
+                                                Logger::getInstance().debug(
+                                                    __FILE__ " -- abort connection and latch."
+                                                );
                                             }
                                         }
                                     }

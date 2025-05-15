@@ -1,0 +1,10 @@
+[Unit]
+Description=Cloudbus Controller
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/controller
+Type=exec
+
+[Install]
+WantedBy = multi-user.target

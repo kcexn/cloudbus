@@ -1,0 +1,38 @@
+deactivate >/dev/null 2>&1
+deactivate() {
+    unset SERVER3_DISK
+    unset SERVER3_ZONE
+    unset SERVER3_NAME
+    unset SERVER2_DISK
+    unset SERVER2_ZONE
+    unset SERVER2_NAME
+    unset SERVER1_DISK
+    unset SERVER1_ZONE
+    unset SERVER1_NAME
+    unset GATEWAY_ZONE
+    unset GATEWAY_DISK
+    unset GATEWAY_NAME
+    unset CLIENT_ZONE
+    unset CLIENT_DISK
+    unset CLIENT_NAME
+    unset DISK_TYPE
+    unset MACHINE_TYPE
+    unset deactivate
+}
+export MACHINE_TYPE='e2-micro'
+DISK_TYPE='auto-delete=yes,boot=yes,image=projects/debian-cloud/global/images/debian-12-bookworm-v20250415,mode=rw,size=10,type=pd-balanced'
+export CLIENT_NAME='client'
+export CLIENT_DISK="${DISK_TYPE},device-name=${CLIENT_NAME}"
+export CLIENT_ZONE='australia-southeast2-a'
+export GATEWAY_NAME='gateway'
+export GATEWAY_DISK="${DISK_TYPE},device-name=${GATEWAY_NAME}"
+export GATEWAY_ZONE='australia-southeast2-a'
+export SERVER1_NAME='server1'
+export SERVER1_ZONE='australia-southeast2-a'
+export SERVER1_DISK="${DISK_TYPE},device-name=${SERVER1_NAME}"
+export SERVER2_NAME='server2'
+export SERVER2_ZONE='australia-southeast2-b'
+export SERVER2_DISK="${DISK_TYPE},device-name=${SERVER2_NAME}"
+export SERVER3_NAME='server3'
+export SERVER3_ZONE='australia-southeast2-c'
+export SERVER3_DISK="${DISK_TYPE},device-name=${SERVER3_NAME}"

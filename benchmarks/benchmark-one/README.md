@@ -9,7 +9,7 @@ like AWS EC2, private clouds (e.g., OpenStack), or traditional networks are not 
 supported.
 
 ## Results:
-Latencies (ms): mean=29, median=29, p95=30, p99=32
+Latencies (ms): mean=29, median=29, p95=30, p99=31
 
 ## Benchmarking on Google Compute Engine with Gcloud CLI:
 ### Building the Test Infrastructure
@@ -93,8 +93,7 @@ $ COMMAND="/usr/bin/sh -c 'rm -f results.csv && \
     jmeter -n -t Single\ Server\ Benchmark.jmx \
         -Jof=./results.csv \
         -Jhost=${SERVER_NAME}.${SERVER_ZONE} \
-        -Jport=80 \
-        -Jthreads=256 \
+        -Jthreads=64 \
         -Jrequests=6000 \
         -Jduration=240'" && \
 gcloud compute ssh "${CLIENT_NAME}" \

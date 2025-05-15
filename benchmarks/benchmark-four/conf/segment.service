@@ -1,0 +1,10 @@
+[Unit]
+Description=Cloudbus Segment
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/segment
+Type=exec
+
+[Install]
+WantedBy = multi-user.target

@@ -1,12 +1,8 @@
 deactivate >/dev/null 2>&1
 deactivate() {
-    unset SEGMENT_DISK \
-        SEGMENT_NAME \
-        SERVER_DISK \
+    unset SERVER_DISK \
         SERVER_ZONE \
         SERVER_NAME \
-        CONTROLLER_DISK \
-        CONTROLLER_NAME \
         CLIENT_DISK \
         CLIENT_ZONE \
         CLIENT_NAME \
@@ -19,10 +15,6 @@ DISK_TYPE='auto-delete=yes,boot=yes,image=projects/debian-cloud/global/images/de
 export CLIENT_NAME='test-client'
 export CLIENT_ZONE='australia-southeast1-c'
 export CLIENT_DISK="${DISK_TYPE},device-name=${CLIENT_NAME}"
-export CONTROLLER_NAME='test-controller'
-export CONTROLLER_DISK="${DISK_TYPE},device-name=${CONTROLLER_NAME}"
 export SERVER_NAME='test-server'
 export SERVER_ZONE='australia-southeast2-c'
 export SERVER_DISK="${DISK_TYPE},device-name=${SERVER_NAME}"
-export SEGMENT_NAME='test-segment'
-export SEGMENT_DISK="${DISK_TYPE},device-name=${SEGMENT_NAME}"

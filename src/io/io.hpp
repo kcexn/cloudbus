@@ -23,6 +23,24 @@
 #ifndef IO
 #define IO
 namespace io {
+    namespace {
+        template<class T>
+        static bool shrink_to_fit(std::vector<T>& vec){
+            static constexpr std::size_t THRESH = 256;
+            bool resized = false;
+            const std::size_t capacity = vec.capacity();
+            if( capacity > THRESH &&
+                vec.size() < capacity/8
+            ){
+                vec  = std::vector<T>(
+                    std::make_move_iterator(vec.begin()),
+                    std::make_move_iterator(vec.end())
+                );
+                resized = true;
+            }
+            return resized;
+        }
+    }
     struct poll_t {
         using native_handle_type = int;
         using event_type = struct pollfd;
@@ -132,23 +150,17 @@ namespace io {
 
             size_type set(native_handle_type handle, trigger_type trigger) {
                 auto begin = _list.begin(), end = _list.end();
-                auto lb = std::lower_bound(begin, end, interest_type{handle, trigger},
-                    [](const auto& lhs, const auto& rhs) {
-                        return std::get<native_handle_type>(lhs) < std::get<native_handle_type>(rhs);
+                auto lb = std::lower_bound(
+                    begin,
+                    end,
+                    handle,
+                    [](const auto& lhs, const native_handle_type& rhs) {
+                        return std::get<native_handle_type>(lhs) < rhs;
                     }
                 );
                 if(lb == end || std::get<native_handle_type>(*lb) != handle) {
                     _list.insert(lb, interest_type{handle, trigger});
-                    static constexpr std::size_t THRESH=256;
-                    const auto capacity = _list.capacity();
-                    if( capacity > THRESH &&
-                        _list.size() < capacity/8
-                    ){
-                        _list = interest_list(
-                            std::make_move_iterator(begin),
-                            std::make_move_iterator(end)
-                        );
-                    }
+                    shrink_to_fit(_list);
                     return _poller.add(handle, traits_type::mkevent(handle, trigger));
                 }
                 auto& trig = std::get<trigger_type>(*lb);
@@ -159,9 +171,12 @@ namespace io {
 
             size_type clear(native_handle_type handle, trigger_type trigger=UINT32_MAX) {
                 auto begin = _list.begin(), end = _list.end();
-                auto lb = std::lower_bound(begin, end, interest_type{handle, trigger},
-                    [](const auto& lhs, const auto& rhs) {
-                        return std::get<native_handle_type>(lhs) < std::get<native_handle_type>(rhs);
+                auto lb = std::lower_bound(
+                    begin,
+                    end,
+                    handle,
+                    [](const auto& lhs, const native_handle_type& rhs) {
+                        return std::get<native_handle_type>(lhs) < rhs;
                     }
                 );
                 if(lb == end || std::get<native_handle_type>(*lb) != handle)

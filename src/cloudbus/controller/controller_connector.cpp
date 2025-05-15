@@ -25,6 +25,22 @@ namespace cloudbus {
     namespace controller {
         static constexpr std::streamsize MAX_BUFSIZE = 65536 * 4096; /* 256MiB */
         namespace {
+            template<class T>
+            static bool shrink_to_fit(std::vector<T>& vec){
+                static constexpr std::size_t THRESH = 256;
+                bool resized = false;
+                const std::size_t capacity = vec.capacity();
+                if( capacity > THRESH &&
+                    vec.size() < capacity/8
+                ){
+                    vec  = std::vector<T>(
+                        std::make_move_iterator(vec.begin()),
+                        std::make_move_iterator(vec.end())
+                    );
+                    resized = true;
+                }
+                return resized;
+            }
             static void throw_system_error(const std::string& what) {
                 throw std::system_error(
                     std::error_code(errno, std::system_category()),
@@ -475,16 +491,7 @@ namespace cloudbus {
                 std::make_move_iterator(connect.begin()),
                 std::make_move_iterator(connect.end())
             );
-            static constexpr std::size_t THRESH=256;
-            const auto capacity = connections().capacity();
-            if( capacity > THRESH &&
-                connections().size() < capacity/8
-            ){
-                connections() = connections_type(
-                    std::make_move_iterator(connections().begin()),
-                    std::make_move_iterator(connections().end())
-                );
-            }
+            shrink_to_fit(connections());
             return len;
         }
         void connector::_north_err_handler(north_type& interface, const north_type::handle_type& stream, event_mask& revents){

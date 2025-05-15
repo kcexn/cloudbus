@@ -108,30 +108,36 @@ namespace cloudbus {
                 );
             }
         }
+        template<class T>
+        static bool shrink_to_fit(std::vector<T>& vec){
+            static constexpr std::size_t THRESH = 256;
+            bool resized = false;
+            const std::size_t capacity = vec.capacity();
+            if( capacity > THRESH &&
+                vec.size() < capacity/8
+            ){
+                vec  = std::vector<T>(
+                    std::make_move_iterator(vec.begin()),
+                    std::make_move_iterator(vec.end())
+                );
+                resized = true;
+            }
+            return resized;
+        }
         static stream_metrics::metrics_vec::iterator insert_metric(
             stream_metrics::metrics_vec& measurements,
             stream_metrics::weak_ptr&& ptr,
             const stream_metrics::time_point& t
         ){
-            using metrics_vec = stream_metrics::metrics_vec;
             /* Find the insert position, marking expired elements for deletion as we go. */
             auto begin = measurements.begin(), end = measurements.end();
             auto[put, get] = remove_and_find_insertion_point(begin, end, ptr);
             /* Insert the new element at put position. */
             get = insert_at_pos(measurements, put, get, std::move(ptr), t);
             /* Conditionally realloc measurements down to size. */
-            const auto index = std::distance(begin, get);
-            static constexpr std::size_t THRESH = 256;
-            const auto capacity = measurements.capacity();
-            if( capacity > THRESH &&
-                measurements.size() < capacity/8
-            ){
-                measurements = metrics_vec(
-                    std::make_move_iterator(begin),
-                    std::make_move_iterator(end)
-                );
+            const auto index = std::distance(begin=measurements.begin(), get);
+            if(shrink_to_fit(measurements))
                 begin = measurements.begin();
-            }
             return begin + index;
         }
     }

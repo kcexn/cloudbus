@@ -16,6 +16,24 @@
 #include "segment_marshaller.hpp"
 namespace cloudbus{
     namespace segment {
+        namespace {
+            template<class T>
+            static bool shrink_to_fit(std::vector<T>& vec){
+                static constexpr std::size_t THRESH = 256;
+                bool resized = false;
+                const std::size_t capacity = vec.capacity();
+                if( capacity > THRESH &&
+                    vec.size() < capacity/8
+                ){
+                    vec  = std::vector<T>(
+                        std::make_move_iterator(vec.begin()),
+                        std::make_move_iterator(vec.end())
+                    );
+                    resized = true;
+                }
+                return resized;
+            }
+        }
         static messages::xmsgstream& xmsg_read(messages::xmsgstream& buf, std::istream& is){
             constexpr std::streamsize HDRLEN = sizeof(messages::msgheader), BUFSIZE=256;
             std::array<char, BUFSIZE> _buf;
@@ -77,20 +95,9 @@ namespace cloudbus{
                 } else {
                     lb = north().insert(lb, marshaller::make_north(nsp));
                 }
-                begin = north().begin();
-                static constexpr std::size_t THRESH = 256;
-                const auto index = std::distance(begin, lb);
-                const auto capacity = north().capacity();
-                if( capacity > THRESH &&
-                    north().size() < capacity/8
-                ){
-                    north() = north_buffers(
-                        std::make_move_iterator(begin),
-                        std::make_move_iterator(north().end())
-                    );
-                    begin = north().begin();
-                }
-                lb = begin + index;
+                const auto index = std::distance(north().begin(), lb);
+                if(shrink_to_fit(north()))
+                    lb = north().begin() + index;
             }
             xmsg_read(*lb->pbuf, *nsp);
             return lb;
@@ -121,20 +128,9 @@ namespace cloudbus{
                 } else {
                     lb = south().insert(lb, marshaller::make_south(ssp));
                 }
-                begin = south().begin();
-                static constexpr std::size_t THRESH = 256;
-                const auto index = std::distance(begin, lb);
-                const auto capacity = south().capacity();
-                if( capacity > THRESH &&
-                    south().size() < capacity/8
-                ){
-                    south() = south_buffers(
-                        std::make_move_iterator(begin),
-                        std::make_move_iterator(south().end())
-                    );
-                    begin = south().begin();
-                }
-                lb = begin + index;
+                const auto index = std::distance(south().begin(), lb);
+                if(shrink_to_fit(south()))
+                    lb = south().begin() + index;
             }
             auto& buf = *lb->pbuf;
             if(buf.tellg() == buf.tellp()) {

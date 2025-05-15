@@ -28,16 +28,7 @@ namespace io{
         );
         if(lb == end || lb->fd != handle) {
             events.insert(lb, event);
-            static constexpr std::size_t THRESH = 256;
-            const auto capacity = events.capacity();
-            if( capacity > THRESH &&
-                events.size() < capacity/8
-            ){
-                events = events_type(
-                    std::make_move_iterator(begin),
-                    std::make_move_iterator(end)
-                );
-            }
+            shrink_to_fit(events);
             return events.size();
         }
         return npos;
@@ -49,7 +40,10 @@ namespace io{
         event_type event
     ){
         auto begin = events.begin(), end = events.end();
-        auto lb = std::lower_bound(begin, end, event,
+        auto lb = std::lower_bound(
+            begin,
+            end,
+            event,
             [](const auto& lhs, const auto& rhs) {
                 return lhs.fd < rhs.fd;
             }
@@ -62,9 +56,12 @@ namespace io{
 
     poller::size_type poller::_del(native_handle_type handle, events_type& events) {
         auto begin = events.begin(), end = events.end();
-        auto lb = std::lower_bound(begin, end, event_type{handle, 0, 0},
-            [](const auto& lhs, const auto& rhs) {
-                return lhs.fd < rhs.fd;
+        auto lb = std::lower_bound(
+            begin,
+            end,
+            handle,
+            [](const auto& lhs, const native_handle_type& rhs) {
+                return lhs.fd < rhs;
             }
         );
         if(lb == end || lb->fd != handle)

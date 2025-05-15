@@ -23,6 +23,24 @@ namespace cloudbus {
     namespace dns {
         using addrinfo_args = std::tuple<interface_base&, struct ares_addrinfo_hints*, interface_base::weight_type>;
         using ares_query_args = std::tuple<interface_base&, const ares_channel&, std::string, std::string>;
+        namespace {
+            template<class T>
+            static bool shrink_to_fit(std::vector<T>& vec){
+                static constexpr std::size_t THRESH = 256;
+                bool resized = false;
+                const std::size_t capacity = vec.capacity();
+                if( capacity > THRESH &&
+                    vec.size() < capacity/8
+                ){
+                    vec  = std::vector<T>(
+                        std::make_move_iterator(vec.begin()),
+                        std::make_move_iterator(vec.end())
+                    );
+                    resized = true;
+                }
+                return resized;
+            }
+        }
         static void resolve_ares_getaddrinfo (
             interface_base& iface,
             const ares_channel& channel,
@@ -351,8 +369,12 @@ namespace cloudbus {
                         return std::get<ares_socket_t>(lhs) < std::get<ares_socket_t>(rhs);
                     }
                 );
-                if(lb == end || std::get<ares_socket_t>(*lb) != socket_fd)
+                if(lb == end || std::get<ares_socket_t>(*lb) != socket_fd) {
                     lb = hnds->insert(lb, {socket_fd, 0});
+                    const auto index = std::distance(hnds->begin(), lb);
+                    if(shrink_to_fit(*hnds))
+                        lb = hnds->begin() + index;
+                }
                 auto&[sockfd, sockstate] = *lb;
                 sockfd = socket_fd;
                 sockstate = 0;
@@ -360,16 +382,6 @@ namespace cloudbus {
                     sockstate |= resolver_base::READABLE;
                 if(writable)
                     sockstate |= resolver_base::WRITABLE;
-                static constexpr std::size_t THRESH = 256;
-                const std::size_t capacity = hnds->capacity();
-                if( capacity > THRESH &&
-                    hnds->size() < capacity/8
-                ){
-                    *hnds = socket_handles(
-                        std::make_move_iterator(hnds->begin()),
-                        std::make_move_iterator(hnds->end())
-                    );
-                }
             }
             static void ares_addrinfo_cb(
                 void *arg,
